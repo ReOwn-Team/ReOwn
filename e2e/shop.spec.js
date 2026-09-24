@@ -12,6 +12,7 @@ test('tìm kiếm chịu gõ sai và không dấu', async ({ page }) => {
 });
 
 test('ảnh sản phẩm: thiếu file thì hiện hình minh hoạ', async ({ page }) => {
+  await page.route('**/img/products/**', (r) => r.fulfill({ status: 404 }));
   await openProduct(page, 'latitude 7490');
   await expect(page.locator('.pd-media .art .glyph')).toBeVisible();
 });
