@@ -19,8 +19,10 @@ r.get('/', ah(async (req, res) => {
     limit: z.coerce.number().int().min(1).max(100).default(60),
     offset: z.coerce.number().int().min(0).default(0),
   }), req.query);
-  const out = await listings.browse({ query }, q);
-  if (q.q && q.offset === 0) listings.logSearch({ query }, q.q).catch(() => {});
+  const [out] = await Promise.all([
+    listings.browse({ query }, q),
+    q.q && q.offset === 0 ? listings.logSearch({ query }, q.q).catch(() => {}) : null,
+  ]);
   res.json(out);
 }));
 

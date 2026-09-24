@@ -491,7 +491,6 @@ describe('Tìm kiếm không dấu & chịu gõ sai (server)', () => {
   });
   it('từ khoá được tìm nhiều hiện ở mục "Tìm nhiều" (ẩn danh)', async () => {
     for (let i = 0; i < 3; i++) await api().get('/api/listings?q=' + encodeURIComponent('nồi cơm')).expect(200);
-    await new Promise((r) => setTimeout(r, 50));
     const r = await api().get('/api/search/popular').expect(200);
     expect(r.body.terms).toContain('nồi cơm');
     const row = (await pool.query("SELECT * FROM search_log WHERE term='nồi cơm' LIMIT 1")).rows[0];
