@@ -28,10 +28,13 @@ export async function openProduct(page, query) {
 
 export async function adminGate(page) {
   await page.goto('#/quan-tri');
+  // Trang quản trị tải lười: đợi hẳn một trong hai màn (nhập mã 2 lớp hoặc bảng quản trị) rồi mới quyết định
   const totp = page.locator('#totp');
-  if (await totp.isVisible().catch(() => false)) {
+  const nav = page.locator('.adm-nav');
+  await expect(totp.or(nav)).toBeVisible();
+  if (await totp.isVisible()) {
     await totp.fill('123456');
     await page.getByRole('button', { name: 'Xác nhận' }).click();
   }
-  await expect(page.getByRole('button', { name: /Sản phẩm/ })).toBeVisible();
+  await expect(nav.getByRole('button', { name: /Sản phẩm/ })).toBeVisible();
 }
