@@ -1,0 +1,213 @@
+import { installmentSchedule } from '../../../shared/scoring/engine.js';
+import { config } from '../config.js';
+import { post, lockUser, requireBalance, wallet, acct } from './ledger.js';
+import { offerFor, sellerScore, rescore } from './scoring.js';
+import { audit } from '../lib/audit.js';
+import { orderEvents } from './notify.js';
+import { notFound, forbidden, conflict, unprocessable } from '../lib/errors.js';
+
+const titleOf = async (db, listingId) => (await db.query('SELECT title FROM listings WHERE id=$1', [listingId])).rows[0]?.title || 'đơn hàng';
+const DAY_MS = 86_400_000;
+const addDays = (d, n) => new Date(d.getTime() + n * DAY_MS);
+
+async function lockOrder(db, orderId) {
+  const o = (await db.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [orderId])).rows[0];
+  if (!o) throw notFound('Không tìm thấy đơn hàng');
+  return o;
+}
+
+function expect(o, statuses, action) {
+  if (!statuses.includes(o.status)) throw conflict(`Không thể ${action} khi đơn đang ở trạng thái "${o.status}"`);
+}
+
+export async function createOrder(db, { buyerId, listingId, method, term, idempotencyKey, ip, now = new Date() }) {
+  const existing = (await db.query('SELECT * FROM orders WHERE buyer_id=$1 AND idempotency_key=$2', [buyerId, idempotencyKey])).rows[0];
+  if (existing) {
+    if (existing.listing_id !== listingId) throw conflict('Idempotency-Key đã được dùng cho một đơn khác');
+    return { order: existing, replay: true };
+  }
+
+  const listing = (await db.query('SELECT * FROM listings WHERE id=$1 FOR UPDATE', [listingId])).rows[0];
+  if (!listing) throw notFound('Không tìm thấy tin đăng');
+  if (listing.status !== 'active') throw conflict('Món này không còn bán');
+  if (listing.seller_id === buyerId) throw forbidden('Không thể mua tin của chính mình');
+
+  await lockUser(db, buyerId);
+  const price = listing.price;
+
+  let plan = null;
+  if (method === 'full') {
+    await requireBalance(db, buyerId, price);
+  } else {
+    const { offer } = await offerFor(db, buyerId, price);
+    const opt = offer.options.find((o) => o.term === term);
+    if (!offer.eligible || !opt?.ok) {
+      throw unprocessable('Bạn chưa đủ điều kiện trả sau cho kỳ hạn này', { blockers: offer.blockers, reasons: opt?.why || [] });
+    }
+    plan = installmentSchedule(price, term, offer.downRate || 0);
+    if (plan.down) await requireBalance(db, buyerId, plan.down);
+  }
+
+  const order = (await db.query(
+    `INSERT INTO orders (listing_id, buyer_id, seller_id, price, method, term, status, idempotency_key, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,'paid',$7,$8) RETURNING *`,
+    [listing.id, buyerId, listing.seller_id, price, method, method === 'bnpl' ? term : null, idempotencyKey, now],
+  )).rows[0];
+  await db.query("UPDATE listings SET status='reserved', updated_at=now() WHERE id=$1", [listing.id]);
+
+  if (method === 'full') {
+    await post(db, { orderId: order.id, memo: 'Thanh toán đơn vào ví giữ hộ', entries: [wallet(buyerId, -price), acct('escrow', price)] });
+  } else {
+    const entries = [acct('lender', -plan.financed), acct('escrow', price)];
+    if (plan.down) entries.unshift(wallet(buyerId, -plan.down));
+    await post(db, { orderId: order.id, memo: plan.down ? 'Trả trước + đối tác giải ngân trả sau' : 'Đối tác giải ngân trả sau', entries });
+    const p = (await db.query(
+      'INSERT INTO bnpl_plans (order_id, user_id, principal, fee, total, term, down_payment) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+      [order.id, buyerId, plan.financed, plan.fee, plan.total, term, plan.down],
+    )).rows[0];
+    for (let i = 0; i < term; i++) {
+      await db.query('INSERT INTO installments (plan_id, n, due_at, amount) VALUES ($1,$2,$3,$4)',
+        [p.id, i + 1, addDays(now, 30 * (i + 1)), plan.amounts[i]]);
+    }
+  }
+  await audit(db, { actorId: buyerId, action: 'order.create', entity: 'order', entityId: order.id, meta: { method, term, price }, ip });
+  await orderEvents.created(db, order, listing.title);
+  return { order, replay: false };
+}
+
+async function refund(db, o, memo) {
+  if (o.method === 'full') {
+    await post(db, { orderId: o.id, memo, entries: [acct('escrow', -o.price), wallet(o.buyer_id, o.price)] });
+  } else {
+    const plan = (await db.query('SELECT id, principal, down_payment FROM bnpl_plans WHERE order_id=$1 FOR UPDATE', [o.id])).rows[0];
+    const entries = [acct('escrow', -o.price), acct('lender', plan.principal)];
+    if (plan.down_payment) entries.push(wallet(o.buyer_id, plan.down_payment));
+    await post(db, { orderId: o.id, memo: `${memo} — trả gốc cho đối tác${plan.down_payment ? ', hoàn tiền trả trước' : ''}`, entries });
+    const paid = (await db.query("SELECT COALESCE(SUM(amount),0)::int AS s FROM installments WHERE plan_id=$1 AND status='paid'", [plan.id])).rows[0].s;
+    if (paid > 0) {
+      await post(db, { orderId: o.id, memo: `${memo} — hoàn các kỳ đã trả`, entries: [acct('lender', -paid), wallet(o.buyer_id, paid)] });
+    }
+    await db.query("UPDATE installments SET status='cancelled' WHERE plan_id=$1 AND status='due'", [plan.id]);
+    await db.query("UPDATE bnpl_plans SET status='cancelled' WHERE id=$1", [plan.id]);
+  }
+  await db.query("UPDATE orders SET payout_status='refunded', closed_at=now() WHERE id=$1", [o.id]);
+}
+
+export async function shipOrder(db, { orderId, userId, ip, now = new Date() }) {
+  const o = await lockOrder(db, orderId);
+  if (o.seller_id !== userId) throw forbidden('Chỉ người bán mới xác nhận gửi hàng');
+  expect(o, ['paid'], 'xác nhận gửi hàng');
+  await db.query("UPDATE orders SET status='shipped', shipped_at=$2 WHERE id=$1", [o.id, now]);
+  await audit(db, { actorId: userId, action: 'order.ship', entity: 'order', entityId: o.id, ip });
+  await orderEvents.shipped(db, o, await titleOf(db, o.listing_id));
+  await rescore(db, [o.seller_id], 'order.ship');
+}
+
+export async function sellerCancel(db, { orderId, userId, ip }) {
+  const o = await lockOrder(db, orderId);
+  if (o.seller_id !== userId) throw forbidden();
+  expect(o, ['paid'], 'huỷ đơn');
+  await db.query("UPDATE orders SET status='cancelled_by_seller' WHERE id=$1", [o.id]);
+  await db.query("UPDATE listings SET status='active', updated_at=now() WHERE id=$1", [o.listing_id]);
+  await refund(db, o, 'Người bán huỷ đơn');
+  await audit(db, { actorId: userId, action: 'order.seller_cancel', entity: 'order', entityId: o.id, ip });
+  await orderEvents.sellerCancelled(db, o, await titleOf(db, o.listing_id));
+  await rescore(db, [o.seller_id, o.buyer_id], 'order.seller_cancel');
+}
+
+export async function refuseDelivery(db, { orderId, userId, ip }) {
+  const o = await lockOrder(db, orderId);
+  if (o.buyer_id !== userId) throw forbidden();
+  expect(o, ['shipped'], 'từ chối nhận hàng');
+  await db.query("UPDATE orders SET status='refused_by_buyer' WHERE id=$1", [o.id]);
+  await db.query("UPDATE listings SET status='active', updated_at=now() WHERE id=$1", [o.listing_id]);
+  await refund(db, o, 'Người mua từ chối nhận hàng');
+  await audit(db, { actorId: userId, action: 'order.refuse', entity: 'order', entityId: o.id, ip });
+  await orderEvents.refused(db, o, await titleOf(db, o.listing_id));
+  await rescore(db, [o.buyer_id], 'order.refuse');
+}
+
+export async function complete(db, o, now) {
+  const { result } = await sellerScore(db, o.seller_id);
+  const releaseAt = addDays(now, result.policy.escrowDays);
+  await db.query("UPDATE orders SET status='completed', completed_at=$2, release_at=$3 WHERE id=$1", [o.id, now, releaseAt]);
+  await db.query("UPDATE listings SET status='sold', updated_at=now() WHERE id=$1", [o.listing_id]);
+  await orderEvents.completed(db, o, await titleOf(db, o.listing_id), releaseAt);
+  return releaseAt;
+}
+
+export async function confirmReceived(db, { orderId, userId, ip, now = new Date() }) {
+  const o = await lockOrder(db, orderId);
+  if (o.buyer_id !== userId) throw forbidden('Chỉ người mua mới xác nhận đã nhận hàng');
+  expect(o, ['shipped'], 'xác nhận nhận hàng');
+  const releaseAt = await complete(db, o, now);
+  await audit(db, { actorId: userId, action: 'order.confirm', entity: 'order', entityId: o.id, meta: { releaseAt }, ip });
+  await releaseIfDue(db, o.id, now);
+  await rescore(db, [o.buyer_id, o.seller_id], 'order.complete');
+}
+
+export async function releaseIfDue(db, orderId, now = new Date()) {
+  const o = await lockOrder(db, orderId);
+  if (o.status !== 'completed' || o.payout_status !== 'held' || !o.release_at || o.release_at > now) return false;
+  const fee = Math.round(o.price * config.platformFeeRate);
+  await post(db, {
+    orderId: o.id, memo: 'Giải ngân cho người bán',
+    entries: [acct('escrow', -o.price), wallet(o.seller_id, o.price - fee), acct('platform_fee', fee)],
+  });
+  await db.query("UPDATE orders SET payout_status='released', closed_at=$2 WHERE id=$1", [o.id, now]);
+  await orderEvents.released(db, o, await titleOf(db, o.listing_id), o.price - fee);
+  return true;
+}
+
+export async function openDispute(db, { orderId, userId, reason, ip, now = new Date() }) {
+  const o = await lockOrder(db, orderId);
+  if (o.buyer_id !== userId) throw forbidden('Chỉ người mua mới mở tranh chấp');
+  const inWindow = o.status === 'shipped'
+    || (o.status === 'completed' && o.payout_status === 'held' && now - o.completed_at <= config.disputeWindowDays * DAY_MS);
+  if (!inWindow) throw conflict('Đã quá thời hạn mở tranh chấp hoặc tiền đã được giải ngân');
+  await db.query("UPDATE orders SET status='disputed' WHERE id=$1", [o.id]);
+  const d = (await db.query('INSERT INTO disputes (order_id, opened_by, reason) VALUES ($1,$2,$3) RETURNING *', [o.id, userId, reason])).rows[0];
+  await audit(db, { actorId: userId, action: 'dispute.open', entity: 'dispute', entityId: d.id, ip });
+  await orderEvents.disputeOpened(db, o, await titleOf(db, o.listing_id));
+  return d;
+}
+
+export async function resolveDispute(db, { disputeId, adminId, outcome, resolution, ip, now = new Date() }) {
+  const d = (await db.query('SELECT * FROM disputes WHERE id=$1 FOR UPDATE', [disputeId])).rows[0];
+  if (!d) throw notFound('Không tìm thấy tranh chấp');
+  if (d.status !== 'open') throw conflict('Tranh chấp đã được xử lý');
+  const o = await lockOrder(db, d.order_id);
+  if (outcome === 'buyer') {
+    await db.query("UPDATE orders SET status='refunded' WHERE id=$1", [o.id]);
+    await db.query("UPDATE listings SET status='hidden', updated_at=now() WHERE id=$1", [o.listing_id]);
+    await refund(db, o, 'Hoàn tiền sau tranh chấp');
+  } else {
+    await db.query("UPDATE orders SET status='completed', completed_at=COALESCE(completed_at,$2), release_at=$2 WHERE id=$1", [o.id, now]);
+    await db.query("UPDATE listings SET status='sold', updated_at=now() WHERE id=$1", [o.listing_id]);
+    await releaseIfDue(db, o.id, now);
+  }
+  await db.query('UPDATE disputes SET status=$2, resolution=$3, resolved_by=$4, resolved_at=$5 WHERE id=$1',
+    [d.id, outcome === 'buyer' ? 'resolved_buyer' : 'resolved_seller', resolution, adminId, now]);
+  await audit(db, { actorId: adminId, action: 'dispute.resolve', entity: 'dispute', entityId: d.id, meta: { outcome }, ip });
+  await orderEvents.disputeResolved(db, o, await titleOf(db, o.listing_id), outcome);
+  await rescore(db, [o.buyer_id, o.seller_id], 'dispute.resolve');
+}
+
+export async function review(db, { orderId, userId, stars, comment, ip }) {
+  const o = (await db.query('SELECT * FROM orders WHERE id=$1', [orderId])).rows[0];
+  if (!o) throw notFound('Không tìm thấy đơn hàng');
+  if (o.status !== 'completed') throw conflict('Chỉ đánh giá được sau khi giao dịch hoàn tất');
+  let direction, toUser;
+  if (userId === o.buyer_id) { direction = 'buyer_to_seller'; toUser = o.seller_id; }
+  else if (userId === o.seller_id) { direction = 'seller_to_buyer'; toUser = o.buyer_id; }
+  else throw forbidden();
+  const r = await db.query(
+    `INSERT INTO reviews (order_id, from_user, to_user, direction, stars, comment) VALUES ($1,$2,$3,$4,$5,$6)
+     ON CONFLICT (order_id, direction) DO NOTHING RETURNING *`,
+    [o.id, userId, toUser, direction, stars, comment || null]);
+  if (!r.rows[0]) throw conflict('Bạn đã đánh giá giao dịch này');
+  await audit(db, { actorId: userId, action: 'review.create', entity: 'review', entityId: r.rows[0].id, ip });
+  await orderEvents.reviewed(db, toUser, stars, direction === 'buyer_to_seller');
+  await rescore(db, [toUser], 'review');
+  return r.rows[0];
+}
