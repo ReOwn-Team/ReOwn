@@ -26,8 +26,8 @@ export default function ApiStore({ children }) {
   const [toast, setToast] = useToast();
   const loggedIn = useRef(false);
 
-  const reload = useCallback(async () => {
-    const listings = await client.api('/listings?limit=100');
+  const reload = useCallback(async (prefetched) => {
+    const listings = await (prefetched ?? client.api('/listings?limit=100'));
     const sellers = {}, sellerScores = {};
     listings.forEach((l) => { sellers[l.sellerId] = l.seller; sellerScores[l.sellerId] = l.sellerScore; });
     const next = { me: null, products: listings.map(toProduct), sellers, sellerScores, plans: [], orders: [], sellerOrders: [], myListings: [] };
@@ -55,11 +55,13 @@ export default function ApiStore({ children }) {
   useEffect(() => {
     (async () => {
       try {
-        const h = await client.api('/health');
+        const listings = client.api('/listings?limit=100');
+        listings.catch(() => {});
+        const [h, user] = await Promise.all([client.api('/health'), client.refreshSession()]);
         setDevTools(!!h.devTools);
         setDemo(!!h.demo);
-        loggedIn.current = !!(await client.refreshSession());
-        await reload();
+        loggedIn.current = !!user;
+        await reload(listings);
       } catch {
         setToast('Không kết nối được máy chủ ReOwn');
       } finally {

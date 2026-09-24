@@ -1,10 +1,13 @@
 import crypto from 'node:crypto';
+import pg from 'pg';
 import { pool } from './pool.js';
-import { migrate } from './migrate.js';
+import { migrate, pendingMigrations } from './migrate.js';
 import { seed } from './seed.js';
 import { config, setRuntimeSecrets, SECRET_NAMES } from '../config.js';
 
-const BOOT_LOCK = 42_4243;
+// Khoá boot giữ trên kết nối trực tiếp (không qua pgbouncer): ở chế độ transaction pooling, khoá phiên
+// có thể rơi vào kết nối khác và không bao giờ được nhả, làm mọi instance sau bị treo.
+const BOOT_LOCK = 42_4244;
 let current = {};
 
 /** Bản demo: khoá bí mật sinh ngẫu nhiên một lần, lưu trong CSDL để mọi instance serverless dùng chung. */
@@ -25,14 +28,30 @@ async function isEmpty(db) {
 }
 
 async function withBootLock(fn) {
-  const lock = await pool.connect();
+  const lock = config.databaseUrlDirect ? new pg.Client({ connectionString: config.databaseUrlDirect }) : await pool.connect();
+  if (config.databaseUrlDirect) await lock.connect();
   try {
+    await lock.query("SET lock_timeout = '30s'");
     await lock.query('SELECT pg_advisory_lock($1)', [BOOT_LOCK]);
     return await fn(lock);
   } finally {
     await lock.query('SELECT pg_advisory_unlock($1)', [BOOT_LOCK]).catch(() => {});
-    lock.release();
+    await lock.query('RESET lock_timeout').catch(() => {});
+    if (config.databaseUrlDirect) await lock.end().catch(() => {}); else lock.release();
   }
+}
+
+/** Đường nhanh cho instance mới: CSDL đã sẵn sàng thì chỉ đọc khoá, không cần giữ khoá boot. */
+async function alreadyReady() {
+  const ready = (await pool.query("SELECT to_regclass('public.app_secrets') IS NOT NULL AS s, to_regclass('public.schema_migrations') IS NOT NULL AS m")).rows[0];
+  if (!ready.m || (config.demoDeployment && !ready.s)) return false;
+  if ((await pendingMigrations()).length) return false;
+  if (!config.demoDeployment) return true;
+  const rows = (await pool.query('SELECT name, value FROM app_secrets WHERE name = ANY($1)', [SECRET_NAMES])).rows;
+  if (rows.length !== SECRET_NAMES.length || await isEmpty(pool)) return false;
+  current = Object.fromEntries(rows.map((r) => [r.name, r.value]));
+  setRuntimeSecrets(current);
+  return true;
 }
 
 async function reseed(lock) {
@@ -41,7 +60,8 @@ async function reseed(lock) {
 }
 
 /** Chạy một lần mỗi tiến trình trước request đầu tiên: migrate; bản demo thì nạp khoá và tạo dữ liệu mẫu nếu CSDL trống. */
-export function bootstrap() {
+export async function bootstrap() {
+  if (await alreadyReady()) return;
   return withBootLock(async (lock) => {
     if (config.demoDeployment) {
       await loadSecrets(lock);

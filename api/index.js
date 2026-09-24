@@ -8,6 +8,7 @@ const app = createApp();
 let ready = null;
 
 export default async function handler(req, res) {
+  if (req.url?.startsWith('/api/health')) return app(req, res);
   ready ||= bootstrap().catch((e) => { ready = null; throw e; });
   try {
     await ready;

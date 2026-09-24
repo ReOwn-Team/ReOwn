@@ -19,16 +19,20 @@ async function backfillSearchText() {
   for (const r of rows) await pool.query('UPDATE listings SET search_text=$2 WHERE id=$1', [r.id, searchText(r.title, r.description)]);
 }
 
+const migrationFiles = () => fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+
+export async function pendingMigrations() {
+  const done = new Set((await pool.query('SELECT name FROM schema_migrations')).rows.map((r) => r.name));
+  return migrationFiles().filter((f) => !done.has(f));
+}
+
 export async function migrate({ reset = false } = {}) {
   if (reset) {
     assertResetAllowed();
     await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
   }
   await pool.query('CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
-  const done = new Set((await pool.query('SELECT name FROM schema_migrations')).rows.map((r) => r.name));
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
-  for (const f of files) {
-    if (done.has(f)) continue;
+  for (const f of await pendingMigrations()) {
     const sql = fs.readFileSync(path.join(dir, f), 'utf8');
     const client = await pool.connect();
     try {

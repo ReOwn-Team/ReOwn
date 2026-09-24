@@ -50,6 +50,7 @@ export const config = {
   isTest,
   port: Number(process.env.PORT || 4000),
   databaseUrl: process.env.DATABASE_URL || process.env.POSTGRES_URL || (devTools && !demoDeployment ? 'postgresql://reown:reown@localhost:5432/reown' : missing('DATABASE_URL')),
+  databaseUrlDirect: process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING || null,
   clientOrigin: (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(','),
   get jwtSecret() { return jwtSecret(); },
   get otpSecret() { return otpSecret(); },

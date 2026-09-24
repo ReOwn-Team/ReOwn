@@ -26,6 +26,9 @@ async function raw(path, { method = 'GET', body, blob, headers = {} } = {}) {
       ...headers,
     },
     body: blob || (body !== undefined ? JSON.stringify(body) : undefined),
+    signal: AbortSignal.timeout(blob ? 90_000 : 30_000),
+  }).catch((e) => {
+    throw new ApiError(0, { error: { code: 'network', message: e.name === 'TimeoutError' ? 'Máy chủ phản hồi quá lâu, thử lại sau' : 'Không kết nối được máy chủ' } });
   });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
