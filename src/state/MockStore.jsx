@@ -31,6 +31,10 @@ export default function MockStore({ children }) {
     if (a.type === 'editListing' && a.photos) {
       a = { ...a, product: { ...a.product, images: await Promise.all(a.photos.map((p) => (p.blob ? blobToDataUrl(p.blob) : p.url))) } };
     }
+    if (a.type === 'openDispute') {
+      if (!a.photos?.length) { setToast('Cần ít nhất 1 ảnh chụp tình trạng hàng'); return false; }
+      a = { ...a, evidence: await Promise.all(a.photos.map((p) => blobToDataUrl(p.blob))) };
+    }
     if (a.type === 'placeOrder') {
       const need = a.method === 'full' ? a.product.price : installmentSchedule(a.product.price, a.method, a.downRate || 0).down;
       if (me.finance.savings < need) { setToast('Số dư ví không đủ'); return false; }
@@ -122,7 +126,7 @@ export default function MockStore({ children }) {
       created_at: o.dispute.openedAt || o.createdAt, resolved_at: o.dispute.resolvedAt || null, price: o.price,
       method: o.method === 'full' ? 'full' : 'bnpl', term: o.method === 'full' ? null : o.method, order_created_at: o.createdAt,
       buyer_name: o.buyerName || nameOf(o.buyerId), seller_name: nameOf(o.sellerId), title: o.title,
-      category: o.category || st().products.find((p) => p.id === o.productId)?.category, icon: o.icon, cover: st().products.find((p) => p.id === o.productId)?.cover, images: [],
+      category: o.category || st().products.find((p) => p.id === o.productId)?.category, icon: o.icon, cover: st().products.find((p) => p.id === o.productId)?.cover, images: [], evidence: o.dispute.evidence || [],
     });
     return {
       async mfa() { rawDispatch({ type: 'adminMfa' }); return true; },

@@ -42,8 +42,8 @@ r.post('/:id/cancel', act((db, a) => orders.sellerCancel(db, a)));
 r.post('/:id/refuse', act((db, a) => orders.refuseDelivery(db, a)));
 r.post('/:id/confirm', act((db, a) => orders.confirmReceived(db, a)));
 r.post('/:id/dispute', act((db, a) => {
-  const { reason } = parse(z.object({ reason: z.string().trim().min(10).max(1000) }), a.body);
-  return orders.openDispute(db, { ...a, reason });
+  const { reason, imageIds } = parse(z.object({ reason: z.string().trim().min(10).max(1000), imageIds: z.array(uuid).min(1, 'Cần ít nhất 1 ảnh chụp tình trạng hàng').max(3) }), a.body);
+  return orders.openDispute(db, { ...a, reason, imageIds });
 }));
 r.post('/:id/review', reviewLimiter, act((db, a) => {
   const { stars, comment } = parse(z.object({ stars: z.number().int().min(1).max(5), comment: z.string().trim().max(500).optional() }), a.body);

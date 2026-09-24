@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import sharp from 'sharp';
 import { fresh, login, logout, adminGate, openProduct } from './helpers.js';
 
 test.beforeEach(async ({ page }) => { await fresh(page); });
@@ -41,15 +42,49 @@ test('đặt hàng → người bán gửi → người mua nhận hàng', async
   await login(page, 'bao');
   await page.goto('#/kenh-nguoi-ban');
   const sale = page.locator('.ocard').filter({ hasText: 'Casio' }).first();
+  await expect(sale.locator('.ostatus')).toHaveText('Cần gửi hàng');
   await sale.getByRole('button', { name: 'Xác nhận đã gửi hàng' }).click();
-  await expect(sale.locator('.ostatus')).toHaveText('Đang giao');
+  await page.getByRole('tab', { name: /Đang giao/ }).click();
+  const shipping = page.locator('.ocard').filter({ hasText: 'Casio' }).first();
+  await expect(shipping.locator('.ostatus')).toHaveText('Đang giao');
+  await expect(shipping).toContainText('Đang chờ khách nhận hàng');
 
   await logout(page);
   await login(page, 'lan');
   await page.goto('#/tai-khoan?tab=don-mua');
   const mine = page.locator('.ocard').filter({ hasText: 'Casio' }).first();
+  await expect(mine.getByRole('button', { name: /Mô phỏng/ })).toHaveCount(0);
   await mine.getByRole('button', { name: 'Đã nhận hàng' }).click();
   await expect(mine.locator('.ostatus')).toHaveText('Hoàn tất');
+});
+
+test('khiếu nại hàng sai mô tả bắt buộc kèm ảnh', async ({ page }) => {
+  await login(page, 'huy');
+  await openProduct(page, 'quat dung senko');
+  await page.getByRole('radio', { name: /Trả thẳng/ }).click();
+  await page.locator('.buy-row .btn-buy').click();
+  await page.getByRole('button', { name: 'Đặt hàng' }).click();
+  await expect(page.locator('.ocard').filter({ hasText: 'Senko' }).first().locator('.ostatus')).toHaveText('Chờ người bán gửi');
+
+  await logout(page);
+  await login(page, 'bao');
+  await page.goto('#/kenh-nguoi-ban?don=can-gui');
+  await page.locator('.ocard').filter({ hasText: 'Senko' }).first().getByRole('button', { name: 'Xác nhận đã gửi hàng' }).click();
+  await expect(page.locator('.ocard').filter({ hasText: 'Senko' })).toHaveCount(0);
+
+  await logout(page);
+  await login(page, 'huy');
+  await page.goto('#/tai-khoan?tab=don-mua');
+  const order = page.locator('.ocard').filter({ hasText: 'Senko' }).first();
+  await order.getByRole('button', { name: 'Hàng không đúng mô tả' }).click();
+  await order.getByLabel(/Mô tả vấn đề/).fill('Quạt không quay, gãy một cánh khi mở hộp');
+  await order.getByRole('button', { name: 'Gửi khiếu nại' }).click();
+  await expect(order.getByRole('alert')).toContainText('ít nhất 1 ảnh');
+  const png = await sharp({ create: { width: 240, height: 240, channels: 3, background: '#c33' } }).png().toBuffer();
+  await order.locator('input[type=file]').setInputFiles({ name: 'loi.png', mimeType: 'image/png', buffer: png });
+  await expect(order.locator('.photo img')).toHaveCount(1);
+  await order.getByRole('button', { name: 'Gửi khiếu nại' }).click();
+  await expect(order.locator('.ostatus')).toHaveText('Đang khiếu nại');
 });
 
 test('chat: chặn đòi chuyển khoản ngoài ReOwn', async ({ page }) => {
@@ -66,6 +101,10 @@ test('admin gỡ tin ngay trên trang sản phẩm', async ({ page }) => {
   await adminGate(page);
   await openProduct(page, 'elitebook');
   await page.locator('.adm-box').getByRole('button', { name: 'Gỡ tin' }).click();
+  await page.getByLabel(/Lý do gỡ/).selectOption('Khác');
+  await page.getByRole('button', { name: 'Xác nhận gỡ' }).click();
+  await expect(page.locator('.hide-form [role=alert]')).toContainText('Nhập lý do');
+  await page.getByLabel('Lý do khác').fill('Đăng trùng nhiều lần cùng một sản phẩm');
   await page.getByRole('button', { name: 'Xác nhận gỡ' }).click();
   await expect(page).toHaveURL(/quan-tri/);
   await page.goto('#/tim-kiem?q=elitebook');

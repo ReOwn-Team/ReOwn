@@ -4,6 +4,7 @@ import { post, lockUser, requireBalance, wallet, acct } from './ledger.js';
 import { offerFor, sellerScore, rescore } from './scoring.js';
 import { audit } from '../lib/audit.js';
 import { orderEvents } from './notify.js';
+import { attachEvidence } from './images.js';
 import { notFound, forbidden, conflict, unprocessable } from '../lib/errors.js';
 
 const titleOf = async (db, listingId) => (await db.query('SELECT title FROM listings WHERE id=$1', [listingId])).rows[0]?.title || 'đơn hàng';
@@ -159,7 +160,7 @@ export async function releaseIfDue(db, orderId, now = new Date()) {
   return true;
 }
 
-export async function openDispute(db, { orderId, userId, reason, ip, now = new Date() }) {
+export async function openDispute(db, { orderId, userId, reason, imageIds = [], ip, now = new Date() }) {
   const o = await lockOrder(db, orderId);
   if (o.buyer_id !== userId) throw forbidden('Chỉ người mua mới mở tranh chấp');
   const inWindow = o.status === 'shipped'
@@ -167,6 +168,7 @@ export async function openDispute(db, { orderId, userId, reason, ip, now = new D
   if (!inWindow) throw conflict('Đã quá thời hạn mở tranh chấp hoặc tiền đã được giải ngân');
   await db.query("UPDATE orders SET status='disputed' WHERE id=$1", [o.id]);
   const d = (await db.query('INSERT INTO disputes (order_id, opened_by, reason) VALUES ($1,$2,$3) RETURNING *', [o.id, userId, reason])).rows[0];
+  if (imageIds.length) await attachEvidence(db, { disputeId: d.id, ownerId: userId, ids: imageIds });
   await audit(db, { actorId: userId, action: 'dispute.open', entity: 'dispute', entityId: d.id, ip });
   await orderEvents.disputeOpened(db, o, await titleOf(db, o.listing_id));
   return d;

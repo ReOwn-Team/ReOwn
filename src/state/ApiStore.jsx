@@ -71,8 +71,14 @@ export default function ApiStore({ children }) {
   }, [reload, setToast]);
 
   const [inbox, setInbox] = useState({ notifications: 0, chats: 0 });
-  const refreshInbox = useCallback(() => (loggedIn.current ? client.api('/me/inbox').then(setInbox, () => {}) : Promise.resolve()), []);
+  const seenNotes = useRef(null);
+  const refreshInbox = useCallback(() => (loggedIn.current ? client.api('/me/inbox').then((next) => {
+    setInbox(next);
+    if (seenNotes.current != null && next.notifications > seenNotes.current) reload().catch(() => {});
+    seenNotes.current = next.notifications;
+  }, () => {}) : Promise.resolve()), [reload]);
   useEffect(() => {
+    seenNotes.current = null;
     refreshInbox();
     const t = setInterval(refreshInbox, 20_000);
     const onFocus = () => refreshInbox();
@@ -135,7 +141,12 @@ export default function ApiStore({ children }) {
           if (a.stars) await client.api(`/orders/${a.orderId}/review`, { method: 'POST', body: { stars: a.stars } });
           break;
         case 'bomOrder': await client.api(`/orders/${a.orderId}/refuse`, { method: 'POST' }); break;
-        case 'openDispute': await client.api(`/orders/${a.orderId}/dispute`, { method: 'POST', body: { reason: a.reason } }); break;
+        case 'openDispute': {
+          const imageIds = [];
+          for (const p of a.photos || []) imageIds.push((await client.uploadImage(p.blob)).id);
+          await client.api(`/orders/${a.orderId}/dispute`, { method: 'POST', body: { reason: a.reason, imageIds } });
+          break;
+        }
         case 'review': await client.api(`/orders/${a.orderId}/review`, { method: 'POST', body: { stars: a.stars } }); break;
         case 'payInstallment': {
           const i = findInstallment(a.planId, a.n);

@@ -39,7 +39,7 @@ const imageUrl = (id) => `/api/images/${id}`;
 export async function saveUpload(db, ownerId, buf) {
   await lockUser(db, ownerId);
   const pending = (await db.query(
-    'SELECT COUNT(*)::int AS c FROM listing_images WHERE owner_id=$1 AND listing_id IS NULL', [ownerId])).rows[0].c;
+    'SELECT COUNT(*)::int AS c FROM listing_images WHERE owner_id=$1 AND listing_id IS NULL AND dispute_id IS NULL', [ownerId])).rows[0].c;
   if (pending >= MAX_PENDING_PER_USER) throw unprocessable('Bạn có quá nhiều ảnh chưa dùng — hãy đăng tin hoặc đợi ảnh cũ tự xoá sau 1 ngày');
   const img = await processImage(buf);
   const row = (await db.query(
@@ -55,7 +55,7 @@ export async function attachImages(db, { listingId, ownerId, ids = [] }) {
   if (unique.length > MAX_IMAGES_PER_LISTING) throw unprocessable(`Mỗi tin tối đa ${MAX_IMAGES_PER_LISTING} ảnh`);
   if (!unique.length) return [];
   const own = (await db.query(
-    'SELECT id FROM listing_images WHERE id = ANY($1::uuid[]) AND owner_id=$2 AND listing_id IS NULL FOR UPDATE',
+    'SELECT id FROM listing_images WHERE id = ANY($1::uuid[]) AND owner_id=$2 AND listing_id IS NULL AND dispute_id IS NULL FOR UPDATE',
     [unique, ownerId])).rows;
   if (own.length !== unique.length) throw unprocessable('Ảnh không hợp lệ hoặc đã được dùng cho tin khác');
   for (let i = 0; i < unique.length; i++) {
@@ -70,7 +70,7 @@ export async function setListingImages(db, { listingId, ownerId, ids }) {
   if (unique.length > MAX_IMAGES_PER_LISTING) throw unprocessable(`Mỗi tin tối đa ${MAX_IMAGES_PER_LISTING} ảnh`);
   const ok = (await db.query(
     `SELECT id FROM listing_images WHERE id = ANY($1::uuid[]) AND owner_id=$2
-        AND (listing_id=$3 OR listing_id IS NULL) FOR UPDATE`, [unique, ownerId, listingId])).rows;
+        AND (listing_id=$3 OR (listing_id IS NULL AND dispute_id IS NULL)) FOR UPDATE`, [unique, ownerId, listingId])).rows;
   if (ok.length !== unique.length) throw unprocessable('Ảnh không hợp lệ hoặc đã được dùng cho tin khác');
   await db.query('DELETE FROM listing_images WHERE listing_id=$1 AND NOT (id = ANY($2::uuid[]))', [listingId, unique]);
   await db.query('UPDATE listing_images SET listing_id=NULL, position=NULL WHERE listing_id=$1', [listingId]);
@@ -91,8 +91,31 @@ export async function imagesFor(db, listingIds) {
 
 export async function readImage(db, id) {
   const r = (await db.query(
-    `SELECT i.bytes, i.sha256 FROM listing_images i JOIN listings l ON l.id = i.listing_id
-      WHERE i.id=$1 AND l.status <> 'hidden'`, [id])).rows[0];
+    `SELECT i.bytes, i.sha256 FROM listing_images i LEFT JOIN listings l ON l.id = i.listing_id
+      WHERE i.id=$1 AND (l.status <> 'hidden' OR i.dispute_id IS NOT NULL)`, [id])).rows[0];
   if (!r) throw notFound('Không tìm thấy ảnh');
   return r;
+}
+
+export const MAX_EVIDENCE = 3;
+
+/** Ảnh bằng chứng khi khiếu nại: người mua tải lên trước (như ảnh tin đăng) rồi gắn vào tranh chấp. */
+export async function attachEvidence(db, { disputeId, ownerId, ids = [] }) {
+  const unique = [...new Set(ids)];
+  if (!unique.length) throw unprocessable('Cần ít nhất 1 ảnh chụp tình trạng hàng khi khiếu nại');
+  if (unique.length > MAX_EVIDENCE) throw unprocessable(`Tối đa ${MAX_EVIDENCE} ảnh bằng chứng`);
+  const r = await db.query(
+    `UPDATE listing_images SET dispute_id=$2 WHERE id = ANY($1::uuid[]) AND owner_id=$3
+        AND listing_id IS NULL AND dispute_id IS NULL`, [unique, disputeId, ownerId]);
+  if (r.rowCount !== unique.length) throw unprocessable('Ảnh bằng chứng không hợp lệ hoặc đã được dùng');
+  return unique.map(imageUrl);
+}
+
+export async function evidenceFor(db, disputeIds) {
+  if (!disputeIds.length) return {};
+  const rows = (await db.query(
+    'SELECT id, dispute_id FROM listing_images WHERE dispute_id = ANY($1::uuid[]) ORDER BY created_at', [disputeIds])).rows;
+  const out = {};
+  for (const r of rows) (out[r.dispute_id] ||= []).push(imageUrl(r.id));
+  return out;
 }

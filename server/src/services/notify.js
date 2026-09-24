@@ -19,13 +19,13 @@ const vnDate = (d) => new Date(d).toLocaleDateString('vi-VN');
 
 export const orderEvents = {
   async created(db, o, title) {
-    await notify(db, o.seller_id, { kind: 'order.new', title: `Có đơn mới: ${short(title)}`, body: `Gửi hàng trong ${config.shipSlaDays} ngày để giữ điểm giao đúng hẹn.`, link: ORDER_LINK_SELLER, sms: true });
+    await notify(db, o.seller_id, { kind: 'order.new', title: `Có đơn mới: ${short(title)}`, body: `Gửi hàng trong ${config.shipSlaDays} ngày để giữ điểm giao đúng hẹn.`, link: ORDER_LINK_SELLER + '?don=can-gui', sms: true });
   },
   async shipped(db, o, title) {
     await notify(db, o.buyer_id, { kind: 'order.shipped', title: `Người bán đã gửi: ${short(title)}`, body: 'Kiểm tra hàng khi nhận rồi bấm "Đã nhận hàng". Sai mô tả thì khiếu nại trong 3 ngày.', link: ORDER_LINK_BUYER });
   },
   async completed(db, o, title, releaseAt) {
-    await notify(db, o.seller_id, { kind: 'order.completed', title: `Người mua đã nhận: ${short(title)}`, body: `Tiền về ví ${new Date(releaseAt) <= new Date() ? 'ngay' : 'ngày ' + vnDate(releaseAt)}.`, link: ORDER_LINK_SELLER });
+    await notify(db, o.seller_id, { kind: 'order.completed', title: `Người mua đã nhận: ${short(title)}`, body: `Tiền về ví ${new Date(releaseAt) <= new Date() ? 'ngay' : 'ngày ' + vnDate(releaseAt)}.`, link: ORDER_LINK_SELLER + '?don=hoan-tat' });
   },
   async released(db, o, title, amount) {
     await notify(db, o.seller_id, { kind: 'payout.released', title: `+${fmt(amount)} vào ví ReOwn`, body: `Tiền bán ${short(title)} (đã trừ phí sàn).`, link: '/tai-khoan?tab=vi', dedupeKey: `payout:${o.id}` });
@@ -34,10 +34,10 @@ export const orderEvents = {
     await notify(db, o.buyer_id, { kind: 'order.cancelled', title: `Người bán đã huỷ: ${short(title)}`, body: 'Tiền đã được hoàn về ví / khoản trả sau đã huỷ.', link: ORDER_LINK_BUYER });
   },
   async refused(db, o, title) {
-    await notify(db, o.seller_id, { kind: 'order.refused', title: `Người mua từ chối nhận: ${short(title)}`, body: 'Tin đã mở bán lại.', link: ORDER_LINK_SELLER });
+    await notify(db, o.seller_id, { kind: 'order.refused', title: `Người mua từ chối nhận: ${short(title)}`, body: 'Tin đã mở bán lại.', link: ORDER_LINK_SELLER + '?don=huy' });
   },
   async disputeOpened(db, o, title) {
-    await notify(db, o.seller_id, { kind: 'dispute.opened', title: `Khiếu nại đơn ${short(title)}`, body: 'Tiền được giữ lại chờ ReOwn xử lý. Chuẩn bị ảnh/video lúc đóng gói.', link: ORDER_LINK_SELLER, sms: true });
+    await notify(db, o.seller_id, { kind: 'dispute.opened', title: `Khiếu nại đơn ${short(title)}`, body: 'Tiền được giữ lại chờ ReOwn xử lý. Chuẩn bị ảnh/video lúc đóng gói.', link: ORDER_LINK_SELLER + '?don=huy', sms: true });
   },
   async disputeResolved(db, o, title, outcome) {
     const buyerWon = outcome === 'buyer';

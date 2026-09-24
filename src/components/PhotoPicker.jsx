@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
 import { compressImage, MAX_IMAGES } from '../lib/images.js';
 
-export default function PhotoPicker({ photos, onChange, maxSide = 1280, disabled }) {
+export default function PhotoPicker({ photos, onChange, maxSide = 1280, disabled, label = 'Ảnh sản phẩm', hint = 'ảnh đầu là ảnh bìa', cover = true, id = 'photos', tip = 'Tin có ảnh thật được xem nhiều hơn. Chụp rõ cả chỗ trầy xước nếu có.' }) {
   const input = useRef(null);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState([]);
@@ -41,14 +41,14 @@ export default function PhotoPicker({ photos, onChange, maxSide = 1280, disabled
   return (
     <div className="photos">
       <div className="photos-head">
-        <span className="photos-label" id="photos-label">Ảnh sản phẩm</span>
-        <span className="small muted">{photos.length}/{MAX_IMAGES} · ảnh đầu là ảnh bìa</span>
+        <span className="photos-label" id={`${id}-label`}>{label}</span>
+        <span className="small muted">{photos.length}/{MAX_IMAGES}{hint ? ` · ${hint}` : ''}</span>
       </div>
-      <ul className="photo-grid" aria-labelledby="photos-label">
+      <ul className="photo-grid" aria-labelledby={`${id}-label`}>
         {photos.map((p, i) => (
           <li key={p.key} className="photo">
             <img src={p.src || p.url} alt={`Ảnh ${i + 1}`} />
-            {i === 0 ? <span className="photo-cover">Ảnh bìa</span>
+            {!cover ? null : i === 0 ? <span className="photo-cover">Ảnh bìa</span>
               : <button type="button" className="photo-act photo-make" onClick={() => makeCover(p.key)} disabled={disabled}>Đặt làm bìa</button>}
             <button type="button" className="photo-del" onClick={() => remove(p.key)} disabled={disabled} aria-label={`Xoá ảnh ${i + 1}`}><Icon name="close" size={16} /></button>
           </li>
@@ -70,7 +70,7 @@ export default function PhotoPicker({ photos, onChange, maxSide = 1280, disabled
         )}
       </ul>
       {errors.length > 0 && <ul className="photo-errors small" role="alert">{errors.map((e) => <li key={e}>{e}</li>)}</ul>}
-      {!photos.length && <p className="small muted">Tin có ảnh thật được xem nhiều hơn. Chụp rõ cả chỗ trầy xước nếu có.</p>}
+      {!photos.length && tip && <p className="small muted">{tip}</p>}
     </div>
   );
 }

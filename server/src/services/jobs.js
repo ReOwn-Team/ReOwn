@@ -56,7 +56,7 @@ export async function runJobs(now = new Date()) {
     const c1 = await pool.query("DELETE FROM otp_codes WHERE expires_at < $1::timestamptz - interval '1 day'", [now]);
     const c2 = await pool.query(
       "DELETE FROM sessions WHERE (expires_at < $1::timestamptz OR revoked_at < $1::timestamptz - interval '30 days')", [now]);
-    const c3 = await pool.query("DELETE FROM listing_images WHERE listing_id IS NULL AND created_at < $1::timestamptz - interval '1 day'", [now]);
+    const c3 = await pool.query("DELETE FROM listing_images WHERE listing_id IS NULL AND dispute_id IS NULL AND created_at < $1::timestamptz - interval '1 day'", [now]);
     const c4 = await pool.query("DELETE FROM search_log WHERE created_at < $1::timestamptz - interval '30 days'", [now]);
     out.cleaned = c1.rowCount + c2.rowCount + c3.rowCount + c4.rowCount;
 

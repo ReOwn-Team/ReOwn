@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { api, pool, resetDb, login, auth, listingByTitle, key } from './helpers.js';
@@ -211,11 +212,20 @@ describe('Tranh chấp & quản trị', () => {
     const o = (await api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ listingId: l.id, method: 'full' }).expect(201)).body;
     await api().post(`/api/orders/${o.id}/ship`).set(auth(bao.token)).expect(200);
     const sBefore = (await api().get('/api/me').set(auth(bao.token))).body.sellerScore.score;
-    const d = await api().post(`/api/orders/${o.id}/dispute`).set(auth(huy.token)).send({ reason: 'Đế giày bị bong, không giống ảnh' }).expect(200);
+    await api().post(`/api/orders/${o.id}/dispute`).set(auth(huy.token)).send({ reason: 'Đế giày bị bong, không giống ảnh' }).expect(400);
+    const photo = await sharp({ create: { width: 300, height: 300, channels: 3, background: '#a33' } }).jpeg().toBuffer();
+    const pic = (await api().post('/api/uploads/images').set(auth(huy.token)).set('Content-Type', 'image/jpeg').send(photo).expect(201)).body;
+    const stranger = (await api().post('/api/uploads/images').set(auth(bao.token)).set('Content-Type', 'image/jpeg').send(photo).expect(201)).body;
+    await api().post(`/api/orders/${o.id}/dispute`).set(auth(huy.token)).send({ reason: 'Đế giày bị bong, không giống ảnh', imageIds: [stranger.id] }).expect(422);
+    const d = await api().post(`/api/orders/${o.id}/dispute`).set(auth(huy.token)).send({ reason: 'Đế giày bị bong, không giống ảnh', imageIds: [pic.id] }).expect(200);
     expect(d.body.status).toBe('disputed');
     await api().get('/api/admin/disputes').set(auth(huy.token)).expect(403);
     const list = (await api().get('/api/admin/disputes').set(auth(admin.token)).expect(200)).body;
     const mine = list.find((x) => x.order_id === o.id);
+    expect(mine.evidence).toEqual([pic.url]);
+    await api().get(pic.url).expect(200).expect('Content-Type', 'image/webp');
+    await api().post('/api/listings').set(auth(huy.token))
+      .send({ title: 'Thử lấy ảnh khiếu nại làm ảnh tin', category: 'study', price: 100_000, condition: 80, imageIds: [pic.id] }).expect(422);
     await api().post(`/api/admin/disputes/${mine.id}/resolve`).set(auth(admin.token)).send({ outcome: 'buyer', resolution: 'Ảnh mở hộp cho thấy hàng lỗi' }).expect(200);
     const w1 = (await api().get('/api/me/wallet').set(auth(huy.token))).body.balance;
     expect(w1).toBe(w0);

@@ -153,7 +153,8 @@ function ProfileMenu({ me, onLogout, logoutLabel }) {
               <Link role="menuitem" to="/tai-khoan"><Icon name="user" size={18} />Tài khoản của tôi</Link>
               <Link role="menuitem" to="/tai-khoan?tab=don-mua"><Icon name="bag" size={18} />Đơn mua</Link>
               <Link role="menuitem" to="/tai-khoan?tab=vi"><Icon name="wallet" size={18} />Ví ReOwn</Link>
-              <Link role="menuitem" to="/kenh-nguoi-ban"><Icon name="shop" size={18} />Kênh người bán</Link>
+              <Link role="menuitem" to="/kenh-nguoi-ban?don=can-gui"><Icon name="truck" size={18} />Đơn bán cần xử lý</Link>
+              <Link role="menuitem" to="/kenh-nguoi-ban?tab=tin-dang"><Icon name="shop" size={18} />Kênh người bán</Link>
             </>
           )}
           <button type="button" role="menuitem" className="pm-item pm-out" onClick={() => { setOpen(false); onLogout(); }}><Icon name="logout" size={18} />{logoutLabel}</button>
@@ -167,6 +168,7 @@ export function Header() {
   const { me, dispatch, mode, state } = useStore();
   const loc = useLocation();
   const pending = (state.orders || []).filter((o) => o.buyerId === me?.id && ['paid', 'shipped'].includes(o.status)).length;
+  const toShip = (state.sellerOrders || []).filter((o) => o.status === 'paid').length;
   return (
     <header className="hdr">
       <div className="wrap hdr-main">
@@ -174,7 +176,10 @@ export function Header() {
         <SearchBox />
         <nav className="hdr-actions" aria-label="Tài khoản">
           {me?.role === 'admin' && <Link to="/quan-tri" className="hdr-act hdr-sell"><Icon name="shield" /><span>Quản trị</span></Link>}
-          {me?.role !== 'admin' && <Link to="/kenh-nguoi-ban" className="hdr-act hdr-sell"><Icon name="shop" /><span>Bán đồ</span></Link>}
+          {me?.role !== 'admin' && <Link to={toShip ? '/kenh-nguoi-ban?don=can-gui' : '/kenh-nguoi-ban'} className="hdr-act hdr-sell">
+            <span className="ic-wrap"><Icon name="shop" />{toShip > 0 && <span className="count" aria-label={`${toShip} đơn cần gửi`}>{toShip}</span>}</span>
+            <span>Bán đồ</span>
+          </Link>}
           {me?.role !== 'admin' && <Link to="/tai-khoan?tab=don-mua" className="hdr-act">
             <span className="ic-wrap"><Icon name="bag" />{pending > 0 && <span className="count" aria-label={`${pending} đơn đang xử lý`}>{pending}</span>}</span>
             <span>Đơn mua</span>

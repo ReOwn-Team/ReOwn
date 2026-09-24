@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../state/useStore.js';
+import { imageSrc } from '../api/client.js';
 import Art from '../components/Art.jsx';
 import Icon from '../components/Icon.jsx';
 import AdminHide from '../components/AdminHide.jsx';
@@ -106,6 +107,9 @@ function Disputes({ reload }) {
                 {open === d.id && (
                   <div className="dcard-body">
                     <blockquote className="reason"><span className="small muted">Lý do người mua</span>{d.reason}</blockquote>
+                    {d.evidence?.length > 0
+                      ? <div><span className="small muted">Ảnh bằng chứng của người mua</span><div className="evidence">{d.evidence.map((u, i) => <a key={u} href={imageSrc(u)} target="_blank" rel="noreferrer"><img src={imageSrc(u)} alt={`Ảnh bằng chứng ${i + 1}`} /></a>)}</div></div>
+                      : <p className="small muted">Người mua không đính kèm ảnh.</p>}
                     {isOpen ? (
                       <>
                         <div className="field">

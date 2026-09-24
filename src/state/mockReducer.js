@@ -105,7 +105,7 @@ function core(state, a) {
     }
     case 'confirmReceived': {
       const o = state.orders.find((x) => x.id === a.orderId);
-      let s = setOrder(state, o.id, { status: 'completed', payoutStatus: 'released', myStars: a.stars });
+      let s = setOrder(state, o.id, { status: 'completed', payoutStatus: 'released', completedAt: Date.now(), releaseAt: Date.now(), myStars: a.stars });
       s = mapUser(s, o.buyerId, (u) => { u.buyer.orders += 1; return u; });
       return mapUser(s, o.sellerId, (u) => {
         u.seller.sales += 1; u.seller.shipTotal += 1; u.seller.shippedOnTime += 1;
@@ -124,7 +124,8 @@ function core(state, a) {
       return mapUser(s, o.buyerId, (u) => { u.buyer.boms += 1; return u; });
     }
     case 'openDispute':
-      return setOrder(state, a.orderId, { status: 'disputed', dispute: { status: 'open', reason: a.reason } });
+      if (!a.evidence?.length) return state;
+      return setOrder(state, a.orderId, { status: 'disputed', dispute: { status: 'open', reason: a.reason, evidence: a.evidence, openedAt: Date.now() } });
     case 'payInstallment': {
       const { planId, n, mode } = a;
       const inst = state.plans.find((p) => p.id === planId)?.installments.find((i) => i.n === n);
@@ -163,7 +164,7 @@ function core(state, a) {
         s = mapUser(s, o.buyerId, (u) => { u.buyer.disputesLost = (u.buyer.disputesLost || 0) + 1; return u; });
       }
       s = addNote(s, o.buyerId, { kind: 'dispute.resolved', title: buyerWon ? `Bạn thắng khiếu nại: ${cut(o.title)}` : `Khiếu nại không được chấp nhận: ${cut(o.title)}`, link: '/tai-khoan?tab=don-mua' });
-      s = addNote(s, o.sellerId, { kind: 'dispute.resolved', title: buyerWon ? `Thua khiếu nại: ${cut(o.title)}` : `Khiếu nại đã xử lý có lợi cho bạn: ${cut(o.title)}`, link: '/kenh-nguoi-ban' });
+      s = addNote(s, o.sellerId, { kind: 'dispute.resolved', title: buyerWon ? `Thua khiếu nại: ${cut(o.title)}` : `Khiếu nại đã xử lý có lợi cho bạn: ${cut(o.title)}`, link: '/kenh-nguoi-ban?don=tat-ca' });
       return s;
     }
     case 'adminHide': {
@@ -219,18 +220,18 @@ export function reducer(state, a) {
   const title = (id) => cut(next.products.find((p) => p.id === id)?.title || 'đơn hàng');
   if (a.type === 'placeOrder' && next.orders[0] && next.orders[0] !== state.orders[0]) {
     const o = next.orders[0];
-    next = addNote(next, o.sellerId, { kind: 'order.new', title: `Có đơn mới: ${cut(o.title)}`, body: 'Gửi hàng trong 3 ngày để giữ điểm giao đúng hẹn.', link: '/kenh-nguoi-ban' });
+    next = addNote(next, o.sellerId, { kind: 'order.new', title: `Có đơn mới: ${cut(o.title)}`, body: 'Gửi hàng trong 3 ngày để giữ điểm giao đúng hẹn.', link: '/kenh-nguoi-ban?don=can-gui' });
   }
   const o = a.orderId && next.orders.find((x) => x.id === a.orderId);
   const changed = o && state.orders.find((x) => x.id === o.id)?.status !== o.status;
   if (changed && (a.type === 'shipOrder' || a.type === 'devShip')) next = addNote(next, o.buyerId, { kind: 'order.shipped', title: `Người bán đã gửi: ${cut(o.title)}`, body: 'Kiểm tra hàng khi nhận rồi bấm "Đã nhận hàng". Sai mô tả thì khiếu nại trong 3 ngày.', link: '/tai-khoan?tab=don-mua' });
   if (changed && a.type === 'sellerCancel') next = addNote(next, o.buyerId, { kind: 'order.cancelled', title: `Người bán huỷ đơn: ${cut(o.title)}`, body: 'Tiền đã hoàn về ví ReOwn của bạn.', link: '/tai-khoan?tab=don-mua' });
   if (o && a.type === 'confirmReceived') {
-    next = addNote(next, o.sellerId, { kind: 'order.completed', title: `Người mua đã nhận: ${title(o.productId)}`, body: 'Tiền về ví ngay.', link: '/kenh-nguoi-ban' });
+    next = addNote(next, o.sellerId, { kind: 'order.completed', title: `Người mua đã nhận: ${title(o.productId)}`, body: 'Tiền về ví ngay.', link: '/kenh-nguoi-ban?don=hoan-tat' });
     next = addNote(next, o.sellerId, { kind: 'payout.released', title: `+${fmt(Math.round(o.price * 0.96))} vào ví ReOwn`, body: 'Tiền bán hàng (đã trừ phí sàn 4%).', link: '/tai-khoan?tab=vi', dedupeKey: `payout:${o.id}` });
   }
-  if (o && a.type === 'bomOrder') next = addNote(next, o.sellerId, { kind: 'order.refused', title: `Người mua từ chối nhận: ${title(o.productId)}`, body: 'Tin đã mở bán lại.', link: '/kenh-nguoi-ban' });
-  if (o && a.type === 'openDispute') next = addNote(next, o.sellerId, { kind: 'dispute.opened', title: `Khiếu nại đơn ${title(o.productId)}`, body: 'Tiền được giữ lại chờ ReOwn xử lý.', link: '/kenh-nguoi-ban' });
+  if (o && a.type === 'bomOrder') next = addNote(next, o.sellerId, { kind: 'order.refused', title: `Người mua từ chối nhận: ${title(o.productId)}`, body: 'Tin đã mở bán lại.', link: '/kenh-nguoi-ban?don=huy' });
+  if (o && a.type === 'openDispute') next = addNote(next, o.sellerId, { kind: 'dispute.opened', title: `Khiếu nại đơn ${title(o.productId)}`, body: 'Tiền được giữ lại chờ ReOwn xử lý.', link: '/kenh-nguoi-ban?don=huy' });
   if (['placeOrder', 'payInstallment'].includes(a.type)) next = remind(next);
   return next;
 }

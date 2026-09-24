@@ -7,7 +7,7 @@ import { requireAdmin, requireAdminRole, adminMfaRequired } from '../middleware/
 import { config } from '../config.js';
 import { verifyTotp } from '../lib/crypto.js';
 import { signAccess } from '../services/auth.js';
-import { imagesFor } from '../services/images.js';
+import { imagesFor, evidenceFor } from '../services/images.js';
 import { notify } from '../services/notify.js';
 import { resolveDispute } from '../services/orders.js';
 import { audit } from '../lib/audit.js';
@@ -38,7 +38,8 @@ r.get('/disputes', ah(async (req, res) => {
        JOIN users b ON b.id=o.buyer_id JOIN users s ON s.id=o.seller_id
       WHERE ($1::text IS NULL OR d.status=$1) ORDER BY d.status='open' DESC, d.created_at LIMIT 200`, [status])).rows;
   const pics = await imagesFor({ query }, [...new Set(rows.map((r) => r.listing_id))]);
-  res.json(rows.map((r) => ({ ...r, images: pics[r.listing_id] || [] })));
+  const proof = await evidenceFor({ query }, rows.map((r) => r.id));
+  res.json(rows.map((r) => ({ ...r, images: pics[r.listing_id] || [], evidence: proof[r.id] || [] })));
 }));
 
 r.post('/disputes/:id/resolve', ah(async (req, res) => {

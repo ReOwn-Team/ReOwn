@@ -5,6 +5,7 @@ import { outstanding, bnplOffer } from '../../shared/scoring/engine.js';
 import { BUYER_IDENTITY_POINTS, THIN_FILE_MIN_ONTIME, BNPL_POLICY, TIERS } from '../../shared/scoring/config.js';
 import Art from '../components/Art.jsx';
 import Icon from '../components/Icon.jsx';
+import PhotoPicker from '../components/PhotoPicker.jsx';
 import { ScoreGauge, TierScale, Breakdown, Reasons, TrustBadge, Empty } from '../components/ui.jsx';
 import { money, TIER_LABEL, ORDER_STATUS } from '../lib/format.js';
 
@@ -20,18 +21,31 @@ const ORDER_TABS = [
 ];
 const lateLabel = (i) => (i.daysLate ? `Trễ ${i.daysLate} ngày` : 'Đúng hạn');
 
-function DisputeForm({ orderId, dispatch, onDone }) {
+function DisputeForm({ orderId, dispatch, onDone, mode }) {
   const [reason, setReason] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!photos.length) { setErr('Thêm ít nhất 1 ảnh chụp tình trạng hàng khi nhận (tem, vết lỗi, hộp…)'); return; }
+    setBusy(true); setErr('');
+    try { if (await dispatch({ type: 'openDispute', orderId, reason, photos })) onDone(); } finally { setBusy(false); }
+  };
   return (
-    <form className="inline-form" onSubmit={async (e) => { e.preventDefault(); if (await dispatch({ type: 'openDispute', orderId, reason })) onDone(); }}>
+    <form className="inline-form" onSubmit={submit}>
       <label className="small" htmlFor={`dr-${orderId}`}>Mô tả vấn đề (ít nhất 10 ký tự)</label>
       <textarea id={`dr-${orderId}`} rows="2" value={reason} onChange={(e) => setReason(e.target.value)} minLength={10} required />
-      <div className="row"><button className="btn btn-sm">Gửi khiếu nại</button><button type="button" className="btn btn-sm btn-outline" onClick={onDone}>Huỷ</button></div>
+      <PhotoPicker id={`dp-${orderId}`} photos={photos} onChange={(p) => { setPhotos(p); setErr(''); }} maxSide={mode === 'api' ? 1280 : 800} disabled={busy}
+        label="Ảnh bằng chứng (bắt buộc)" hint="tối thiểu 1 ảnh" cover={false}
+        tip="Chụp rõ chỗ lỗi, tem, hộp và phiếu giao hàng lúc nhận để ReOwn xử lý nhanh." />
+      {err && <p className="small danger" role="alert">{err}</p>}
+      <div className="row"><button className="btn btn-sm" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi khiếu nại'}</button><button type="button" className="btn btn-sm btn-outline" onClick={onDone} disabled={busy}>Huỷ</button></div>
     </form>
   );
 }
 
-function OrderCard({ o, product, dispatch, mode, devTools }) {
+function OrderCard({ o, product, dispatch, mode }) {
   const [stars, setStars] = useState(5);
   const [disputing, setDisputing] = useState(false);
   const method = o.method === 'full' ? 'Trả thẳng' : `Trả sau ${o.method} kỳ`;
@@ -52,7 +66,6 @@ function OrderCard({ o, product, dispatch, mode, devTools }) {
         {o.dispute && <span className="small muted">Khiếu nại: {o.dispute.status === 'open' ? 'đang chờ ReOwn xử lý' : o.dispute.status === 'resolved_buyer' ? 'bạn thắng, đã hoàn tiền' : 'người bán thắng'}</span>}
         {o.myStars && <span className="small muted">Bạn đã đánh giá {o.myStars} sao</span>}
         <div className="ocard-actions">
-          {o.status === 'paid' && devTools && <button className="linkbtn small" onClick={() => dispatch({ type: 'devShip', orderId: o.id })}>Mô phỏng: người bán gửi hàng</button>}
           {canDispute && !disputing && <button className="btn btn-sm btn-outline" onClick={() => setDisputing(true)}>Hàng không đúng mô tả</button>}
           {o.status === 'shipped' && (
             <>
@@ -70,7 +83,7 @@ function OrderCard({ o, product, dispatch, mode, devTools }) {
           )}
         </div>
       </div>
-      {disputing && <DisputeForm orderId={o.id} dispatch={dispatch} onDone={() => setDisputing(false)} />}
+      {disputing && <DisputeForm orderId={o.id} dispatch={dispatch} mode={mode} onDone={() => setDisputing(false)} />}
     </li>
   );
 }
@@ -100,7 +113,6 @@ function VerifyItem({ k, pts, done, mode, dispatch }) {
                 onChange={(e) => setForm({ ...form, [f.k]: f.k === 'bankCode' ? e.target.value.toUpperCase() : e.target.value })} />
             </div>
           ))}
-          <p className="small muted">ReOwn chỉ lưu mã băm và 4 số cuối, không lưu số gốc.</p>
           <button className="btn btn-sm">Gửi xác thực</button>
         </form>
       )}
@@ -186,7 +198,7 @@ export default function Account() {
             </div>
             {shownOrders.length === 0
               ? <Empty title="Chưa có đơn nào" action={<Link to="/" className="btn">Mua sắm ngay</Link>} />
-              : <ul className="ocards">{shownOrders.slice(0, 20).map((o) => <OrderCard key={o.id} o={o} product={productById(o.productId)} dispatch={dispatch} mode={mode} devTools={devTools} />)}</ul>}
+              : <ul className="ocards">{shownOrders.slice(0, 20).map((o) => <OrderCard key={o.id} o={o} product={productById(o.productId)} dispatch={dispatch} mode={mode} />)}</ul>}
           </section>
         )}
 
