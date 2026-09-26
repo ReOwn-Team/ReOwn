@@ -41,7 +41,7 @@ export function createApp() {
     const ok = secret ? req.get('authorization') === `Bearer ${secret}` : /vercel-cron/.test(req.get('user-agent') || '');
     if (!ok) return res.status(401).json({ error: { code: 'unauthorized', message: 'Không có quyền' } });
     try {
-      const out = config.demoDeployment ? await resetDemo() : await runJobs();
+      const out = config.demoDeployment ? { reset: await resetDemo(), jobs: await runJobs() } : await runJobs();
       invalidateCatalog();
       res.json(out);
     } catch (e) { next(e); }

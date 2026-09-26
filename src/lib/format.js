@@ -31,4 +31,9 @@ export function timeAgoShort(t) {
 export const ORDER_STATUS = {
   paid: 'Chờ người bán gửi', shipped: 'Đang giao', completed: 'Hoàn tất', refused_by_buyer: 'Đã từ chối nhận',
   cancelled_by_seller: 'Người bán đã huỷ', disputed: 'Đang khiếu nại', refunded: 'Đã hoàn tiền',
+  return_pending: 'Chờ gửi trả hàng', returning: 'Đang gửi trả',
 };
+/** Nhãn trạng thái theo cách giao: đơn gặp trực tiếp không có bước "đang giao" qua đơn vị vận chuyển. */
+export const orderStatusLabel = (o) => (o.delivery === 'meetup' && (o.status === 'paid' || o.status === 'shipped') ? 'Chờ giao trực tiếp' : ORDER_STATUS[o.status]);
+
+export const vnDateTime = (t) => (t ? new Date(t).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '');

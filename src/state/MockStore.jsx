@@ -3,6 +3,7 @@ import { PAST_ORDERS, EXTRA_REVIEWER_SCORES } from '../data/mock.js';
 import { scoreBuyer, scoreSeller, installmentSchedule, scanMessage } from '../../shared/scoring/engine.js';
 import { blobToDataUrl } from '../lib/images.js';
 import { Ctx, toastFor, useToast } from './shared.js';
+import { WITHDRAW_MIN, HANDOVER_MAX_ATTEMPTS, lateFeeFor } from '../../shared/policy.js';
 import { KEY, load, reducer, autoReply } from './mockReducer.js';
 
 export default function MockStore({ children }) {
@@ -22,7 +23,7 @@ export default function MockStore({ children }) {
     const me = st.users.find((u) => u.id === st.currentUserId);
     if (a.type === 'payInstallment' && a.mode !== 'default') {
       const inst = st.plans.find((p) => p.id === a.planId)?.installments.find((i) => i.n === a.n);
-      if (inst && me.finance.savings < inst.amount) { setToast(`Ví còn ${me.finance.savings.toLocaleString('vi-VN')}₫, chưa đủ trả kỳ này. Nạp thêm ở mục Ví.`); return false; }
+      if (inst && me.finance.savings < inst.amount + (a.mode === 'onTime' || a.mode === 'clearDefault' ? lateFeeFor(inst.due) : 0)) { setToast(`Ví còn ${me.finance.savings.toLocaleString('vi-VN')}₫, chưa đủ trả kỳ này. Nạp thêm ở mục Ví.`); return false; }
     }
     if (a.type === 'addListing' && a.photos?.length) {
       a = { ...a, product: { ...a.product, images: await Promise.all(a.photos.map((p) => blobToDataUrl(p.blob))) } };
@@ -34,6 +35,30 @@ export default function MockStore({ children }) {
     if (a.type === 'openDispute') {
       if (!a.photos?.length) { setToast('Cần ít nhất 1 ảnh chụp tình trạng hàng'); return false; }
       a = { ...a, evidence: await Promise.all(a.photos.map((p) => blobToDataUrl(p.blob))) };
+    }
+    if (a.type === 'respondDispute') {
+      a = { ...a, evidence: await Promise.all((a.photos || []).map((p) => blobToDataUrl(p.blob))) };
+    }
+    if (a.type === 'handover') {
+      const o = st.orders.find((x) => x.id === a.orderId);
+      if (!o) return false;
+      if ((o.handoverAttempts || 0) >= HANDOVER_MAX_ATTEMPTS) { setToast('Nhập sai quá nhiều lần — nhờ người mua bấm "Đã nhận hàng"'); return false; }
+      if (a.code !== o.handoverCode) {
+        rawDispatch(a);
+        const left = HANDOVER_MAX_ATTEMPTS - (o.handoverAttempts || 0) - 1;
+        setToast(left > 0 ? `Mã không đúng, còn ${left} lần thử` : 'Mã không đúng — đã hết lượt thử');
+        return false;
+      }
+    }
+    if (a.type === 'withdraw') {
+      if (!me.verify.bank) { setToast('Xác thực tài khoản ngân hàng trước khi rút tiền'); return false; }
+      if (!(a.amount >= WITHDRAW_MIN)) { setToast(`Số tiền rút tối thiểu ${WITHDRAW_MIN.toLocaleString('vi-VN')}₫`); return false; }
+      if (a.amount > me.finance.savings) { setToast('Số dư ví không đủ'); return false; }
+    }
+    if (a.type === 'payoff') {
+      const plan = st.plans.find((p) => p.id === a.planId);
+      const need = plan ? plan.installments.filter((i) => i.status !== 'paid').reduce((sum, i) => sum + i.amount + lateFeeFor(i.due), 0) : 0;
+      if (me.finance.savings < need) { setToast(`Cần ${need.toLocaleString('vi-VN')}₫ để tất toán, ví còn ${me.finance.savings.toLocaleString('vi-VN')}₫`); return false; }
     }
     if (a.type === 'placeOrder') {
       const need = a.method === 'full' ? a.product.price : installmentSchedule(a.product.price, a.method, a.downRate || 0).down;
@@ -127,13 +152,20 @@ export default function MockStore({ children }) {
       method: o.method === 'full' ? 'full' : 'bnpl', term: o.method === 'full' ? null : o.method, order_created_at: o.createdAt,
       buyer_name: o.buyerName || nameOf(o.buyerId), seller_name: nameOf(o.sellerId), title: o.title,
       category: o.category || st().products.find((p) => p.id === o.productId)?.category, icon: o.icon, cover: st().products.find((p) => p.id === o.productId)?.cover, images: [], evidence: o.dispute.evidence || [],
+      seller_evidence: o.dispute.sellerEvidence || [], seller_response: o.dispute.sellerResponse || null, seller_responded_at: o.dispute.sellerRespondedAt || null,
+      respond_by: o.dispute.respondBy || null, remedy: o.dispute.remedy || null, refund_amount: o.dispute.refundAmount || null,
+      delivery: o.delivery, carrier: o.carrier, tracking_code: o.trackingCode, shipped_at: o.shippedAt, completed_at: o.completedAt,
+      chat: (() => {
+        const conv = st().conversations.find((c) => c.listingId === o.productId && c.buyerId === o.buyerId);
+        return conv ? st().messages.filter((m) => m.conversationId === conv.id).slice(-30).map((m) => ({ from: m.sender_id === o.buyerId ? 'buyer' : 'seller', body: m.body, flagged: (m.flags || []).length > 0, at: m.created_at })) : [];
+      })(),
     });
     return {
       async mfa() { rawDispatch({ type: 'adminMfa' }); return true; },
       async disputes(status = 'open') {
         return st().orders.filter((o) => o.dispute && (status === 'all' || o.dispute.status === 'open')).map(disputeRow);
       },
-      async resolve(id, outcome, resolution) { rawDispatch({ type: 'adminResolve', orderId: id, outcome, resolution }); setToast('Đã xử lý tranh chấp'); },
+      async resolve(id, outcome, resolution, refundAmount) { rawDispatch({ type: 'adminResolve', orderId: id, outcome, resolution, refundAmount }); setToast('Đã xử lý tranh chấp'); },
       async hide(id, reason) { rawDispatch({ type: 'adminHide', id, reason }); setToast('Đã gỡ tin và báo người bán'); },
     };
   }, [setToast]);
@@ -163,6 +195,10 @@ export default function MockStore({ children }) {
     state: { ...state, sellerOrders: state.orders.filter((o) => o.sellerId === state.currentUserId), toast },
     dispatch, ...derived, pastOrders: PAST_ORDERS, users: state.users,
     chat, notes, inbox, refreshInbox: () => {}, admin,
+    walletInfo: async () => {
+      const u = latest.current.users.find((x) => x.id === latest.current.currentUserId);
+      return { entries: [], withdrawals: u?.withdrawals || [], bankLast4: u?.verify.bank ? '6789' : null };
+    },
   }), [state, toast, dispatch, derived, chat, notes, inbox, admin]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

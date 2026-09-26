@@ -9,6 +9,7 @@ import { verify } from '../services/verification.js';
 import { ordersFor } from '../services/views.js';
 import { browse } from '../services/listings.js';
 import { walletBalance } from '../services/features.js';
+import { withdraw, bankAccount } from '../services/wallet.js';
 import { audit } from '../lib/audit.js';
 import { verifyLimiter } from '../lib/limits.js';
 import { listNotifications, markRead } from '../services/notify.js';
@@ -88,7 +89,13 @@ r.get('/wallet', ah(async (req, res) => {
     "SELECT amount, memo, order_id, created_at FROM ledger_entries WHERE account='wallet' AND user_id=$1 ORDER BY id DESC LIMIT 50",
     [req.user.id])).rows;
   const balance = await walletBalance({ query }, req.user.id);
-  res.json({ balance, entries: rows });
+  const withdrawals = (await query('SELECT id, amount, bank_last4, reference, status, created_at FROM withdrawals WHERE user_id=$1 ORDER BY created_at DESC LIMIT 20', [req.user.id])).rows;
+  res.json({ balance, entries: rows, withdrawals, bankLast4: await bankAccount({ query }, req.user.id) });
+}));
+
+r.post('/wallet/withdraw', verifyLimiter, ah(async (req, res) => {
+  const { amount } = parse(z.object({ amount: z.number().int().positive() }), req.body);
+  res.status(201).json(await tx((db) => withdraw(db, { userId: req.user.id, amount, ip: req.ip })));
 }));
 
 export default r;

@@ -63,7 +63,7 @@ r.post('/orders/:id/simulate-ship', requireAuth, ah(async (req, res) => {
     const o = (await db.query('SELECT buyer_id, seller_id FROM orders WHERE id=$1', [id])).rows[0];
     if (!o) throw notFound('Không tìm thấy đơn');
     if (o.buyer_id !== req.user.id) throw forbidden();
-    await shipOrder(db, { orderId: id, userId: o.seller_id, ip: req.ip });
+    await shipOrder(db, { orderId: id, userId: o.seller_id, carrier: 'GHN', trackingCode: 'DEMO' + id.slice(0, 8).toUpperCase(), ip: req.ip });
   });
   res.json({ ok: true });
 }));

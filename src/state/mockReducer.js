@@ -1,6 +1,7 @@
 import { USERS, PRODUCTS, SAMPLE_ORDERS } from '../data/mock.js';
 import { installmentSchedule, fmt } from '../../shared/scoring/engine.js';
 import { DAY, LATE_DAYS } from './shared.js';
+import { DISPUTE_RESPONSE_HOURS, RETURN_SHIP_DAYS, HANDOVER_MAX_ATTEMPTS, lateFeeFor } from '../../shared/policy.js';
 
 export const KEY = 'reown-demo-v6';
 
@@ -52,6 +53,31 @@ export function autoReply(text) {
 
 const mapUser = (state, id, fn) => ({ ...state, users: state.users.map((u) => (u.id === id ? fn(structuredClone(u)) : u)) });
 const setOrder = (state, id, patch) => ({ ...state, orders: state.orders.map((o) => (o.id === id ? { ...o, ...patch } : o)) });
+const hasUser = (state, id) => state.users.some((u) => u.id === id);
+const credit = (state, id, amount) => (amount && hasUser(state, id) ? mapUser(state, id, (u) => { u.finance.savings += amount; return u; }) : state);
+const payout = (price) => price - Math.round(price * 0.04);
+
+/** Hoàn tất đơn: cộng số liệu uy tín cho hai bên và trả tiền (đã trừ phí sàn 4%) vào ví người bán. */
+function completeOrder(state, o, stars = null) {
+  let s = setOrder(state, o.id, { status: 'completed', payoutStatus: 'released', completedAt: Date.now(), releaseAt: Date.now(), shippedAt: o.shippedAt || Date.now(), myStars: stars ?? o.myStars });
+  if (hasUser(s, o.buyerId)) s = mapUser(s, o.buyerId, (u) => { u.buyer.orders += 1; return u; });
+  s = mapUser(s, o.sellerId, (u) => {
+    u.seller.sales += 1; u.seller.shipTotal += 1; u.seller.shippedOnTime += 1;
+    if (stars) u.seller.reviews = [...u.seller.reviews, { by: o.buyerId, stars }];
+    return u;
+  });
+  return credit(s, o.sellerId, payout(o.price));
+}
+
+/** Hoàn tiền cho người mua (trả thẳng: về ví; trả sau: huỷ khoản vay, hoàn phần đã trả). */
+function refundOrder(state, o, patch) {
+  let s = setOrder(state, o.id, { payoutStatus: 'refunded', ...patch });
+  const plan = s.plans.find((p) => p.orderId === o.id);
+  const back = o.method === 'full' ? o.price
+    : (plan?.down || 0) + (plan?.installments.filter((i) => i.status === 'paid').reduce((a, i) => a + i.amount, 0) || 0);
+  s = { ...s, plans: s.plans.filter((p) => p.orderId !== o.id) };
+  return credit(s, o.buyerId, back);
+}
 
 function core(state, a) {
   switch (a.type) {
@@ -83,7 +109,12 @@ function core(state, a) {
         };
       }
       const buyerName = state.users.find((u) => u.id === buyerId)?.name;
-      const order = { id: orderId, productId: product.id, title: product.title, price: product.price, buyerId, buyerName, sellerId: product.sellerId, method, status: 'paid', payoutStatus: 'held', createdAt: Date.now(), myStars: null };
+      const delivery = a.delivery === 'meetup' ? 'meetup' : 'ship';
+      const order = {
+        id: orderId, productId: product.id, title: product.title, price: product.price, buyerId, buyerName, sellerId: product.sellerId, method, status: 'paid', payoutStatus: 'held', createdAt: Date.now(), myStars: null,
+        delivery, shipTo: delivery === 'ship' ? a.shipTo : null, meetupNote: delivery === 'meetup' ? a.meetupNote || null : null,
+        handoverCode: delivery === 'meetup' ? String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0') : null, handoverAttempts: 0,
+      };
       return { ...s, orders: [order, ...s.orders], plans: plan ? [plan, ...s.plans] : s.plans };
     }
     case 'shipOrder':
@@ -91,7 +122,14 @@ function core(state, a) {
       const o = state.orders.find((x) => x.id === a.orderId);
       const who = a.type === 'devShip' ? o?.buyerId : o?.sellerId;
       if (!o || o.status !== 'paid' || who !== state.currentUserId) return state;
-      return setOrder(state, o.id, { status: 'shipped', shippedAt: Date.now() });
+      return setOrder(state, o.id, { status: 'shipped', shippedAt: Date.now(), carrier: a.carrier || (a.type === 'devShip' ? 'GHN' : null), trackingCode: a.trackingCode || (a.type === 'devShip' ? 'DEMO' + o.id.slice(-6) : null) });
+    }
+    case 'handover': {
+      const o = state.orders.find((x) => x.id === a.orderId);
+      if (!o || o.sellerId !== state.currentUserId || o.delivery !== 'meetup' || !['paid', 'shipped'].includes(o.status)) return state;
+      if ((o.handoverAttempts || 0) >= HANDOVER_MAX_ATTEMPTS) return state;
+      if (a.code !== o.handoverCode) return setOrder(state, o.id, { handoverAttempts: (o.handoverAttempts || 0) + 1 });
+      return completeOrder(state, o);
     }
     case 'sellerCancel': {
       const o = state.orders.find((x) => x.id === a.orderId);
@@ -105,13 +143,9 @@ function core(state, a) {
     }
     case 'confirmReceived': {
       const o = state.orders.find((x) => x.id === a.orderId);
-      let s = setOrder(state, o.id, { status: 'completed', payoutStatus: 'released', completedAt: Date.now(), releaseAt: Date.now(), myStars: a.stars });
-      s = mapUser(s, o.buyerId, (u) => { u.buyer.orders += 1; return u; });
-      return mapUser(s, o.sellerId, (u) => {
-        u.seller.sales += 1; u.seller.shipTotal += 1; u.seller.shippedOnTime += 1;
-        u.seller.reviews = [...u.seller.reviews, { by: o.buyerId, stars: a.stars }];
-        return u;
-      });
+      const ok = o && (o.status === 'shipped' || (o.delivery === 'meetup' && o.status === 'paid'));
+      if (!ok || o.buyerId !== state.currentUserId) return state;
+      return completeOrder(state, o, a.stars);
     }
     case 'bomOrder': {
       const o = state.orders.find((x) => x.id === a.orderId);
@@ -125,18 +159,55 @@ function core(state, a) {
     }
     case 'openDispute':
       if (!a.evidence?.length) return state;
-      return setOrder(state, a.orderId, { status: 'disputed', dispute: { status: 'open', reason: a.reason, evidence: a.evidence, openedAt: Date.now() } });
+      return setOrder(state, a.orderId, { status: 'disputed', dispute: { status: 'open', reason: a.reason, evidence: a.evidence, openedAt: Date.now(), respondBy: Date.now() + DISPUTE_RESPONSE_HOURS * 3_600_000 } });
+    case 'respondDispute': {
+      const o = state.orders.find((x) => x.id === a.orderId);
+      if (!o || o.sellerId !== state.currentUserId || o.dispute?.status !== 'open' || o.dispute.sellerResponse) return state;
+      return setOrder(state, o.id, { dispute: { ...o.dispute, sellerResponse: a.text, sellerRespondedAt: Date.now(), sellerEvidence: a.evidence || [] } });
+    }
+    case 'returnShip': {
+      const o = state.orders.find((x) => x.id === a.orderId);
+      if (!o || o.buyerId !== state.currentUserId || o.status !== 'return_pending') return state;
+      return setOrder(state, o.id, { status: 'returning', returnInfo: { ...o.returnInfo, carrier: a.carrier, trackingCode: a.trackingCode || null, shippedAt: Date.now() } });
+    }
+    case 'returnReceived': {
+      const o = state.orders.find((x) => x.id === a.orderId);
+      if (!o || o.sellerId !== state.currentUserId || o.status !== 'returning') return state;
+      const s = refundOrder(state, o, { status: 'refunded' });
+      return { ...s, products: s.products.filter((p) => p.id !== o.productId) };
+    }
+    case 'withdraw':
+      return mapUser(state, state.currentUserId, (u) => {
+        u.finance.savings -= a.amount;
+        u.withdrawals = [{ id: 'w' + Date.now(), amount: a.amount, bankLast4: u.bankLast4 || '6789', reference: 'RW' + Date.now().toString(36).toUpperCase(), status: 'paid', createdAt: Date.now() }, ...(u.withdrawals || [])];
+        return u;
+      });
+    case 'payoff': {
+      const plan = state.plans.find((p) => p.id === a.planId && p.userId === state.currentUserId);
+      if (!plan) return state;
+      const now = Date.now();
+      let charge = 0, count = 0;
+      const installments = plan.installments.map((i) => {
+        if (i.status === 'paid') return i;
+        const fee = lateFeeFor(i.due, now);
+        charge += i.amount + fee; count += 1;
+        return { ...i, status: 'paid', daysLate: Math.max(0, Math.floor((now - i.due) / DAY)), lateFee: fee };
+      });
+      const s = { ...state, plans: state.plans.map((p) => (p.id === plan.id ? { ...p, installments, status: 'paid_off' } : p)) };
+      return mapUser(s, state.currentUserId, (u) => { u.finance.savings -= charge; u.buyer.repayment.onTime += count; return u; });
+    }
     case 'payInstallment': {
       const { planId, n, mode } = a;
       const inst = state.plans.find((p) => p.id === planId)?.installments.find((i) => i.n === n);
-      const charge = mode === 'default' || !inst ? 0 : inst.amount;
+      const fee = !inst || mode === 'default' ? 0 : mode === 'onTime' ? lateFeeFor(inst.due) : lateFeeFor(inst.due, inst.due + (LATE_DAYS[mode] || 0) * DAY + 3_600_000);
+      const charge = mode === 'default' || !inst ? 0 : inst.amount + fee;
       const s = {
         ...state,
         plans: state.plans.map((p) => p.id !== planId ? p : {
           ...p,
           installments: p.installments.map((i) => i.n !== n ? i
             : mode === 'default' ? { ...i, status: 'overdue' }
-            : { ...i, status: 'paid', daysLate: LATE_DAYS[mode] }),
+            : { ...i, status: 'paid', daysLate: LATE_DAYS[mode], lateFee: fee }),
         }),
       };
       return mapUser(s, state.currentUserId, (u) => {
@@ -152,20 +223,28 @@ function core(state, a) {
     }
     case 'adminResolve': {
       const o = state.orders.find((x) => x.id === a.orderId);
-      const buyerWon = a.outcome === 'buyer';
-      let s = setOrder(state, o.id, {
-        status: buyerWon ? 'refunded' : 'completed', payoutStatus: buyerWon ? 'refunded' : 'released',
-        dispute: { ...o.dispute, status: buyerWon ? 'resolved_buyer' : 'resolved_seller', resolution: a.resolution, resolvedAt: Date.now() },
-      });
-      if (buyerWon) {
-        s = mapUser(s, o.sellerId, (u) => { u.seller.disputesLost = (u.seller.disputesLost || 0) + 1; return u; });
-        if (o.method === 'full' && s.users.some((u) => u.id === o.buyerId)) s = mapUser(s, o.buyerId, (u) => { u.finance.savings += o.price; return u; });
-      } else if (s.users.some((u) => u.id === o.buyerId)) {
-        s = mapUser(s, o.buyerId, (u) => { u.buyer.disputesLost = (u.buyer.disputesLost || 0) + 1; return u; });
-      }
-      s = addNote(s, o.buyerId, { kind: 'dispute.resolved', title: buyerWon ? `Bạn thắng khiếu nại: ${cut(o.title)}` : `Khiếu nại không được chấp nhận: ${cut(o.title)}`, link: '/tai-khoan?tab=don-mua' });
-      s = addNote(s, o.sellerId, { kind: 'dispute.resolved', title: buyerWon ? `Thua khiếu nại: ${cut(o.title)}` : `Khiếu nại đã xử lý có lợi cho bạn: ${cut(o.title)}`, link: '/kenh-nguoi-ban?don=tat-ca' });
-      return s;
+      if (!o || o.dispute?.status !== 'open') return state;
+      const status = { buyer: 'resolved_buyer', return: 'resolved_buyer', partial: 'resolved_partial', seller: 'resolved_seller' }[a.outcome];
+      const remedy = { buyer: 'refund', return: 'return_refund', partial: 'partial', seller: null }[a.outcome];
+      const dispute = { ...o.dispute, status, remedy, resolution: a.resolution, resolvedAt: Date.now(), refundAmount: a.outcome === 'partial' ? a.refundAmount : null };
+      let s;
+      if (a.outcome === 'buyer') s = refundOrder(state, o, { status: 'refunded', dispute });
+      else if (a.outcome === 'return') s = setOrder(state, o.id, { status: 'return_pending', dispute, returnInfo: { dueAt: Date.now() + RETURN_SHIP_DAYS * DAY } });
+      else if (a.outcome === 'partial') {
+        s = setOrder(state, o.id, { status: 'completed', payoutStatus: 'released', refundAmount: a.refundAmount, completedAt: o.completedAt || Date.now(), dispute });
+        s = credit(s, o.buyerId, a.refundAmount);
+        s = credit(s, o.sellerId, payout(o.price - a.refundAmount));
+      } else s = credit(setOrder(state, o.id, { status: 'completed', payoutStatus: 'released', completedAt: o.completedAt || Date.now(), dispute }), o.sellerId, payout(o.price));
+      if (a.outcome === 'buyer' || a.outcome === 'partial') s = mapUser(s, o.sellerId, (u) => { u.seller.disputesLost = (u.seller.disputesLost || 0) + 1; return u; });
+      if (a.outcome === 'seller' && hasUser(s, o.buyerId)) s = mapUser(s, o.buyerId, (u) => { u.buyer.disputesLost = (u.buyer.disputesLost || 0) + 1; return u; });
+      const T = {
+        buyer: [`Bạn thắng khiếu nại: ${cut(o.title)}`, `Thua khiếu nại: ${cut(o.title)}`],
+        return: [`Khiếu nại được chấp nhận: ${cut(o.title)}`, `Người mua sẽ gửi trả hàng: ${cut(o.title)}`],
+        partial: [`Hoàn một phần ${fmt(a.refundAmount || 0)}: ${cut(o.title)}`, `Hoàn một phần cho người mua: ${cut(o.title)}`],
+        seller: [`Khiếu nại không được chấp nhận: ${cut(o.title)}`, `Khiếu nại đã xử lý có lợi cho bạn: ${cut(o.title)}`],
+      }[a.outcome];
+      s = addNote(s, o.buyerId, { kind: 'dispute.resolved', title: T[0], body: a.outcome === 'return' ? 'Gửi trả hàng cho người bán trong 5 ngày, nhập mã vận đơn trên ứng dụng.' : null, link: '/tai-khoan?tab=don-mua' });
+      return addNote(s, o.sellerId, { kind: 'dispute.resolved', title: T[1], link: '/kenh-nguoi-ban?don=khieu-nai' });
     }
     case 'adminHide': {
       const p = state.products.find((x) => x.id === a.id);
@@ -230,8 +309,12 @@ export function reducer(state, a) {
     next = addNote(next, o.sellerId, { kind: 'order.completed', title: `Người mua đã nhận: ${title(o.productId)}`, body: 'Tiền về ví ngay.', link: '/kenh-nguoi-ban?don=hoan-tat' });
     next = addNote(next, o.sellerId, { kind: 'payout.released', title: `+${fmt(Math.round(o.price * 0.96))} vào ví ReOwn`, body: 'Tiền bán hàng (đã trừ phí sàn 4%).', link: '/tai-khoan?tab=vi', dedupeKey: `payout:${o.id}` });
   }
-  if (o && a.type === 'bomOrder') next = addNote(next, o.sellerId, { kind: 'order.refused', title: `Người mua từ chối nhận: ${title(o.productId)}`, body: 'Tin đã mở bán lại.', link: '/kenh-nguoi-ban?don=huy' });
-  if (o && a.type === 'openDispute') next = addNote(next, o.sellerId, { kind: 'dispute.opened', title: `Khiếu nại đơn ${title(o.productId)}`, body: 'Tiền được giữ lại chờ ReOwn xử lý.', link: '/kenh-nguoi-ban?don=huy' });
+  if (o && a.type === 'bomOrder') next = addNote(next, o.sellerId, { kind: 'order.refused', title: `Người mua từ chối nhận: ${title(o.productId)}`, body: 'Tin đã mở bán lại.', link: '/kenh-nguoi-ban?don=da-huy' });
+  if (changed && a.type === 'openDispute') next = addNote(next, o.sellerId, { kind: 'dispute.opened', title: `Khiếu nại đơn ${title(o.productId)}`, body: 'Phản hồi kèm ảnh/video đóng gói trong 48 giờ để ReOwn xét công bằng.', link: '/kenh-nguoi-ban?don=khieu-nai' });
+  if (o && a.type === 'respondDispute' && o.dispute?.sellerResponse) next = addNote(next, o.buyerId, { kind: 'dispute.responded', title: `Người bán đã phản hồi khiếu nại: ${title(o.productId)}`, link: '/tai-khoan?tab=don-mua' });
+  if (changed && a.type === 'handover') next = addNote(next, o.sellerId, { kind: 'payout.released', title: `+${fmt(payout(o.price))} vào ví ReOwn`, body: 'Giao trực tiếp thành công (đã trừ phí sàn 4%).', link: '/tai-khoan?tab=vi', dedupeKey: `payout:${o.id}` });
+  if (changed && a.type === 'returnShip') next = addNote(next, o.sellerId, { kind: 'return.shipped', title: `Người mua đã gửi trả: ${title(o.productId)}`, body: 'Nhận được hàng thì bấm "Đã nhận lại hàng".', link: '/kenh-nguoi-ban?don=khieu-nai' });
+  if (changed && a.type === 'returnReceived') next = addNote(next, o.buyerId, { kind: 'return.refunded', title: `Đã hoàn tiền: ${cut(o.title)}`, body: 'Người bán đã nhận lại hàng.', link: '/tai-khoan?tab=don-mua' });
   if (['placeOrder', 'payInstallment'].includes(a.type)) next = remind(next);
   return next;
 }

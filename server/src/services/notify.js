@@ -34,15 +34,41 @@ export const orderEvents = {
     await notify(db, o.buyer_id, { kind: 'order.cancelled', title: `Người bán đã huỷ: ${short(title)}`, body: 'Tiền đã được hoàn về ví / khoản trả sau đã huỷ.', link: ORDER_LINK_BUYER });
   },
   async refused(db, o, title) {
-    await notify(db, o.seller_id, { kind: 'order.refused', title: `Người mua từ chối nhận: ${short(title)}`, body: 'Tin đã mở bán lại.', link: ORDER_LINK_SELLER + '?don=huy' });
+    await notify(db, o.seller_id, { kind: 'order.refused', title: `Người mua từ chối nhận: ${short(title)}`, body: 'Tin đã mở bán lại.', link: ORDER_LINK_SELLER + '?don=da-huy' });
   },
   async disputeOpened(db, o, title) {
-    await notify(db, o.seller_id, { kind: 'dispute.opened', title: `Khiếu nại đơn ${short(title)}`, body: 'Tiền được giữ lại chờ ReOwn xử lý. Chuẩn bị ảnh/video lúc đóng gói.', link: ORDER_LINK_SELLER + '?don=huy', sms: true });
+    await notify(db, o.seller_id, { kind: 'dispute.opened', title: `Khiếu nại đơn ${short(title)}`, body: 'Tiền được giữ lại chờ ReOwn xử lý. Phản hồi kèm ảnh/video đóng gói trong 48 giờ để được xét công bằng.', link: ORDER_LINK_SELLER + '?don=khieu-nai', sms: true });
   },
-  async disputeResolved(db, o, title, outcome) {
-    const buyerWon = outcome === 'buyer';
-    await notify(db, o.buyer_id, { kind: 'dispute.resolved', title: buyerWon ? `Bạn thắng khiếu nại: ${short(title)}` : `Khiếu nại không được chấp nhận: ${short(title)}`, body: buyerWon ? 'Tiền đã hoàn về ví.' : 'Đơn được tính là hoàn tất.', link: ORDER_LINK_BUYER });
-    await notify(db, o.seller_id, { kind: 'dispute.resolved', title: buyerWon ? `Thua khiếu nại: ${short(title)}` : `Khiếu nại đã xử lý có lợi cho bạn: ${short(title)}`, link: ORDER_LINK_SELLER });
+  async disputeResponded(db, o, title) {
+    await notify(db, o.buyer_id, { kind: 'dispute.responded', title: `Người bán đã phản hồi khiếu nại: ${short(title)}`, body: 'ReOwn sẽ đối chiếu ảnh của hai bên và ra kết luận.', link: ORDER_LINK_BUYER });
+  },
+  async disputeResolved(db, o, title, outcome, amount) {
+    const B = {
+      buyer: [`Bạn thắng khiếu nại: ${short(title)}`, 'Tiền đã hoàn về ví / khoản trả sau đã huỷ.'],
+      return: [`Khiếu nại được chấp nhận: ${short(title)}`, 'Gửi trả hàng cho người bán trong 5 ngày, nhập mã vận đơn trên ứng dụng. Tiền hoàn khi người bán nhận lại hàng.'],
+      partial: [`Hoàn một phần ${fmt(amount || 0)}: ${short(title)}`, 'Số tiền đã về ví ReOwn của bạn, bạn giữ lại hàng.'],
+      seller: [`Khiếu nại không được chấp nhận: ${short(title)}`, 'Đơn được tính là hoàn tất.'],
+    }[outcome];
+    const S = {
+      buyer: [`Thua khiếu nại: ${short(title)}`, 'Tiền đã hoàn cho người mua.'],
+      return: [`Người mua sẽ gửi trả hàng: ${short(title)}`, 'Khi nhận lại hàng, bấm "Đã nhận lại hàng" để hoàn tất.'],
+      partial: [`Hoàn một phần cho người mua: ${short(title)}`, `Người mua được hoàn ${fmt(amount || 0)}, phần còn lại đã về ví của bạn.`],
+      seller: [`Khiếu nại đã xử lý có lợi cho bạn: ${short(title)}`, null],
+    }[outcome];
+    await notify(db, o.buyer_id, { kind: 'dispute.resolved', title: B[0], body: B[1], link: ORDER_LINK_BUYER });
+    await notify(db, o.seller_id, { kind: 'dispute.resolved', title: S[0], body: S[1], link: ORDER_LINK_SELLER + '?don=khieu-nai' });
+  },
+  async returnShipped(db, o, title) {
+    await notify(db, o.seller_id, { kind: 'return.shipped', title: `Người mua đã gửi trả: ${short(title)}`, body: 'Kiểm tra hàng khi nhận rồi bấm "Đã nhận lại hàng". Sau 7 ngày không xác nhận, ReOwn tự hoàn tiền cho người mua.', link: ORDER_LINK_SELLER + '?don=khieu-nai' });
+  },
+  async returnRefunded(db, o, title) {
+    await notify(db, o.buyer_id, { kind: 'return.refunded', title: `Đã hoàn tiền: ${short(title)}`, body: 'Người bán đã nhận lại hàng, tiền về ví / khoản trả sau đã huỷ.', link: ORDER_LINK_BUYER });
+  },
+  async returnExpired(db, o, title) {
+    await notify(db, o.buyer_id, { kind: 'return.expired', title: `Quá hạn gửi trả: ${short(title)}`, body: 'Bạn không gửi trả hàng trong 5 ngày nên đơn được tính là hoàn tất.', link: ORDER_LINK_BUYER });
+  },
+  async withdrawn(db, userId, amount, last4) {
+    await notify(db, userId, { kind: 'wallet.withdrawn', title: `Đã chuyển ${fmt(amount)} về tài khoản ****${last4}`, link: '/tai-khoan?tab=vi' });
   },
   async reviewed(db, toUser, stars, asSeller) {
     await notify(db, toUser, { kind: 'review.new', title: `Bạn nhận được đánh giá ${stars}★`, body: asSeller ? 'Từ người mua sau giao dịch.' : 'Từ người bán sau giao dịch.', link: '/tai-khoan?tab=uy-tin' });

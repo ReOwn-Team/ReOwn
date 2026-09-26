@@ -11,7 +11,7 @@ export async function enginePlans(db, userId) {
   const r = await db.query(
     `SELECT p.id, p.order_id, p.total, p.term, p.down_payment, p.status AS plan_status, o.listing_id, l.title,
             json_agg(json_build_object('id', i.id, 'n', i.n, 'amount', i.amount, 'status', i.status,
-                     'due', i.due_at, 'paidAt', i.paid_at, 'daysLate', i.days_late) ORDER BY i.n) AS inst
+                     'due', i.due_at, 'paidAt', i.paid_at, 'daysLate', i.days_late, 'lateFee', i.late_fee) ORDER BY i.n) AS inst
        FROM bnpl_plans p
        JOIN orders o ON o.id = p.order_id
        JOIN listings l ON l.id = o.listing_id
@@ -69,7 +69,7 @@ export async function buildProfile(db, userId, now = new Date()) {
           COUNT(*) FILTER (WHERE shipped_at IS NOT NULL AND shipped_at - created_at <= make_interval(days => $2))::int AS shipped_on_time,
           COUNT(*) FILTER (WHERE status='cancelled_by_seller')::int AS cancels,
           (SELECT COUNT(*)::int FROM disputes d JOIN orders o2 ON o2.id=d.order_id
-             WHERE o2.seller_id=$1 AND d.status='resolved_buyer') AS disputes_lost
+             WHERE o2.seller_id=$1 AND d.status IN ('resolved_buyer', 'resolved_partial')) AS disputes_lost
          FROM orders WHERE seller_id=$1`, [userId, config.shipSlaDays]),
     () => db.query('SELECT from_user, direction, stars FROM reviews WHERE to_user=$1 ORDER BY created_at, id', [userId]),
     () => walletBalance(db, userId),

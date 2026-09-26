@@ -96,21 +96,21 @@ describe('Đặt hàng, trả sau và tiền giữ hộ', () => {
   it('từ chối trả 3 kỳ khi tiền góp vượt 30% thu nhập', async () => {
     const l = await listingByTitle('Laptop Dell Latitude');
     const r = await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', key())
-      .send({ listingId: l.id, method: 'bnpl', term: 3 }).expect(422);
+      .send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'bnpl', term: 3 }).expect(422);
     expect(JSON.stringify(r.body.error.details)).toMatch(/30% thu nhập/);
   });
 
   it('không nhận giá từ client', async () => {
     const l = await listingByTitle('Laptop Dell Latitude');
     await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', key())
-      .send({ listingId: l.id, method: 'full', price: 1000 }).expect(400);
+      .send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'full', price: 1000 }).expect(400);
   });
 
   it('trả 6 kỳ được duyệt; gửi lại cùng Idempotency-Key trả về đúng đơn cũ', async () => {
     const l = await listingByTitle('Laptop Dell Latitude');
     const k = key();
-    const r = await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', k).send({ listingId: l.id, method: 'bnpl', term: 6 }).expect(201);
-    const again = await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', k).send({ listingId: l.id, method: 'bnpl', term: 6 }).expect(200);
+    const r = await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', k).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'bnpl', term: 6 }).expect(201);
+    const again = await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', k).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'bnpl', term: 6 }).expect(200);
     expect(again.body.id).toBe(r.body.id);
     order = r.body;
     const plan = (await pool.query('SELECT * FROM bnpl_plans WHERE order_id=$1', [order.id])).rows[0];
@@ -120,13 +120,13 @@ describe('Đặt hàng, trả sau và tiền giữ hộ', () => {
   });
 
   it('món đã có người đặt thì người khác không mua được', async () => {
-    const r = await api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ listingId: order.productId, method: 'full' });
+    const r = await api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: order.productId, method: 'full' });
     expect(r.status).toBe(409);
   });
 
   it('người ngoài không xem / thao tác được đơn của người khác', async () => {
     await api().get(`/api/orders/${order.id}`).set(auth(huy.token)).expect(404);
-    await api().post(`/api/orders/${order.id}/ship`).set(auth(huy.token)).expect(403);
+    await api().post(`/api/orders/${order.id}/ship`).set(auth(huy.token)).send({ carrier: 'GHN', trackingCode: 'GHN00000000' }).expect(403);
     await api().post(`/api/orders/${order.id}/confirm`).set(auth(bao.token)).expect(403);
   });
 
@@ -147,7 +147,7 @@ describe('Đặt hàng, trả sau và tiền giữ hộ', () => {
 
   it('gửi hàng → nhận hàng → giải ngân ngay cho người bán hạng A, sàn thu 4%', async () => {
     const before = (await api().get('/api/me/wallet').set(auth(bao.token))).body.balance;
-    await api().post(`/api/orders/${order.id}/ship`).set(auth(bao.token)).expect(200);
+    await api().post(`/api/orders/${order.id}/ship`).set(auth(bao.token)).send({ carrier: 'GHN', trackingCode: 'GHN00000000' }).expect(200);
     const r = await api().post(`/api/orders/${order.id}/confirm`).set(auth(lan.token)).expect(200);
     expect(r.body.status).toBe('completed');
     expect(r.body.payoutStatus).toBe('released');
@@ -185,8 +185,8 @@ describe('Chống bán trùng khi 2 người đặt cùng lúc', () => {
   it('chỉ đúng một đơn thành công', async () => {
     const l = await listingByTitle('Máy tính Casio');
     const [a, b] = await Promise.all([
-      api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ listingId: l.id, method: 'full' }),
-      api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', key()).send({ listingId: l.id, method: 'full' }),
+      api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'full' }),
+      api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', key()).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'full' }),
     ]);
     expect([a.status, b.status].sort()).toEqual([201, 409]);
   });
@@ -195,7 +195,7 @@ describe('Chống bán trùng khi 2 người đặt cùng lúc', () => {
 describe('Xác thực danh tính', () => {
   it('chưa có CCCD thì không trả sau được; mỗi CCCD chỉ gắn một tài khoản', async () => {
     const l = await listingByTitle('Nồi cơm điện');
-    await api().post('/api/orders').set(auth(minh.token)).set('Idempotency-Key', key()).send({ listingId: l.id, method: 'bnpl', term: 3 }).expect(422);
+    await api().post('/api/orders').set(auth(minh.token)).set('Idempotency-Key', key()).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'bnpl', term: 3 }).expect(422);
     const v = await api().post('/api/me/verifications/cccd').set(auth(minh.token)).send({ number: '079206001234' }).expect(200);
     expect(v.body.last4).toBe('1234');
     const row = (await pool.query("SELECT doc_hash FROM verifications WHERE type='cccd' AND doc_last4='1234'")).rows[0];
@@ -209,8 +209,8 @@ describe('Tranh chấp & quản trị', () => {
   it('người mua thắng tranh chấp được hoàn tiền về ví, người bán bị trừ điểm', async () => {
     const l = await listingByTitle('Giày Converse');
     const w0 = (await api().get('/api/me/wallet').set(auth(huy.token))).body.balance;
-    const o = (await api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ listingId: l.id, method: 'full' }).expect(201)).body;
-    await api().post(`/api/orders/${o.id}/ship`).set(auth(bao.token)).expect(200);
+    const o = (await api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'full' }).expect(201)).body;
+    await api().post(`/api/orders/${o.id}/ship`).set(auth(bao.token)).send({ carrier: 'GHN', trackingCode: 'GHN00000000' }).expect(200);
     const sBefore = (await api().get('/api/me').set(auth(bao.token))).body.sellerScore.score;
     await api().post(`/api/orders/${o.id}/dispute`).set(auth(huy.token)).send({ reason: 'Đế giày bị bong, không giống ảnh' }).expect(400);
     const photo = await sharp({ create: { width: 300, height: 300, channels: 3, background: '#a33' } }).jpeg().toBuffer();
@@ -295,7 +295,7 @@ describe('rule-v1.1: giá tham chiếu, câu chữ lừa đảo, trả trước'
     expect(opt.ok).toBe(true);
     expect(opt.down).toBeGreaterThan(0);
     const w0 = (await api().get('/api/me/wallet').set(auth(huy.token))).body.balance;
-    const o = (await api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ listingId: l.id, method: 'bnpl', term: 3 }).expect(201)).body;
+    const o = (await api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', key()).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'bnpl', term: 3 }).expect(201)).body;
     const plan = (await pool.query('SELECT * FROM bnpl_plans WHERE order_id=$1', [o.id])).rows[0];
     expect(plan.down_payment).toBe(opt.down);
     expect(plan.principal + plan.down_payment).toBe(l.price);
@@ -513,12 +513,12 @@ describe('Thông báo & nhắc hạn', () => {
   it('đặt hàng → người bán nhận thông báo (kèm SMS mô phỏng); gửi hàng → người mua nhận', async () => {
     const l = await listingByTitle('Đèn học');
     const seller = await login((await pool.query('SELECT phone FROM users WHERE id=$1', [l.seller_id])).rows[0].phone);
-    const o = (await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', key()).send({ listingId: l.id, method: 'full' }).expect(201)).body;
+    const o = (await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', key()).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'full' }).expect(201)).body;
     const s1 = await notes(seller);
     expect(s1.items[0].kind).toBe('order.new');
     expect(s1.unread).toBeGreaterThan(0);
     await api().post(`/api/dev/orders/${o.id}/simulate-ship`).set(auth(lan.token)).expect(200);
-    await api().post(`/api/orders/${o.id}/ship`).set(auth(seller.token)).expect(409);
+    await api().post(`/api/orders/${o.id}/ship`).set(auth(seller.token)).send({ carrier: 'GHN', trackingCode: 'GHN00000000' }).expect(409);
     const b = await notes(lan);
     expect(b.items.find((n) => n.kind === 'order.shipped')).toBeTruthy();
     const inbox = (await api().get('/api/me/inbox').set(auth(lan.token)).expect(200)).body;
@@ -607,7 +607,7 @@ describe('Sửa tin', () => {
   it('người khác không sửa được; câu chữ lừa đảo bị chặn; tin đã có người đặt thì khoá', async () => {
     await api().patch(`/api/listings/${mine.id}`).set(auth(huy.token)).send({ price: 10_000 }).expect(403);
     await api().patch(`/api/listings/${mine.id}`).set(auth(bao.token)).send({ description: 'Chuyển khoản trước rồi mình ship' }).expect(422);
-    await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', key()).send({ listingId: mine.id, method: 'full' }).expect(201);
+    await api().post('/api/orders').set(auth(lan.token)).set('Idempotency-Key', key()).send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: mine.id, method: 'full' }).expect(201);
     const r = await api().patch(`/api/listings/${mine.id}`).set(auth(bao.token)).send({ price: 1_000_000 }).expect(422);
     expect(r.body.error.message).toMatch(/không sửa được/);
   });

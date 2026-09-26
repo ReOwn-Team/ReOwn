@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useStore } from '../state/useStore.js';
 import { outstanding, bnplOffer } from '../../shared/scoring/engine.js';
@@ -7,7 +7,9 @@ import Art from '../components/Art.jsx';
 import Icon from '../components/Icon.jsx';
 import PhotoPicker from '../components/PhotoPicker.jsx';
 import { ScoreGauge, TierScale, Breakdown, Reasons, TrustBadge, Empty } from '../components/ui.jsx';
-import { money, TIER_LABEL, ORDER_STATUS } from '../lib/format.js';
+import { money, TIER_LABEL, orderStatusLabel, parseMoney } from '../lib/format.js';
+import { WITHDRAW_MIN, LATE_FEE, LATE_FEE_GRACE_DAYS, lateFeeFor } from '../../shared/policy.js';
+import { DeliveryInfo, DisputeThread, HandoverCode, CarrierFields } from '../components/OrderBits.jsx';
 
 const VERIFY_LABEL = { phone: 'Số điện thoại', cccd: 'CCCD gắn chip', bank: 'Tài khoản ngân hàng', student: 'Thẻ sinh viên' };
 const VERIFY_HINT = { phone: 'Xác thực khi đăng nhập', cccd: 'Bắt buộc để dùng trả sau', bank: 'Nhận tiền bán hàng', student: 'Ưu đãi sinh viên' };
@@ -17,7 +19,7 @@ const ORDER_TABS = [
   { v: 'paid', label: 'Chờ gửi hàng', match: (o) => o.status === 'paid' },
   { v: 'shipped', label: 'Đang giao', match: (o) => o.status === 'shipped' },
   { v: 'completed', label: 'Hoàn tất', match: (o) => o.status === 'completed' },
-  { v: 'closed', label: 'Huỷ / hoàn tiền', match: (o) => ['refused_by_buyer', 'cancelled_by_seller', 'disputed', 'refunded'].includes(o.status) },
+  { v: 'closed', label: 'Khiếu nại / hoàn tiền', match: (o) => ['refused_by_buyer', 'cancelled_by_seller', 'disputed', 'return_pending', 'returning', 'refunded'].includes(o.status) },
 ];
 const lateLabel = (i) => (i.daysLate ? `Trễ ${i.daysLate} ngày` : 'Đúng hạn');
 
@@ -45,34 +47,59 @@ function DisputeForm({ orderId, dispatch, onDone, mode }) {
   );
 }
 
+function ReturnForm({ o, dispatch }) {
+  const [v, setV] = useState({ carrier: 'GHN', trackingCode: '' });
+  const [busy, setBusy] = useState(false);
+  const meetup = v.carrier === 'Khác';
+  const submit = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try { await dispatch({ type: 'returnShip', orderId: o.id, carrier: meetup ? 'Gặp trực tiếp / khác' : v.carrier, trackingCode: v.trackingCode || undefined }); } finally { setBusy(false); }
+  };
+  const due = o.returnInfo?.dueAt;
+  return (
+    <form className="inline-form" onSubmit={submit}>
+      <p className="small"><b>Gửi trả hàng cho người bán</b>{due ? ` trước ${date(due)}` : ''}. Quá hạn không gửi, đơn được tính là hoàn tất.</p>
+      <CarrierFields id={`rt-${o.id}`} value={v} onChange={setV} requireCode={!meetup} />
+      <div className="row"><button className="btn btn-sm" disabled={busy || (!meetup && v.trackingCode.length < 4)}>Đã gửi trả</button></div>
+    </form>
+  );
+}
+
 function OrderCard({ o, product, dispatch, mode }) {
   const [stars, setStars] = useState(5);
   const [disputing, setDisputing] = useState(false);
   const method = o.method === 'full' ? 'Trả thẳng' : `Trả sau ${o.method} kỳ`;
-  const canDispute = o.status === 'shipped' || (o.status === 'completed' && o.payoutStatus === 'held');
+  const meetup = o.delivery === 'meetup';
+  const canReceive = o.status === 'shipped' || (meetup && o.status === 'paid');
+  const canDispute = (o.status === 'shipped' && !meetup) || (o.status === 'completed' && o.payoutStatus === 'held');
   return (
     <li className="ocard">
       <div className="ocard-head">
         <span className="small">{o.sellerName ? <>Người bán <b>{o.sellerName}</b></> : 'Đơn hàng'} · {date(o.createdAt)}</span>
-        <span className={`ostatus st-${o.status}`}>{ORDER_STATUS[o.status]}</span>
+        <span className={`ostatus st-${o.status}`}>{orderStatusLabel(o)}</span>
       </div>
       <Link to={`/san-pham/${o.productId}`} className="ocard-body">
         <Art product={product || { category: o.category || 'study', icon: o.icon, cover: o.cover, title: o.title }} size="xs" />
         <span className="ocard-title">{o.title}</span>
         <span className="ocard-price"><strong>{money(o.price)}</strong><span className="small muted">{method}</span></span>
       </Link>
+      <DeliveryInfo o={o} />
+      {meetup && canReceive && <HandoverCode code={o.handoverCode} />}
+      {o.dispute && <DisputeThread d={o.dispute} viewer="buyer" />}
+      {o.status === 'return_pending' && <ReturnForm o={o} dispatch={dispatch} />}
       <div className="ocard-foot">
-        {o.status === 'paid' && <span className="small muted">Tiền đang giữ hộ · chờ người bán xác nhận gửi (trong 3 ngày)</span>}
-        {o.dispute && <span className="small muted">Khiếu nại: {o.dispute.status === 'open' ? 'đang chờ ReOwn xử lý' : o.dispute.status === 'resolved_buyer' ? 'bạn thắng, đã hoàn tiền' : 'người bán thắng'}</span>}
+        {o.status === 'paid' && !meetup && <span className="small muted">Tiền đang giữ hộ · chờ người bán gửi hàng (trong 3 ngày)</span>}
+        {o.status === 'returning' && <span className="small muted">Đã gửi trả qua {o.returnInfo?.carrier}{o.returnInfo?.trackingCode ? ` · mã ${o.returnInfo.trackingCode}` : ''}. Tự hoàn tiền nếu người bán không xác nhận trong 7 ngày.</span>}
+        {o.refundAmount > 0 && <span className="small muted">Đã hoàn {money(o.refundAmount)} về ví</span>}
         {o.myStars && <span className="small muted">Bạn đã đánh giá {o.myStars} sao</span>}
         <div className="ocard-actions">
           {canDispute && !disputing && <button className="btn btn-sm btn-outline" onClick={() => setDisputing(true)}>Hàng không đúng mô tả</button>}
-          {o.status === 'shipped' && (
+          {canReceive && (
             <>
-              <button className="btn btn-sm btn-outline" onClick={() => dispatch({ type: 'bomOrder', orderId: o.id })}>Từ chối nhận</button>
+              {!meetup && <button className="btn btn-sm btn-outline" onClick={() => dispatch({ type: 'bomOrder', orderId: o.id })}>Từ chối nhận</button>}
               <label className="sr-only" htmlFor={`st-${o.id}`}>Đánh giá người bán</label>
               <select id={`st-${o.id}`} value={stars} onChange={(e) => setStars(Number(e.target.value))}>{[5, 4, 3, 2, 1].map((s) => <option key={s} value={s}>{s} sao</option>)}</select>
-              <button className="btn btn-sm" onClick={() => dispatch({ type: 'confirmReceived', orderId: o.id, stars })}>Đã nhận hàng</button>
+              <button className={`btn btn-sm ${meetup ? 'btn-outline' : ''}`} onClick={() => dispatch({ type: 'confirmReceived', orderId: o.id, stars })}>Đã nhận hàng</button>
             </>
           )}
           {o.status === 'completed' && !o.myStars && mode === 'api' && (
@@ -85,6 +112,113 @@ function OrderCard({ o, product, dispatch, mode }) {
       </div>
       {disputing && <DisputeForm orderId={o.id} dispatch={dispatch} mode={mode} onDone={() => setDisputing(false)} />}
     </li>
+  );
+}
+
+function WalletPanel({ me, dispatch, devTools, walletInfo, go }) {
+  const [info, setInfo] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const balance = me.finance.savings;
+  const refresh = useCallback(() => walletInfo().then(setInfo).catch(() => setInfo({ entries: [], withdrawals: [], bankLast4: null })), [walletInfo]);
+  useEffect(() => { refresh(); }, [refresh, balance]);
+  const submit = async (e) => {
+    e.preventDefault();
+    const v = parseMoney(amount);
+    if (v < WITHDRAW_MIN) { setErr(`Tối thiểu ${money(WITHDRAW_MIN)}`); return; }
+    if (v > balance) { setErr('Vượt số dư khả dụng'); return; }
+    setBusy(true); setErr('');
+    try { if (await dispatch({ type: 'withdraw', amount: v })) { setAmount(''); refresh(); } } finally { setBusy(false); }
+  };
+  return (
+    <section className="panel">
+      <h2>Ví ReOwn</h2>
+      <div className="wallet-hero"><span className="small">Số dư khả dụng</span><strong>{money(balance)}</strong></div>
+      {devTools && (
+        <div className="row wrap-row">
+          <span className="small muted">Nạp tiền (giả lập cổng thanh toán):</span>
+          {[500_000, 2_000_000].map((v) => <button key={v} className="btn btn-sm btn-outline" onClick={() => dispatch({ type: 'topup', amount: v })}>+{money(v)}</button>)}
+        </div>
+      )}
+      <h3>Rút về ngân hàng</h3>
+      {info && !info.bankLast4 ? (
+        <p className="notice small">Xác thực tài khoản ngân hàng để rút tiền bán hàng. <button className="linkbtn strong" onClick={() => go('xac-thuc')}>Xác thực ngay</button></p>
+      ) : (
+        <form className="withdraw" onSubmit={submit}>
+          <label htmlFor="wd-amount" className="small">Số tiền rút về tài khoản ****{info?.bankLast4 || '····'}</label>
+          <div className="row wrap-row">
+            <input id="wd-amount" inputMode="numeric" value={amount} placeholder={`Tối thiểu ${money(WITHDRAW_MIN)}`}
+              onChange={(e) => { const v = parseMoney(e.target.value); setAmount(v ? v.toLocaleString('vi-VN') : ''); setErr(''); }} aria-invalid={!!err} />
+            <button type="button" className="btn btn-sm btn-outline" onClick={() => setAmount(balance.toLocaleString('vi-VN'))} disabled={!balance}>Rút hết</button>
+            <button className="btn btn-sm" disabled={busy || !amount}>{busy ? 'Đang chuyển…' : 'Rút tiền'}</button>
+          </div>
+          {err && <span className="small danger" role="alert">{err}</span>}
+          <span className="small muted">Miễn phí, tối đa 3 lần/ngày. Bản demo mô phỏng chuyển khoản thành công ngay.</span>
+        </form>
+      )}
+      {info?.withdrawals?.length > 0 && (
+        <>
+          <h3>Lịch sử rút tiền</h3>
+          <ul className="txlist">
+            {info.withdrawals.map((w) => (
+              <li key={w.id}><span><b>-{money(w.amount)}</b><span className="small muted"> về ****{w.bankLast4} · {w.reference}</span></span><span className="small muted">{date(w.createdAt)} · {w.status === 'paid' ? 'Thành công' : 'Thất bại'}</span></li>
+            ))}
+          </ul>
+        </>
+      )}
+      {info?.entries?.length > 0 && (
+        <>
+          <h3>Biến động số dư</h3>
+          <ul className="txlist">
+            {info.entries.slice(0, 20).map((t, i) => (
+              <li key={i}><span className={t.amount > 0 ? 'ok-text' : ''}><b>{t.amount > 0 ? '+' : ''}{money(t.amount)}</b></span><span className="small muted">{t.memo} · {date(t.created_at)}</span></li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Lộ trình mở / nâng trả sau cho tài khoản mới: từng bước cụ thể, đã xong hay chưa. */
+function BnplRoadmap({ me, res, policy, go }) {
+  const onTime = me.buyer?.repayment?.onTime || 0;
+  const steps = [
+    { done: true, text: 'Xác thực số điện thoại' },
+    { done: !!me.verify.cccd, text: `Xác thực CCCD gắn chip (+${BUYER_IDENTITY_POINTS.cccd} điểm) — bắt buộc để trả sau`, act: 'xac-thuc' },
+    { done: !!me.verify.student && !!me.verify.bank, text: `Xác thực thẻ sinh viên và tài khoản ngân hàng (+${BUYER_IDENTITY_POINTS.student + BUYER_IDENTITY_POINTS.bank} điểm)`, act: 'xac-thuc' },
+    { done: (me.finance.monthlyIncome || 0) > 0, text: 'Khai thu nhập / trợ cấp hằng tháng để tính mức góp phù hợp', act: 'thu-nhap' },
+    { done: res.score >= TIERS.find((t) => t.id === 'C').min, text: `Đạt ${TIERS.find((t) => t.id === 'C').min} điểm (hạng C) để mở trả sau ${money(BNPL_POLICY.C.limit)}, 3 kỳ — hiện ${res.score} điểm` },
+    { done: onTime >= THIN_FILE_MIN_ONTIME, text: `Trả đúng hạn ${THIN_FILE_MIN_ONTIME} kỳ để mở hạn mức theo hạng thật (tới ${money(BNPL_POLICY.A.limit)}, 6 kỳ) — đã có ${Math.min(onTime, THIN_FILE_MIN_ONTIME)}/${THIN_FILE_MIN_ONTIME}` },
+  ];
+  const doneCount = steps.filter((x) => x.done).length;
+  if (doneCount === steps.length && !policy.thinFile) return null;
+  return (
+    <div className="roadmap">
+      <div className="roadmap-head"><b>Lộ trình mở trả sau</b><span className="small muted">{doneCount}/{steps.length} bước</span></div>
+      <div className="bar"><div style={{ width: `${(doneCount / steps.length) * 100}%` }} /></div>
+      <ol>
+        {steps.map((st) => (
+          <li key={st.text} className={st.done ? 'done' : ''}>
+            <span className="vdot" aria-hidden="true">{st.done && <Icon name="check" size={12} />}</span>
+            <span>{st.text}</span>
+            {!st.done && st.act === 'xac-thuc' && <button className="linkbtn small" onClick={() => go('xac-thuc')}>Làm ngay</button>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function IncomeForm({ me, dispatch }) {
+  const [v, setV] = useState(me.finance.monthlyIncome ? me.finance.monthlyIncome.toLocaleString('vi-VN') : '');
+  return (
+    <form className="row wrap-row income-form" onSubmit={(e) => { e.preventDefault(); dispatch({ type: 'updateFinance', finance: { monthlyIncome: parseMoney(v) } }); }}>
+      <label htmlFor="income" className="small">Thu nhập / trợ cấp mỗi tháng</label>
+      <input id="income" inputMode="numeric" value={v} onChange={(e) => { const n = parseMoney(e.target.value); setV(n ? n.toLocaleString('vi-VN') : ''); }} placeholder="VD: 3.000.000" />
+      <button className="btn btn-sm btn-outline">Lưu</button>
+    </form>
   );
 }
 
@@ -126,7 +260,7 @@ const MENU = [
 ];
 
 export default function Account() {
-  const { state, me, buyerScores, dispatch, mode, devTools } = useStore();
+  const { state, me, buyerScores, dispatch, mode, devTools, walletInfo } = useStore();
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || '';
   const [otab, setOtab] = useState('all');
@@ -139,6 +273,10 @@ export default function Account() {
   const shownOrders = orders.filter(ORDER_TABS.find((t) => t.v === otab).match);
   const nextDue = plans.flatMap((p) => p.installments.filter((i) => i.status !== 'paid').slice(0, 1).map((i) => ({ ...i, title: p.title }))).sort((a, b) => a.due - b.due)[0];
   const go = (v) => setParams(v ? { tab: v } : {});
+  const upcoming = plans.flatMap((p) => p.installments.filter((i) => i.status !== 'paid').map((i) => {
+    const lateDays = Math.floor((Date.now() - new Date(i.due).getTime()) / 86_400_000);
+    return { ...i, due: new Date(i.due).getTime(), title: p.title, of: p.installments.length, overdue: lateDays > 0, lateDays, fee: lateFeeFor(i.due) };
+  })).sort((x, y) => x.due - y.due).slice(0, 6);
   const verifiedCount = Object.values(me.verify).filter(Boolean).length;
 
   return (
@@ -166,13 +304,7 @@ export default function Account() {
               <button className="acard" onClick={() => go('tra-sau')}><span className="small muted">Kỳ thanh toán tới</span><strong>{nextDue ? money(nextDue.amount) : '—'}</strong><span className="small link">{nextDue ? (nextDue.status === 'overdue' ? 'Đang quá hạn' : `Hạn ${date(nextDue.due)}`) : 'Không có khoản nào'}</span></button>
               <button className="acard" onClick={() => go('uy-tin')}><span className="small muted">Điểm uy tín</span><strong>{res.score} · Hạng {res.tier.id}</strong><span className="small link">{TIER_LABEL[res.tier.id]}</span></button>
             </section>
-            {(!me.verify.cccd || policy.thinFile) && (
-              <div className="notice">
-                {!me.verify.cccd
-                  ? <>Xác thực CCCD để mở trả sau và cộng 10 điểm uy tín. <button className="linkbtn strong" onClick={() => go('xac-thuc')}>Xác thực ngay</button></>
-                  : <>Tài khoản mới: hạn mức tạm tính theo hạng C cho tới khi bạn trả đúng hạn {THIN_FILE_MIN_ONTIME} kỳ (hiện có {me.buyer.repayment.onTime}).</>}
-              </div>
-            )}
+            {(!me.verify.cccd || policy.thinFile || policy.blockers.length > 0) && <BnplRoadmap me={me} res={res} policy={policy} go={go} />}
             <section className="panel">
               <div className="panel-head"><h2>Đơn mua</h2><button className="linkbtn" onClick={() => go('don-mua')}>Xem tất cả<Icon name="chevron" size={14} /></button></div>
               <div className="ostats">
@@ -210,7 +342,23 @@ export default function Account() {
               <div className="bar big"><div style={{ width: `${policy.limit ? Math.min(100, (used / policy.limit) * 100) : 0}%` }} /></div>
               <span className="small muted">Góp tối đa {money(policy.monthlyRoom)}/tháng (30% thu nhập) · kỳ hạn tối đa {policy.maxTerm || 0} kỳ{policy.downRate != null ? ` · trả trước ${Math.round(policy.downRate * 100)}%` : ''}</span>
             </div>
-            {policy.blockers.length > 0 && <p className="notice small">{policy.blockers.join('. ')}.</p>}
+            <BnplRoadmap me={me} res={res} policy={policy} go={go} />
+            {!(me.finance.monthlyIncome > 0) && <IncomeForm me={me} dispatch={dispatch} />}
+            {upcoming.length > 0 && (
+              <div className="upcoming">
+                <h3>Lịch trả sắp tới</h3>
+                <ul>
+                  {upcoming.map((i) => (
+                    <li key={i.id} className={i.overdue ? 'late' : ''}>
+                      <span><b>{money(i.amount)}</b>{i.fee ? <span className="small danger"> + {money(i.fee)} phí trễ</span> : null}</span>
+                      <span className="small">{i.title} · kỳ {i.n}/{i.of}</span>
+                      <span className="small muted">{i.overdue ? `Quá hạn ${i.lateDays} ngày` : `Hạn ${date(i.due)}`}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="small muted">Trễ quá {LATE_FEE_GRACE_DAYS} ngày cộng phí {money(LATE_FEE)}/kỳ và bị trừ điểm uy tín.</p>
+              </div>
+            )}
             {plans.length === 0 ? <Empty title="Chưa có khoản trả sau nào" action={<Link to="/tim-kiem?bnpl=1" className="btn">Tìm món trả sau được</Link>} /> : (
               <div className="plans">
                 {plans.map((pl) => {
@@ -223,7 +371,7 @@ export default function Account() {
                         {pl.installments.map((i) => (
                           <li key={i.n} className={`sch sch-${i.status} ${next && next.n === i.n ? 'current' : ''}`}>
                             <span>Kỳ {i.n}</span><b>{money(i.amount)}</b>
-                            <span className="small">{i.status === 'paid' ? lateLabel(i) : i.status === 'overdue' ? 'Quá hạn >30 ngày' : `Hạn ${date(i.due)}`}</span>
+                            <span className="small">{i.status === 'paid' ? lateLabel(i) : i.status === 'overdue' ? 'Quá hạn >30 ngày' : `Hạn ${date(i.due)}`}{i.lateFee ? ` · phí trễ ${money(i.lateFee)}` : ''}</span>
                           </li>
                         ))}
                       </ol>
@@ -231,7 +379,12 @@ export default function Account() {
                         <div className="row wrap-row">
                           {next.status === 'overdue'
                             ? <button className="btn btn-sm" onClick={() => dispatch({ type: 'payInstallment', planId: pl.id, n: next.n, mode: 'clearDefault' })}>Thanh toán kỳ quá hạn</button>
-                            : <button className="btn btn-sm" onClick={() => dispatch({ type: 'payInstallment', planId: pl.id, n: next.n, mode: 'onTime' })}>Thanh toán kỳ {next.n} · {money(next.amount)}</button>}
+                            : <button className="btn btn-sm" onClick={() => dispatch({ type: 'payInstallment', planId: pl.id, n: next.n, mode: 'onTime' })}>Thanh toán kỳ {next.n} · {money(next.amount + lateFeeFor(next.due))}</button>}
+                          {pl.installments.filter((i) => i.status !== 'paid').length > 1 && (
+                            <button className="btn btn-sm btn-outline" onClick={() => dispatch({ type: 'payoff', planId: pl.id })}>
+                              Tất toán sớm · {money(pl.installments.filter((i) => i.status !== 'paid').reduce((sum, i) => sum + i.amount + lateFeeFor(i.due), 0))}
+                            </button>
+                          )}
                           {devTools && next.status !== 'overdue' && (
                             <details className="demo-tools">
                               <summary className="small">Công cụ demo</summary>
@@ -253,18 +406,7 @@ export default function Account() {
           </section>
         )}
 
-        {tab === 'vi' && (
-          <section className="panel">
-            <h2>Ví ReOwn</h2>
-            <div className="wallet-hero"><span className="small">Số dư khả dụng</span><strong>{money(me.finance.savings)}</strong></div>
-            {devTools && (
-              <div className="row wrap-row">
-                <span className="small muted">Nạp tiền (giả lập cổng thanh toán):</span>
-                {[500_000, 2_000_000].map((v) => <button key={v} className="btn btn-sm btn-outline" onClick={() => dispatch({ type: 'topup', amount: v })}>+{money(v)}</button>)}
-              </div>
-            )}
-          </section>
-        )}
+        {tab === 'vi' && <WalletPanel me={me} dispatch={dispatch} devTools={devTools} walletInfo={walletInfo} go={go} />}
 
         {tab === 'uy-tin' && (
           <section className="panel">

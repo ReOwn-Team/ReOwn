@@ -102,7 +102,7 @@ export const MAX_EVIDENCE = 3;
 /** Ảnh bằng chứng khi khiếu nại: người mua tải lên trước (như ảnh tin đăng) rồi gắn vào tranh chấp. */
 export async function attachEvidence(db, { disputeId, ownerId, ids = [] }) {
   const unique = [...new Set(ids)];
-  if (!unique.length) throw unprocessable('Cần ít nhất 1 ảnh chụp tình trạng hàng khi khiếu nại');
+  if (!unique.length) return [];
   if (unique.length > MAX_EVIDENCE) throw unprocessable(`Tối đa ${MAX_EVIDENCE} ảnh bằng chứng`);
   const r = await db.query(
     `UPDATE listing_images SET dispute_id=$2 WHERE id = ANY($1::uuid[]) AND owner_id=$3
@@ -114,8 +114,8 @@ export async function attachEvidence(db, { disputeId, ownerId, ids = [] }) {
 export async function evidenceFor(db, disputeIds) {
   if (!disputeIds.length) return {};
   const rows = (await db.query(
-    'SELECT id, dispute_id FROM listing_images WHERE dispute_id = ANY($1::uuid[]) ORDER BY created_at', [disputeIds])).rows;
+    'SELECT id, dispute_id, owner_id FROM listing_images WHERE dispute_id = ANY($1::uuid[]) ORDER BY created_at', [disputeIds])).rows;
   const out = {};
-  for (const r of rows) (out[r.dispute_id] ||= []).push(imageUrl(r.id));
+  for (const r of rows) (out[r.dispute_id] ||= []).push({ url: imageUrl(r.id), ownerId: r.owner_id });
   return out;
 }

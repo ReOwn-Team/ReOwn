@@ -34,6 +34,9 @@ test('đặt hàng → người bán gửi → người mua nhận hàng', async
   await page.getByRole('radio', { name: /Trả thẳng/ }).click();
   await page.locator('.buy-row .btn-buy').click();
   await page.getByRole('button', { name: 'Đặt hàng' }).click();
+  await expect(page.locator('#ship-err')).toBeVisible();
+  await page.getByLabel(/Người nhận/).fill('Trần Ngọc Lan · 0900000002 · KTX khu B');
+  await page.getByRole('button', { name: 'Đặt hàng' }).click();
   const order = page.locator('.ocard').filter({ hasText: 'Casio' }).first();
   await expect(order.locator('.ostatus')).toHaveText('Chờ người bán gửi');
   await expect(order.getByRole('button', { name: 'Đã nhận hàng' })).toHaveCount(0);
@@ -43,7 +46,10 @@ test('đặt hàng → người bán gửi → người mua nhận hàng', async
   await page.goto('#/kenh-nguoi-ban');
   const sale = page.locator('.ocard').filter({ hasText: 'Casio' }).first();
   await expect(sale.locator('.ostatus')).toHaveText('Cần gửi hàng');
+  await expect(sale).toContainText('KTX khu B');
   await sale.getByRole('button', { name: 'Xác nhận đã gửi hàng' }).click();
+  await sale.getByPlaceholder('Mã vận đơn').fill('GHN12345678');
+  await sale.getByRole('button', { name: 'Xác nhận đã gửi' }).click();
   await page.getByRole('tab', { name: /Đang giao/ }).click();
   const shipping = page.locator('.ocard').filter({ hasText: 'Casio' }).first();
   await expect(shipping.locator('.ostatus')).toHaveText('Đang giao');
@@ -54,6 +60,7 @@ test('đặt hàng → người bán gửi → người mua nhận hàng', async
   await page.goto('#/tai-khoan?tab=don-mua');
   const mine = page.locator('.ocard').filter({ hasText: 'Casio' }).first();
   await expect(mine.getByRole('button', { name: /Mô phỏng/ })).toHaveCount(0);
+  await expect(mine).toContainText('GHN12345678');
   await mine.getByRole('button', { name: 'Đã nhận hàng' }).click();
   await expect(mine.locator('.ostatus')).toHaveText('Hoàn tất');
 });
@@ -63,13 +70,17 @@ test('khiếu nại hàng sai mô tả bắt buộc kèm ảnh', async ({ page }
   await openProduct(page, 'quat dung senko');
   await page.getByRole('radio', { name: /Trả thẳng/ }).click();
   await page.locator('.buy-row .btn-buy').click();
+  await page.getByLabel(/Người nhận/).fill('Lê Quốc Huy · 0900000003 · Tân Phú');
   await page.getByRole('button', { name: 'Đặt hàng' }).click();
   await expect(page.locator('.ocard').filter({ hasText: 'Senko' }).first().locator('.ostatus')).toHaveText('Chờ người bán gửi');
 
   await logout(page);
   await login(page, 'bao');
   await page.goto('#/kenh-nguoi-ban?don=can-gui');
-  await page.locator('.ocard').filter({ hasText: 'Senko' }).first().getByRole('button', { name: 'Xác nhận đã gửi hàng' }).click();
+  const toShip = page.locator('.ocard').filter({ hasText: 'Senko' }).first();
+  await toShip.getByRole('button', { name: 'Xác nhận đã gửi hàng' }).click();
+  await toShip.getByPlaceholder('Mã vận đơn').fill('GHTK99887766');
+  await toShip.getByRole('button', { name: 'Xác nhận đã gửi' }).click();
   await expect(page.locator('.ocard').filter({ hasText: 'Senko' })).toHaveCount(0);
 
   await logout(page);
@@ -85,6 +96,72 @@ test('khiếu nại hàng sai mô tả bắt buộc kèm ảnh', async ({ page }
   await expect(order.locator('.photo img')).toHaveCount(1);
   await order.getByRole('button', { name: 'Gửi khiếu nại' }).click();
   await expect(order.locator('.ostatus')).toHaveText('Đang khiếu nại');
+
+  await logout(page);
+  await login(page, 'bao');
+  await page.goto('#/kenh-nguoi-ban');
+  await expect(page.getByRole('tab', { name: /Khiếu nại & trả hàng/ })).toHaveAttribute('aria-selected', 'true');
+  const claim = page.locator('.ocard').filter({ hasText: 'Senko' }).first();
+  await claim.getByLabel(/Phản hồi khiếu nại/).fill('Mình có video đóng gói, quạt nguyên vẹn khi gửi');
+  await claim.getByRole('button', { name: 'Gửi phản hồi' }).click();
+  await expect(claim).toContainText('Phản hồi của bạn');
+
+  await logout(page);
+  await login(page, 'admin');
+  await adminGate(page);
+  await page.locator('.adm-nav').getByRole('button', { name: /Tranh chấp/ }).click();
+  const card = page.locator('.dcard').filter({ hasText: 'Senko' }).first();
+  await card.locator('.dcard-head').click();
+  await expect(card).toContainText('Mình có video đóng gói');
+  await expect(card.locator('.evidence img')).toHaveCount(1);
+  await card.getByLabel('Kết luận').fill('Cánh quạt gãy — trả hàng để hoàn tiền');
+  await card.getByRole('button', { name: 'Trả hàng rồi hoàn tiền' }).click();
+
+  await logout(page);
+  await login(page, 'huy');
+  await page.goto('#/tai-khoan?tab=don-mua');
+  const back = page.locator('.ocard').filter({ hasText: 'Senko' }).first();
+  await expect(back.locator('.ostatus')).toHaveText('Chờ gửi trả hàng');
+  await back.getByPlaceholder('Mã vận đơn').fill('GHN55554444');
+  await back.getByRole('button', { name: 'Đã gửi trả' }).click();
+  await expect(back.locator('.ostatus')).toHaveText('Đang gửi trả');
+});
+
+test('gặp trực tiếp: người bán nhập mã người mua đọc để hoàn tất đơn', async ({ page }, info) => {
+  test.skip(info.project.name === 'api', 'Bản nối API giới hạn số mã OTP mỗi số; luồng này đã có test máy chủ');
+  await login(page, 'minh');
+  await openProduct(page, 'giay converse');
+  await page.getByRole('radio', { name: /Trả thẳng/ }).click();
+  await page.locator('.buy-row .btn-buy').click();
+  await page.getByRole('radio', { name: /Gặp trực tiếp/ }).click();
+  await page.getByLabel(/nơi \/ giờ hẹn/).fill('Cổng chính HUIT 17h');
+  await page.getByRole('button', { name: 'Đặt hàng' }).click();
+  const mine = page.locator('.ocard').filter({ hasText: 'Converse' }).first();
+  await expect(mine.locator('.ostatus')).toHaveText('Chờ giao trực tiếp');
+  await mine.getByRole('button', { name: 'Hiện mã' }).click();
+  const code = (await mine.locator('.hcode strong').textContent()).replace(/\D/g, '');
+  expect(code).toMatch(/^\d{6}$/);
+
+  await logout(page);
+  await login(page, 'bao');
+  await page.goto('#/kenh-nguoi-ban?don=can-gui');
+  const sale = page.locator('.ocard').filter({ hasText: 'Converse' }).first();
+  await expect(sale).toContainText('Cổng chính HUIT 17h');
+  await sale.getByLabel(/Mã nhận hàng/).fill(code === '000000' ? '111111' : '000000');
+  await sale.getByRole('button', { name: 'Xác nhận đã giao' }).click();
+  await expect(page.locator('.toast, [role=status]').first()).toContainText('còn 4 lần');
+  await sale.getByLabel(/Mã nhận hàng/).fill(code);
+  await sale.getByRole('button', { name: 'Xác nhận đã giao' }).click();
+  await page.getByRole('tab', { name: /Hoàn tất/ }).click();
+  await expect(page.locator('.ocard').filter({ hasText: 'Converse' }).first().locator('.ostatus')).toHaveText('Hoàn tất');
+});
+
+test('rút tiền về tài khoản ngân hàng đã xác thực', async ({ page }) => {
+  await login(page, 'lan');
+  await page.goto('#/tai-khoan?tab=vi');
+  await page.getByLabel(/Số tiền rút/).fill('100000');
+  await page.getByRole('button', { name: 'Rút tiền' }).click();
+  await expect(page.locator('.txlist').first()).toContainText('100.000');
 });
 
 test('chat: chặn đòi chuyển khoản ngoài ReOwn', async ({ page }) => {

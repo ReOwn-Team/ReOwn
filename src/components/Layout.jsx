@@ -168,7 +168,7 @@ export function Header() {
   const { me, dispatch, mode, state } = useStore();
   const loc = useLocation();
   const pending = (state.orders || []).filter((o) => o.buyerId === me?.id && ['paid', 'shipped'].includes(o.status)).length;
-  const toShip = (state.sellerOrders || []).filter((o) => o.status === 'paid').length;
+  const toShip = (state.sellerOrders || []).filter((o) => o.status === 'paid' || o.status === 'returning' || (o.status === 'disputed' && o.dispute?.status === 'open' && !o.dispute?.sellerResponse)).length;
   return (
     <header className="hdr">
       <div className="wrap hdr-main">
@@ -177,7 +177,7 @@ export function Header() {
         <nav className="hdr-actions" aria-label="Tài khoản">
           {me?.role === 'admin' && <Link to="/quan-tri" className="hdr-act hdr-sell"><Icon name="shield" /><span>Quản trị</span></Link>}
           {me?.role !== 'admin' && <Link to={toShip ? '/kenh-nguoi-ban?don=can-gui' : '/kenh-nguoi-ban'} className="hdr-act hdr-sell">
-            <span className="ic-wrap"><Icon name="shop" />{toShip > 0 && <span className="count" aria-label={`${toShip} đơn cần gửi`}>{toShip}</span>}</span>
+            <span className="ic-wrap"><Icon name="shop" />{toShip > 0 && <span className="count" aria-label={`${toShip} đơn bán cần xử lý`}>{toShip}</span>}</span>
             <span>Bán đồ</span>
           </Link>}
           {me?.role !== 'admin' && <Link to="/tai-khoan?tab=don-mua" className="hdr-act">

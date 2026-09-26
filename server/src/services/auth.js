@@ -11,7 +11,7 @@ export async function requestOtp(db, phone) {
   await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['otp:' + phone]);
   const recent = (await db.query(
     "SELECT COUNT(*)::int AS c FROM otp_codes WHERE phone=$1 AND created_at > now() - interval '10 minutes'", [phone])).rows[0].c;
-  if (recent >= 3) throw tooMany('Bạn yêu cầu mã quá nhiều lần, thử lại sau 10 phút');
+  if (recent >= config.otpPerPhone10m) throw tooMany('Bạn yêu cầu mã quá nhiều lần, thử lại sau 10 phút');
   const code = otpCode();
   await db.query("INSERT INTO otp_codes (phone, code_hash, expires_at) VALUES ($1,$2, now() + make_interval(secs => $3))",
     [phone, otpHash(phone, code), config.otpTtlSec]);

@@ -15,7 +15,7 @@ const cookieOpts = {
 };
 
 const csrf = (req, _res, next) => (req.get('X-ReOwn-Client') === 'web' ? next() : next(unauthorized('Thiếu header X-ReOwn-Client')));
-const limiter = rateLimit({ windowMs: 10 * 60_000, limit: config.isTest ? 1000 : 20, standardHeaders: 'draft-7', legacyHeaders: false });
+const limiter = rateLimit({ windowMs: 10 * 60_000, limit: config.otpPerIp10m, standardHeaders: 'draft-7', legacyHeaders: false });
 
 const publicUser = (u) => ({ id: u.id, name: u.name, role: u.role });
 

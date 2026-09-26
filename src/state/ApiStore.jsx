@@ -107,7 +107,7 @@ export default function ApiStore({ children }) {
     return {
       async mfa(code) { const r = await call('/mfa', { method: 'POST', body: { code } }); client.setAccessToken(r.accessToken); return true; },
       disputes: (status = 'open') => call(`/disputes?status=${status}`),
-      resolve: (id, outcome, resolution) => act(`/disputes/${id}/resolve`, { outcome, resolution }, 'Đã xử lý tranh chấp'),
+      resolve: (id, outcome, resolution, refundAmount) => act(`/disputes/${id}/resolve`, { outcome, resolution, ...(outcome === 'partial' ? { refundAmount } : {}) }, 'Đã xử lý tranh chấp'),
       hide: async (id, reason) => { await act(`/listings/${id}/hide`, reason ? { reason } : {}, 'Đã gỡ tin và báo người bán'); await reload(); },
     };
   }, [setToast, reload]);
@@ -129,11 +129,23 @@ export default function ApiStore({ children }) {
           await client.api('/dev/wallet/topup', { method: 'POST', body: { amount: a.amount } });
           break;
         case 'placeOrder': {
-          const body = a.method === 'full' ? { listingId: a.product.id, method: 'full' } : { listingId: a.product.id, method: 'bnpl', term: a.method };
+          const delivery = a.delivery === 'meetup' ? { delivery: 'meetup', ...(a.meetupNote ? { meetupNote: a.meetupNote } : {}) } : { delivery: 'ship', shipTo: a.shipTo };
+          const body = { ...delivery, ...(a.method === 'full' ? { listingId: a.product.id, method: 'full' } : { listingId: a.product.id, method: 'bnpl', term: a.method }) };
           await client.api('/orders', { method: 'POST', body, headers: { 'Idempotency-Key': a.idempotencyKey } });
           break;
         }
-        case 'shipOrder': await client.api(`/orders/${a.orderId}/ship`, { method: 'POST' }); break;
+        case 'shipOrder': await client.api(`/orders/${a.orderId}/ship`, { method: 'POST', body: a.carrier ? { carrier: a.carrier, trackingCode: a.trackingCode } : {} }); break;
+        case 'handover': await client.api(`/orders/${a.orderId}/handover`, { method: 'POST', body: { code: a.code } }); break;
+        case 'respondDispute': {
+          const imageIds = [];
+          for (const p of a.photos || []) imageIds.push((await client.uploadImage(p.blob)).id);
+          await client.api(`/orders/${a.orderId}/dispute/respond`, { method: 'POST', body: { text: a.text, imageIds } });
+          break;
+        }
+        case 'returnShip': await client.api(`/orders/${a.orderId}/return`, { method: 'POST', body: { carrier: a.carrier, ...(a.trackingCode ? { trackingCode: a.trackingCode } : {}) } }); break;
+        case 'returnReceived': await client.api(`/orders/${a.orderId}/return/received`, { method: 'POST' }); break;
+        case 'withdraw': await client.api('/me/wallet/withdraw', { method: 'POST', body: { amount: a.amount } }); break;
+        case 'payoff': await client.api(`/installments/plans/${a.planId}/payoff`, { method: 'POST' }); break;
         case 'devShip': await client.api(`/dev/orders/${a.orderId}/simulate-ship`, { method: 'POST' }); break;
         case 'sellerCancel': await client.api(`/orders/${a.orderId}/cancel`, { method: 'POST' }); break;
         case 'confirmReceived':
@@ -211,6 +223,10 @@ export default function ApiStore({ children }) {
       dispatch, me, buyerScores, sellerScores: data.sellerScores,
       userById: (id) => data.sellers[id] || { id, name: 'Người bán', school: '' },
       pastOrders: [], users: [], chat, notes, inbox: data.me ? inbox : NO_INBOX, refreshInbox, admin,
+      walletInfo: async () => {
+        const w = await client.api('/me/wallet');
+        return { entries: w.entries, bankLast4: w.bankLast4, withdrawals: w.withdrawals.map((x) => ({ id: x.id, amount: x.amount, bankLast4: x.bank_last4, reference: x.reference, status: x.status, createdAt: x.created_at })) };
+      },
     };
   }, [data, toast, dispatch, devTools, demo, ready, chat, notes, inbox, refreshInbox, admin]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

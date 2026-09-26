@@ -835,3 +835,56 @@ p a:not(.btn), .small a:not(.btn), .notice a:not(.btn) { text-decoration: underl
 .hide-form select { width: 100%; min-width: 0; text-overflow: ellipsis; }
 .danger-btn { color: var(--surface); }
 .sc-main { min-width: 0; } .sc-main strong, .sc-main span { overflow-wrap: anywhere; }
+
+/* Giao nhận, khiếu nại hai chiều, trả hàng, ví, lộ trình trả sau */
+.deliv { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.deliv legend { margin-bottom: 8px; }
+.deliv-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.deliv-opt { display: flex; gap: 10px; align-items: flex-start; text-align: left; background: var(--surface); border: 2px solid var(--line-2); border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; color: var(--ink); font: inherit; }
+.deliv-opt > span { display: grid; gap: 2px; }
+.deliv-opt.on { border-color: var(--accent); background: var(--soft, var(--surface-2)); }
+.deliv-opt svg { flex: none; margin-top: 2px; color: var(--accent-text); }
+.odeliv { display: flex; gap: 8px; align-items: flex-start; padding: 10px 16px; border-top: 1px solid var(--line); color: var(--ink-2); }
+.odeliv svg { flex: none; margin-top: 2px; color: var(--muted); }
+.odeliv code { font-size: var(--fs-sm); background: var(--sunken); padding: 1px 6px; border-radius: 4px; }
+.hcode { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 14px 16px; border-top: 1px solid var(--line); background: var(--surface-2); }
+.hcode > div { display: grid; }
+.hcode strong { font-size: var(--fs-2xl); letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+.hcode p { grid-column: 1 / -1; margin: 0; }
+.dthread { display: grid; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.dmsg { display: grid; gap: 6px; padding: 10px 12px; border-radius: var(--r-sm); border: 1px solid var(--line); }
+.dmsg p { margin: 0; }
+.dmsg.buyer { background: var(--surface-2); }
+.dmsg.seller { border-style: dashed; }
+.dmsg.verdict { background: var(--sunken); }
+.carrier-fields { display: grid; grid-template-columns: minmax(120px, 180px) 1fr; gap: 8px; }
+.code-input { max-width: 150px; letter-spacing: .3em; font-variant-numeric: tabular-nums; font-size: var(--fs-lg); text-align: center; }
+.ocard.needs { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.verdicts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.verdicts .partial { display: inline-flex; gap: 6px; }
+.verdicts .partial input { width: 150px; max-width: 150px; flex: none; }
+.verdicts .partial .btn { white-space: nowrap; }
+.chatlog ul { list-style: none; padding: 8px 0 0; margin: 0; display: grid; gap: 4px; font-size: var(--fs-sm); max-height: 240px; overflow: auto; }
+.chatlog li.seller { color: var(--ink-2); }
+.withdraw { display: grid; gap: 8px; }
+.withdraw input { max-width: 220px; }
+.txlist { list-style: none; padding: 0; margin: 0; display: grid; }
+.txlist li { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.roadmap { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.roadmap-head { display: flex; justify-content: space-between; align-items: baseline; }
+.roadmap ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.roadmap li { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sm); color: var(--ink-2); }
+.roadmap li .vdot { width: 20px; height: 20px; flex: none; }
+.roadmap li.done { color: var(--muted); }
+.roadmap li.done span:not(.vdot) { text-decoration: line-through; text-decoration-color: var(--line-2); }
+.roadmap li.done .vdot { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.upcoming ul { list-style: none; padding: 0; margin: 0; display: grid; }
+.upcoming li { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.upcoming li.late span:last-child { color: var(--risk); font-weight: 600; }
+.income-form { align-items: center; }
+.income-form input { max-width: 180px; }
+@media (max-width: 560px) {
+  .deliv-opts, .carrier-fields { grid-template-columns: 1fr; }
+  .upcoming li { grid-template-columns: 1fr auto; }
+  .upcoming li span:nth-child(2) { grid-column: 1 / -1; order: 3; }
+}

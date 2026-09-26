@@ -84,6 +84,10 @@ export default function Product() {
   const [method, setMethod] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [delivery, setDelivery] = useState('ship');
+  const [shipTo, setShipTo] = useState(() => { try { return localStorage.getItem('reown-ship-to') || ''; } catch { return ''; } });
+  const [meetupNote, setMeetupNote] = useState('');
+  const [addrErr, setAddrErr] = useState('');
   const idemKey = useRef(null);
   const payRef = useRef(null);
   const p = state.products.find((x) => x.id === id);
@@ -119,8 +123,11 @@ export default function Product() {
   };
 
   const place = async () => {
+    if (delivery === 'ship' && shipTo.trim().length < 10) { setAddrErr('Nhập họ tên, số điện thoại và địa chỉ nhận hàng (ít nhất 10 ký tự)'); return; }
     setBusy(true);
-    const ok = await dispatch({ type: 'placeOrder', product: p, method, downRate: offer?.downRate || 0, idempotencyKey: idemKey.current });
+    if (delivery === 'ship') { try { localStorage.setItem('reown-ship-to', shipTo.trim()); } catch { /* bộ nhớ bị chặn */ } }
+    const ok = await dispatch({ type: 'placeOrder', product: p, method, downRate: offer?.downRate || 0, idempotencyKey: idemKey.current,
+      delivery, shipTo: delivery === 'ship' ? shipTo.trim() : undefined, meetupNote: delivery === 'meetup' ? meetupNote.trim() : undefined });
     setBusy(false);
     if (ok) nav('/tai-khoan?tab=don-mua');
   };
@@ -197,6 +204,30 @@ export default function Product() {
               ) : (
                 <div className="confirm">
                   <p><b>Xác nhận đặt hàng</b> — {method === 'full' ? `trừ ${money(p.price)} từ ví ReOwn` : (() => { const o = offer.options.find((x) => x.term === method); return `${o.down ? `trả trước ${money(o.down)} từ ví, ` : ''}góp ${method} kỳ × ${money(o.monthly)}, kỳ đầu sau 30 ngày`; })()}.</p>
+                  <fieldset className="deliv">
+                    <legend className="small"><b>Cách nhận hàng</b></legend>
+                    <div className="deliv-opts" role="radiogroup" aria-label="Cách nhận hàng">
+                      {[['ship', 'truck', 'Giao tận nơi', 'Người bán gửi qua GHN, GHTK… kèm mã vận đơn'], ['meetup', 'pin', 'Gặp trực tiếp', 'Hẹn ở trường / KTX, kiểm tra hàng rồi đọc mã nhận hàng']].map(([v, ic, t, d]) => (
+                        <button key={v} type="button" role="radio" aria-checked={delivery === v} className={`deliv-opt ${delivery === v ? 'on' : ''}`} onClick={() => { setDelivery(v); setAddrErr(''); }}>
+                          <Icon name={ic} size={20} /><span><b>{t}</b><span className="small muted">{d}</span></span>
+                        </button>
+                      ))}
+                    </div>
+                    {delivery === 'ship' ? (
+                      <div className="field">
+                        <label htmlFor="ship-to">Người nhận · SĐT · địa chỉ</label>
+                        <textarea id="ship-to" rows={2} maxLength={300} value={shipTo} onChange={(e) => { setShipTo(e.target.value); setAddrErr(''); }}
+                          placeholder="VD: Trần Lan · 0901 234 567 · Phòng 402, KTX khu B, ĐHQG TP.HCM" aria-invalid={!!addrErr} aria-describedby={addrErr ? 'ship-err' : undefined} />
+                        {addrErr && <span id="ship-err" className="small danger" role="alert">{addrErr}</span>}
+                      </div>
+                    ) : (
+                      <div className="field">
+                        <label htmlFor="meet-note">Gợi ý nơi / giờ hẹn (không bắt buộc)</label>
+                        <input id="meet-note" maxLength={200} value={meetupNote} onChange={(e) => setMeetupNote(e.target.value)} placeholder="VD: Cổng chính HUIT, 17h thứ Sáu" />
+                        <span className="small muted">Sau khi đặt, bạn nhận một mã 6 số. Chỉ đọc mã cho người bán khi đã kiểm tra hàng đúng mô tả.</span>
+                      </div>
+                    )}
+                  </fieldset>
                   <p className="small muted">Tiền được giữ hộ đến khi bạn xác nhận nhận hàng.</p>
                   <div className="row">
                     <button className="btn btn-buy" onClick={place} disabled={busy}>{busy ? 'Đang đặt…' : 'Đặt hàng'}</button>

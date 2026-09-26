@@ -1,18 +1,22 @@
 import { pool, tx } from '../db/pool.js';
 import { config } from '../config.js';
-import { releaseIfDue, complete } from './orders.js';
+import { releaseIfDue, complete, returnExpired, returnReceived } from './orders.js';
+import { RETURN_CONFIRM_DAYS } from '../../../shared/policy.js';
 import { rescore } from './scoring.js';
 import { invalidateCatalog } from './catalogCache.js';
 import { installmentReminders, deliverSms } from './notify.js';
 
-const JOB_LOCK = 42_4242;
+const JOB_LOCK = 42_4245;
 
+// Khoá giao dịch (xact) giữ trong một transaction mở trên kết nối riêng: an toàn với pgbouncer ở chế độ
+// transaction pooling (khoá phiên có thể rơi vào kết nối khác và không bao giờ được nhả).
 export async function runJobs(now = new Date()) {
   const lock = await pool.connect();
   try {
-    const got = (await lock.query('SELECT pg_try_advisory_lock($1) AS ok', [JOB_LOCK])).rows[0].ok;
+    await lock.query('BEGIN');
+    const got = (await lock.query('SELECT pg_try_advisory_xact_lock($1) AS ok', [JOB_LOCK])).rows[0].ok;
     if (!got) return { skipped: true };
-    const out = { autoCompleted: 0, released: 0, rescored: 0, refreshed: 0, reminded: 0, sms: 0, cleaned: 0 };
+    const out = { autoCompleted: 0, released: 0, returnsClosed: 0, rescored: 0, refreshed: 0, reminded: 0, sms: 0, cleaned: 0 };
 
     const stale = await pool.query(
       "SELECT id FROM orders WHERE status='shipped' AND shipped_at < $1::timestamptz - make_interval(days => $2)",
@@ -30,6 +34,17 @@ export async function runJobs(now = new Date()) {
     const due = await pool.query("SELECT id FROM orders WHERE status='completed' AND payout_status='held' AND release_at <= $1", [now]);
     for (const { id } of due.rows) {
       if (await tx((db) => releaseIfDue(db, id, now))) out.released++;
+    }
+
+    const noReturn = await pool.query("SELECT id FROM orders WHERE status='return_pending' AND return_due_at <= $1", [now]);
+    for (const { id } of noReturn.rows) {
+      if (await tx((db) => returnExpired(db, { orderId: id, now }))) out.returnsClosed++;
+    }
+    const unconfirmed = await pool.query(
+      "SELECT id FROM orders WHERE status='returning' AND return_shipped_at < $1::timestamptz - make_interval(days => $2)", [now, RETURN_CONFIRM_DAYS]);
+    for (const { id } of unconfirmed.rows) {
+      await tx((db) => returnReceived(db, { orderId: id, auto: true }));
+      out.returnsClosed++;
     }
 
     const overdue = await pool.query(
@@ -60,10 +75,10 @@ export async function runJobs(now = new Date()) {
     const c4 = await pool.query("DELETE FROM search_log WHERE created_at < $1::timestamptz - interval '30 days'", [now]);
     out.cleaned = c1.rowCount + c2.rowCount + c3.rowCount + c4.rowCount;
 
-    if (out.autoCompleted || out.released) invalidateCatalog();
+    if (out.autoCompleted || out.released || out.returnsClosed) invalidateCatalog();
     return out;
   } finally {
-    await lock.query('SELECT pg_advisory_unlock($1)', [JOB_LOCK]).catch(() => {});
+    await lock.query('COMMIT').catch(() => {});
     lock.release();
   }
 }

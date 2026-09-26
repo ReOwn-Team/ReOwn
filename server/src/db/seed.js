@@ -44,10 +44,10 @@ async function history(seller, buyer, { title, category = 'study', price, daysAg
   const listing = await tx((db) => mkListing(db, seller, { title, category, price, condition: 80 }, { daysAgo: daysAgo + 1 }));
   const { order } = await tx((db) => orders.createOrder(db, {
     buyerId: buyer.id, listingId: listing.id, method: method === 'full' ? 'full' : 'bnpl', term: method === 'full' ? undefined : method,
-    idempotencyKey: `seed-${keySeq++}`, now: t0,
+    delivery: 'ship', shipTo: `${buyer.name} · KTX khu B, ĐHQG TP.HCM`, idempotencyKey: `seed-${keySeq++}`, now: t0,
   }));
   if (outcome === 'seller_cancel') return tx((db) => orders.sellerCancel(db, { orderId: order.id, userId: seller.id }));
-  await tx((db) => orders.shipOrder(db, { orderId: order.id, userId: seller.id, now: plus(t0, shipDelay) }));
+  await tx((db) => orders.shipOrder(db, { orderId: order.id, userId: seller.id, carrier: 'GHN', trackingCode: `GHN${String(keySeq).padStart(8, '0')}`, now: plus(t0, shipDelay) }));
   if (outcome === 'refuse') return tx((db) => orders.refuseDelivery(db, { orderId: order.id, userId: buyer.id }));
   if (outcome.startsWith('dispute')) {
     const d = await tx((db) => orders.openDispute(db, { orderId: order.id, userId: buyer.id, reason: reason || 'Hàng không đúng như mô tả trong tin đăng', now: plus(t0, 3) }));

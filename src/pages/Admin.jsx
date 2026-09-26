@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../state/useStore.js';
-import { imageSrc } from '../api/client.js';
 import Art from '../components/Art.jsx';
 import Icon from '../components/Icon.jsx';
 import AdminHide from '../components/AdminHide.jsx';
 import { Empty } from '../components/ui.jsx';
 import { listingRisk } from '../../shared/scoring/engine.js';
 import { searchProducts } from '../../shared/search.js';
-import { money, timeAgoShort } from '../lib/format.js';
+import { money, timeAgoShort, parseMoney } from '../lib/format.js';
+import { DisputeThread } from '../components/OrderBits.jsx';
 
 const TABS = [
   { v: '', label: 'Sản phẩm', icon: 'grid' },
@@ -69,13 +69,16 @@ function Disputes({ reload }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [partial, setPartial] = useState('');
   const load = useCallback(() => admin.disputes(filter).then((d) => { setItems(d); setNow(Date.now()); }).catch((e) => setErr(e.message)), [admin, filter]);
   useEffect(() => { load(); }, [load]);
 
   const resolve = async (d, outcome) => {
     if (note.trim().length < 5) { setErr('Ghi kết luận (ít nhất 5 ký tự) — người mua và người bán sẽ thấy lý do này.'); return; }
+    const amount = parseMoney(partial);
+    if (outcome === 'partial' && !(amount > 0 && amount < d.price)) { setErr(`Số tiền hoàn một phần phải lớn hơn 0 và nhỏ hơn ${money(d.price)}`); return; }
     setBusy(true); setErr('');
-    try { await admin.resolve(d.id, outcome, note.trim()); setOpen(null); setNote(''); await load(); reload(); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+    try { await admin.resolve(d.id, outcome, note.trim(), amount); setOpen(null); setNote(''); setPartial(''); await load(); reload(); } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
 
   return (
@@ -101,15 +104,22 @@ function Disputes({ reload }) {
                   </span>
                   {isOpen
                     ? <span className={`sla ${hours > 48 ? 'late' : ''}`}>{hours > 48 ? 'Quá 48 giờ' : `Mở ${timeAgoShort(d.created_at)} trước`}</span>
-                    : <span className={`sla done`}>{d.status === 'resolved_buyer' ? 'Đã hoàn tiền người mua' : 'Người bán đúng'}</span>}
+                    : <span className={`sla done`}>{d.status === 'resolved_partial' ? `Hoàn một phần ${money(d.refund_amount || 0)}` : d.status === 'resolved_buyer' ? (d.remedy === 'return_refund' ? 'Trả hàng → hoàn tiền' : 'Đã hoàn tiền người mua') : 'Người bán đúng'}</span>}
                   <Icon name="chevron" size={18} className="dcard-chev" />
                 </button>
                 {open === d.id && (
                   <div className="dcard-body">
-                    <blockquote className="reason"><span className="small muted">Lý do người mua</span>{d.reason}</blockquote>
-                    {d.evidence?.length > 0
-                      ? <div><span className="small muted">Ảnh bằng chứng của người mua</span><div className="evidence">{d.evidence.map((u, i) => <a key={u} href={imageSrc(u)} target="_blank" rel="noreferrer"><img src={imageSrc(u)} alt={`Ảnh bằng chứng ${i + 1}`} /></a>)}</div></div>
-                      : <p className="small muted">Người mua không đính kèm ảnh.</p>}
+                    <DisputeThread viewer="admin" d={{
+                      status: d.status, reason: d.reason, evidence: d.evidence, sellerResponse: d.seller_response, sellerRespondedAt: d.seller_responded_at,
+                      sellerEvidence: d.seller_evidence, respondBy: d.respond_by, remedy: d.remedy, refundAmount: d.refund_amount, resolution: d.resolution,
+                    }} />
+                    {d.carrier && <p className="small muted">Giao qua {d.carrier} · mã {d.tracking_code}{d.shipped_at ? ` · gửi ${new Date(d.shipped_at).toLocaleDateString('vi-VN')}` : ''}</p>}
+                    {d.chat?.length > 0 && (
+                      <details className="chatlog">
+                        <summary className="small">Tin nhắn giữa hai bên ({d.chat.length})</summary>
+                        <ul>{d.chat.map((m, i) => <li key={i} className={m.from}><b>{m.from === 'buyer' ? d.buyer_name : d.seller_name}:</b> {m.body}{m.flagged && <span className="small danger"> · bị gắn cờ</span>}</li>)}</ul>
+                      </details>
+                    )}
                     {isOpen ? (
                       <>
                         <div className="field">
@@ -117,13 +127,19 @@ function Disputes({ reload }) {
                           <textarea id={`note-${d.id}`} rows={2} value={note} onChange={(e) => { setNote(e.target.value); setErr(''); }} placeholder="VD: Video mở hộp cho thấy máy móp góc, không khớp ảnh đăng." maxLength={1000} />
                         </div>
                         {err && <p className="small danger" role="alert">{err}</p>}
-                        <div className="row wrap-row">
-                          <button className="btn" onClick={() => resolve(d, 'buyer')} disabled={busy}>Hoàn tiền cho người mua</button>
+                        <div className="verdicts">
+                          <button className="btn" onClick={() => resolve(d, 'return')} disabled={busy}>Trả hàng rồi hoàn tiền</button>
+                          <button className="btn btn-outline" onClick={() => resolve(d, 'buyer')} disabled={busy}>Hoàn tiền ngay, không cần trả hàng</button>
+                          <span className="partial">
+                            <label className="sr-only" htmlFor={`pa-${d.id}`}>Số tiền hoàn một phần</label>
+                            <input id={`pa-${d.id}`} inputMode="numeric" placeholder="Số tiền hoàn" value={partial} onChange={(e) => { setPartial(e.target.value); setErr(''); }} />
+                            <button className="btn btn-outline" onClick={() => resolve(d, 'partial')} disabled={busy}>Hoàn một phần</button>
+                          </span>
                           <button className="btn btn-outline" onClick={() => resolve(d, 'seller')} disabled={busy}>Người bán đúng — giải ngân</button>
                         </div>
-                        <p className="small muted">Hoàn tiền: tiền giữ hộ trả về ví người mua (trả sau thì huỷ khoản vay), người bán bị tính một lần thua tranh chấp.</p>
+                        <p className="small muted"><b>Trả hàng rồi hoàn tiền</b>: người mua có 5 ngày gửi trả, tiền hoàn khi người bán nhận lại (tự hoàn sau 7 ngày nếu người bán im lặng). <b>Hoàn ngay</b>: dùng khi hàng giả / không đáng gửi trả. <b>Hoàn một phần</b>: người mua giữ hàng, người bán nhận phần còn lại. Mọi phương án có lợi cho người mua đều tính một lần thua tranh chấp cho người bán.</p>
                       </>
-                    ) : <p className="small"><b>Kết luận:</b> {d.resolution}</p>}
+                    ) : null}
                   </div>
                 )}
               </li>

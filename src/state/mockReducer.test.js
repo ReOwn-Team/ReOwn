@@ -56,3 +56,65 @@ describe('Bản demo: vòng đời đơn hàng', () => {
     for (const p of initial().products) expect(p.cover).toMatch(/^[a-z0-9-]+\.(jpg|jpeg|png|webp)$/);
   });
 });
+
+describe('Bản demo: giao nhận, khiếu nại, ví, trả sau', () => {
+  const quat = (s) => s.products.find((p) => p.id === 'p14');
+  const disputedOrder = () => {
+    let s = buy();
+    const id = s.orders[0].id;
+    s = reducer(as(s, 'u_s1'), { type: 'shipOrder', orderId: id, carrier: 'GHN', trackingCode: 'GHN123456' });
+    s = reducer(as(s, 'u_lan'), { type: 'openDispute', orderId: id, reason: 'Máy không lên nguồn', evidence: ['data:image/png;base64,x'] });
+    return { s, id };
+  };
+
+  it('gặp trực tiếp: sai mã thì đếm lượt, đúng mã thì hoàn tất và trả tiền cho người bán', () => {
+    let s = as(initial(), 'u_lan');
+    s = reducer(s, { type: 'placeOrder', product: quat(s), method: 'full', delivery: 'meetup', meetupNote: 'Cổng A' });
+    const o = s.orders[0];
+    expect(o.handoverCode).toMatch(/^\d{6}$/);
+    s = as(s, 'u_s1');
+    const seller0 = wallet(s, 'u_s1');
+    s = reducer(s, { type: 'handover', orderId: o.id, code: o.handoverCode === '000000' ? '111111' : '000000' });
+    expect(s.orders[0]).toMatchObject({ status: 'paid', handoverAttempts: 1 });
+    s = reducer(s, { type: 'handover', orderId: o.id, code: o.handoverCode });
+    expect(s.orders[0].status).toBe('completed');
+    expect(wallet(s, 'u_s1')).toBe(seller0 + 180_000 - Math.round(180_000 * 0.04));
+  });
+
+  it('khiếu nại: người bán phản hồi một lần; admin hoàn một phần chia tiền cho hai bên', () => {
+    let { s, id } = disputedOrder();
+    s = reducer(as(s, 'u_s1'), { type: 'respondDispute', orderId: id, text: 'Có video đóng gói', evidence: [] });
+    expect(s.orders[0].dispute.sellerResponse).toBe('Có video đóng gói');
+    const [b0, s0] = [wallet(s, 'u_lan'), wallet(s, 'u_s1')];
+    s = reducer(s, { type: 'adminResolve', orderId: id, outcome: 'partial', resolution: 'Lỗi nhỏ', refundAmount: 100_000 });
+    expect(s.orders[0]).toMatchObject({ status: 'completed', refundAmount: 100_000, dispute: { status: 'resolved_partial' } });
+    expect(wallet(s, 'u_lan')).toBe(b0 + 100_000);
+    expect(wallet(s, 'u_s1')).toBe(s0 + 250_000 - 10_000);
+  });
+
+  it('trả hàng rồi hoàn tiền: chờ gửi trả → đang gửi trả → người bán nhận lại → hoàn tiền', () => {
+    let { s, id } = disputedOrder();
+    const b0 = wallet(s, 'u_lan');
+    s = reducer(s, { type: 'adminResolve', orderId: id, outcome: 'return', resolution: 'Trả hàng' });
+    expect(s.orders[0].status).toBe('return_pending');
+    s = reducer(as(s, 'u_lan'), { type: 'returnShip', orderId: id, carrier: 'GHTK', trackingCode: 'S123' });
+    expect(s.orders[0].status).toBe('returning');
+    s = reducer(as(s, 'u_s1'), { type: 'returnReceived', orderId: id });
+    expect(s.orders[0].status).toBe('refunded');
+    expect(wallet(s, 'u_lan')).toBe(b0 + 350_000);
+  });
+
+  it('rút tiền trừ ví và lưu lịch sử; tất toán sớm trả hết các kỳ còn lại', () => {
+    let s = as(initial(), 'u_lan');
+    const w0 = wallet(s, 'u_lan');
+    s = reducer(s, { type: 'withdraw', amount: 200_000 });
+    expect(wallet(s, 'u_lan')).toBe(w0 - 200_000);
+    expect(s.users.find((u) => u.id === 'u_lan').withdrawals[0].amount).toBe(200_000);
+    s = reducer(s, { type: 'placeOrder', product: casio(s), method: 3 });
+    const plan = s.plans[0];
+    const before = wallet(s, 'u_lan');
+    s = reducer(s, { type: 'payoff', planId: plan.id });
+    expect(s.plans[0].installments.every((i) => i.status === 'paid')).toBe(true);
+    expect(wallet(s, 'u_lan')).toBe(before - plan.installments.reduce((a, i) => a + i.amount, 0));
+  });
+});

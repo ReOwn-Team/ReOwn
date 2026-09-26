@@ -59,6 +59,9 @@ export const config = {
   refreshTtlDays: 30,
   otpTtlSec: 5 * 60,
   otpMaxAttempts: 5,
+  // Bản demo công khai: ban giám khảo dùng chung wifi và tài khoản mẫu → nới giới hạn (mã OTP vốn hiện trên giao diện)
+  otpPerPhone10m: demoDeployment || (process.env.DEV_TOOLS === 'true' && !isProd && !isTest) ? 15 : 3,
+  otpPerIp10m: isTest ? 1000 : demoDeployment ? 200 : devTools ? 1000 : 20,
   devTools,
   demoDeployment,
   onVercel: !!process.env.VERCEL,

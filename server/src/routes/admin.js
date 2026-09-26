@@ -33,17 +33,32 @@ r.get('/disputes', ah(async (req, res) => {
   const status = req.query.status === 'all' ? null : 'open';
   const rows = (await query(
     `SELECT d.*, o.price, o.method, o.term, o.status AS order_status, o.buyer_id, o.seller_id, o.created_at AS order_created_at,
-            o.shipped_at, o.listing_id, l.title, l.category, l.icon, l.cover, b.name AS buyer_name, s.name AS seller_name
+            o.shipped_at, o.completed_at, o.delivery, o.carrier, o.tracking_code, o.listing_id, l.title, l.category, l.icon, l.cover, b.name AS buyer_name, s.name AS seller_name
        FROM disputes d JOIN orders o ON o.id=d.order_id JOIN listings l ON l.id=o.listing_id
        JOIN users b ON b.id=o.buyer_id JOIN users s ON s.id=o.seller_id
       WHERE ($1::text IS NULL OR d.status=$1) ORDER BY d.status='open' DESC, d.created_at LIMIT 200`, [status])).rows;
   const pics = await imagesFor({ query }, [...new Set(rows.map((r) => r.listing_id))]);
   const proof = await evidenceFor({ query }, rows.map((r) => r.id));
-  res.json(rows.map((r) => ({ ...r, images: pics[r.listing_id] || [], evidence: proof[r.id] || [] })));
+  const chats = rows.length ? (await query(
+    `SELECT c.listing_id, c.buyer_id, m.sender_id, m.body, m.flags, m.created_at
+       FROM conversations c JOIN messages m ON m.conversation_id = c.id
+      WHERE (c.listing_id, c.buyer_id) IN (SELECT * FROM unnest($1::uuid[], $2::uuid[]))
+      ORDER BY m.id DESC LIMIT 400`, [rows.map((r) => r.listing_id), rows.map((r) => r.buyer_id)])).rows : [];
+  res.json(rows.map((r) => {
+    const ev = proof[r.id] || [];
+    return {
+      ...r, images: pics[r.listing_id] || [],
+      evidence: ev.filter((e) => e.ownerId === r.buyer_id).map((e) => e.url),
+      seller_evidence: ev.filter((e) => e.ownerId === r.seller_id).map((e) => e.url),
+      chat: chats.filter((m) => m.listing_id === r.listing_id && m.buyer_id === r.buyer_id).slice(0, 30).reverse()
+        .map((m) => ({ from: m.sender_id === r.buyer_id ? 'buyer' : 'seller', body: m.body, flagged: (m.flags || []).length > 0, at: m.created_at })),
+    };
+  }));
 }));
 
 r.post('/disputes/:id/resolve', ah(async (req, res) => {
-  const body = parse(z.object({ outcome: z.enum(['buyer', 'seller']), resolution: z.string().trim().min(5).max(1000) }), req.body);
+  const body = parse(z.object({ outcome: z.enum(['buyer', 'return', 'partial', 'seller']), resolution: z.string().trim().min(5).max(1000), refundAmount: z.number().int().positive().optional() })
+    .refine((b) => b.outcome !== 'partial' || b.refundAmount, 'Nhập số tiền hoàn một phần'), req.body);
   await tx((db) => resolveDispute(db, { disputeId: parse(uuid, req.params.id), adminId: req.user.id, ...body, ip: req.ip }));
   res.json({ ok: true });
 }));
