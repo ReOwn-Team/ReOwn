@@ -16,10 +16,10 @@ const VERIFY_HINT = { phone: 'Xác thực khi đăng nhập', cccd: 'Bắt buộ
 const date = (t) => new Date(t).toLocaleDateString('vi-VN');
 const ORDER_TABS = [
   { v: 'all', label: 'Tất cả', match: () => true },
-  { v: 'paid', label: 'Chờ gửi hàng', match: (o) => o.status === 'paid' },
-  { v: 'shipped', label: 'Đang giao', match: (o) => o.status === 'shipped' },
-  { v: 'completed', label: 'Hoàn tất', match: (o) => o.status === 'completed' },
-  { v: 'closed', label: 'Khiếu nại / hoàn tiền', match: (o) => ['refused_by_buyer', 'cancelled_by_seller', 'disputed', 'return_pending', 'returning', 'refunded'].includes(o.status) },
+  { v: 'paid', label: 'Chờ gửi hàng', icon: 'clock', match: (o) => o.status === 'paid' },
+  { v: 'shipped', label: 'Đang giao', icon: 'truck', match: (o) => o.status === 'shipped' },
+  { v: 'completed', label: 'Hoàn tất', icon: 'check', match: (o) => o.status === 'completed' },
+  { v: 'closed', label: 'Khiếu nại / hoàn tiền', icon: 'alert', match: (o) => ['refused_by_buyer', 'cancelled_by_seller', 'disputed', 'return_pending', 'returning', 'refunded'].includes(o.status) },
 ];
 const lateLabel = (i) => (i.daysLate ? `Trễ ${i.daysLate} ngày` : 'Đúng hạn');
 
@@ -269,9 +269,12 @@ function VerifyItem({ k, pts, done, mode, dispatch }) {
 }
 
 const MENU = [
-  { v: '', label: 'Tổng quan' }, { v: 'don-mua', label: 'Đơn mua' }, { v: 'tra-sau', label: 'Trả sau' },
-  { v: 'vi', label: 'Ví ReOwn' }, { v: 'uy-tin', label: 'Điểm uy tín' }, { v: 'xac-thuc', label: 'Xác thực tài khoản' },
+  { v: '', label: 'Tổng quan', icon: 'grid' }, { v: 'don-mua', label: 'Đơn mua', icon: 'bag' }, { v: 'tra-sau', label: 'Trả sau', icon: 'calendar' },
+  { v: 'vi', label: 'Ví ReOwn', icon: 'wallet' }, { v: 'uy-tin', label: 'Điểm uy tín', icon: 'star' }, { v: 'xac-thuc', label: 'Xác thực tài khoản', short: 'Xác thực', icon: 'shield' },
 ];
+const MenuLabel = ({ icon, label, short }) => (
+  <><span className="acc-ic"><Icon name={icon} size={22} /></span><span className="acc-lb">{short ? <><span className="acc-long">{label}</span><span className="acc-short">{short}</span></> : label}</span></>
+);
 
 export default function Account() {
   const { state, me, buyerScores, dispatch, mode, devTools, walletInfo } = useStore();
@@ -294,22 +297,33 @@ export default function Account() {
   const verifiedCount = Object.values(me.verify).filter(Boolean).length;
 
   return (
-    <div className="account">
+    <div className={`account ${tab ? 'has-tab' : ''}`}>
       <aside className="acc-side">
         <h1 className="sr-only">Tài khoản của tôi</h1>
         <div className="acc-me">
           <span className="avatar lg">{me.name.split(' ').pop()[0]}</span>
-          <div><strong>{me.name}</strong><span className="small muted">{me.school}</span></div>
+          <div><strong>{me.name}</strong><span className="small">{me.school}</span></div>
+          <span className={`acc-tier trust-${res.tier.id <= 'B' ? 'good' : 'neutral'}`}>Hạng {res.tier.id}</span>
         </div>
         <nav className="acc-menu" aria-label="Mục tài khoản">
-          {MENU.map((m) => <button key={m.v} className={tab === m.v ? 'on' : ''} onClick={() => go(m.v)}>{m.label}</button>)}
-          <Link to="/kenh-nguoi-ban">Kênh người bán<Icon name="chevron" size={14} /></Link>
-          {me.role === 'admin' && <Link to="/quan-tri">Trang quản trị<Icon name="chevron" size={14} /></Link>}
-          <button className="acc-out" onClick={() => dispatch({ type: 'logout' })}>{mode === 'api' ? 'Đăng xuất' : 'Đổi tài khoản'}<Icon name="logout" size={16} /></button>
+          {MENU.map((m) => (
+            <button key={m.v} className={tab === m.v ? 'on' : ''} aria-current={tab === m.v ? 'page' : undefined} onClick={() => go(m.v)}>
+              <MenuLabel {...m} />
+              {m.v === 'don-mua' && orders.some((o) => ['paid', 'shipped'].includes(o.status)) && <span className="acc-dot" aria-hidden="true" />}
+            </button>
+          ))}
+          <Link to="/kenh-nguoi-ban"><MenuLabel icon="shop" label="Kênh người bán" short="Bán hàng" /></Link>
+          {me.role === 'admin' && <Link to="/quan-tri"><MenuLabel icon="shield" label="Trang quản trị" short="Quản trị" /></Link>}
+          <button className="acc-out" onClick={() => dispatch({ type: 'logout' })}><MenuLabel icon="logout" label={mode === 'api' ? 'Đăng xuất' : 'Đổi tài khoản'} /></button>
         </nav>
       </aside>
 
       <div className="acc-main">
+        {tab && (
+          <div className="acc-subhead">
+            <button type="button" className="linkbtn" onClick={() => go('')}><Icon name="back" size={20} />Tài khoản</button>
+          </div>
+        )}
         {tab === '' && (
           <>
             <section className="acc-cards">
@@ -324,7 +338,8 @@ export default function Account() {
               <div className="ostats">
                 {ORDER_TABS.slice(1).map((t) => (
                   <button key={t.v} onClick={() => { setOtab(t.v); go('don-mua'); }}>
-                    <strong>{orders.filter(t.match).length}</strong><span className="small">{t.label}</span>
+                    <span className="ostat-ic"><Icon name={t.icon} size={24} />{orders.filter(t.match).length > 0 && <span className="count">{orders.filter(t.match).length}</span>}</span>
+                    <span className="small">{t.label}</span>
                   </button>
                 ))}
               </div>

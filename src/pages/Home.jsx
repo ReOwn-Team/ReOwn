@@ -7,6 +7,7 @@ import { CATEGORIES } from '../data/mock.js';
 import { ProductCard } from '../components/ui.jsx';
 import { CategoryTiles } from '../components/Layout.jsx';
 import Art from '../components/Art.jsx';
+import HeroCarousel from '../components/HeroCarousel.jsx';
 import Icon from '../components/Icon.jsx';
 import { api } from '../api/client.js';
 import { money, short, parseMoney } from '../lib/format.js';
@@ -17,36 +18,6 @@ const GUEST = {
   buyer: { orders: 0, boms: 0, repayment: { onTime: 0, late: 0, severe: 0, defaults: 0 } },
 };
 const showMoney = (n) => (n ? n.toLocaleString('vi-VN') : '');
-
-const PROMISES = [
-  { icon: 'calendar', title: 'Trả sau 3 kỳ 0% phí' },
-  { icon: 'shield', title: 'Tiền giữ hộ đến khi nhận hàng' },
-  { icon: 'check', title: 'Người bán xếp hạng A–E' },
-];
-
-function Hero({ sample, sampleSeller, sampleScore }) {
-  return (
-    <section className="hero" aria-labelledby="hero-h">
-      <div className="hero-copy">
-        <h1 id="hero-h">Đồ cũ vừa túi tiền,<br />trả dần từng tháng</h1>
-        <p>Biết trước mỗi tháng góp bao nhiêu và người bán có đáng tin không.</p>
-        <div className="hero-actions">
-          <a href="#tui-tien" className="btn btn-lg" onClick={(e) => { e.preventDefault(); document.getElementById('tui-tien')?.scrollIntoView({ behavior: 'smooth' }); }}>Tìm món vừa túi tiền</a>
-        </div>
-        <ul className="promises">
-          {PROMISES.map((x) => (
-            <li key={x.title}><Icon name={x.icon} size={20} /><span><b>{x.title}</b></span></li>
-          ))}
-        </ul>
-      </div>
-      {sample && (
-        <div className="hero-sample" aria-label="Ví dụ một món đang bán">
-          <ProductCard product={sample} seller={sampleSeller} sellerRes={sampleScore} />
-        </div>
-      )}
-    </section>
-  );
-}
 
 function Shelf({ title, to, items, sellerScores, userById }) {
   if (!items.length) return null;
@@ -149,11 +120,10 @@ export default function Home() {
   const feed = [...live].sort((a, b) => rank(b) - rank(a));
   const bnpl = live.filter((p) => p.price >= 900_000 && p.price <= 6_000_000 && ok(p)).sort((a, b) => a.price - b.price).slice(0, 10);
   const cheap = live.filter((p) => p.price < 500_000 && ok(p)).sort((a, b) => a.price - b.price).slice(0, 10);
-  const sample = bnpl.find((p) => sellerScores[p.sellerId]?.tier.id === 'A') || bnpl[0];
 
   return (
     <div className="home">
-      <Hero sample={sample} sampleSeller={sample && userById(sample.sellerId)} sampleScore={sample && sellerScores[sample.sellerId]} />
+      <HeroCarousel onBudget={() => document.getElementById('tui-tien')?.scrollIntoView({ behavior: 'smooth' })} />
       <CategoryTiles />
       <BudgetPicker />
       <Shelf title="Trả sau 0% trong 3 kỳ" to="/tim-kiem?min=900000&sort=price-asc" items={bnpl} sellerScores={sellerScores} userById={userById} />

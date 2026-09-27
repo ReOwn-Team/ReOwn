@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../state/useStore.js';
 import { bnplOffer, listingRisk, installmentSchedule } from '../../shared/scoring/engine.js';
@@ -110,6 +110,9 @@ export default function Product() {
   const [addrErr, setAddrErr] = useState('');
   const idemKey = useRef(null);
   const payRef = useRef(null);
+  const confirmRef = useRef(null);
+  // Bấm mua ở thanh dưới cùng: đưa khung xác nhận vào giữa màn hình để người dùng thấy ngay bước tiếp theo.
+  useEffect(() => { if (confirming) confirmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [confirming]);
   const p = state.products.find((x) => x.id === id);
   if (!p) return <Empty title="Không tìm thấy món này" action={<Link className="btn" to="/">Về trang chủ</Link>}>Tin có thể đã bị gỡ hoặc đường dẫn không đúng.</Empty>;
 
@@ -222,8 +225,12 @@ export default function Product() {
                   <button className="btn btn-buy" onClick={startBuy}>{!me ? 'Đăng nhập để mua' : method === null ? 'Mua ngay' : method === 'full' ? `Mua ngay · ${money(p.price)}` : `Mua trả sau ${method} kỳ`}</button>
                 </div>
               ) : (
-                <div className="confirm">
-                  <p><b>Xác nhận đặt hàng</b> — {method === 'full' ? `trừ ${money(p.price)} từ ví ReOwn` : (() => { const o = offer.options.find((x) => x.term === method); return `${o.down ? `trả trước ${money(o.down)} từ ví, ` : ''}góp ${method} kỳ × ${money(o.monthly)}, kỳ đầu sau 30 ngày`; })()}.</p>
+                <div className="confirm" ref={confirmRef}>
+                  <div className="confirm-head">
+                    <button type="button" className="icon-btn" onClick={() => setConfirming(false)} aria-label="Quay lại chọn cách thanh toán"><Icon name="back" size={20} /></button>
+                    <b>Xác nhận đặt hàng</b>
+                  </div>
+                  <p className="small">{method === 'full' ? `Trừ ${money(p.price)} từ ví ReOwn` : (() => { const o = offer.options.find((x) => x.term === method); return `${o.down ? `Trả trước ${money(o.down)} từ ví, góp` : 'Góp'} ${method} kỳ × ${money(o.monthly)}, kỳ đầu sau 30 ngày`; })()}.</p>
                   <fieldset className="deliv">
                     <legend className="small"><b>Cách nhận hàng</b></legend>
                     <div className="deliv-opts" role="radiogroup" aria-label="Cách nhận hàng">
@@ -248,10 +255,7 @@ export default function Product() {
                       </div>
                     )}
                   </fieldset>
-                  <div className="row">
-                    <button className="btn btn-buy" onClick={place} disabled={busy}>{busy ? 'Đang đặt…' : 'Đặt hàng'}</button>
-                    <button className="btn btn-outline" onClick={() => setConfirming(false)}>Quay lại</button>
-                  </div>
+                  <button className="btn btn-buy" onClick={place} disabled={busy}>{busy ? 'Đang đặt…' : 'Đặt hàng'}</button>
                 </div>
               )}
             </section>

@@ -164,6 +164,20 @@ function ProfileMenu({ me, onLogout, logoutLabel }) {
   );
 }
 
+/** Nút quay lại trên điện thoại cho mọi trang con (trang chủ và các tab dưới cùng thì không cần). */
+function BackButton() {
+  const nav = useNavigate();
+  const { pathname } = useLocation();
+  // Trang tài khoản tự có nút quay lại về lưới “Tôi”.
+  const top = pathname === '/' || pathname === '/tin-nhan' || pathname === '/tai-khoan';
+  if (top) return null;
+  return (
+    <button type="button" className="hdr-back" onClick={() => (window.history.state?.idx > 0 ? nav(-1) : nav('/'))} aria-label="Quay lại">
+      <Icon name="back" size={22} />
+    </button>
+  );
+}
+
 export function Header() {
   const { me, dispatch, mode, state } = useStore();
   const loc = useLocation();
@@ -172,6 +186,7 @@ export function Header() {
   return (
     <header className="hdr">
       <div className="wrap hdr-main">
+        <BackButton />
         <Link to="/" className="logo" aria-label="ReOwn — trang chủ" translate="no">Re<span>Own</span></Link>
         <SearchBox />
         <nav className="hdr-actions" aria-label="Tài khoản">
@@ -246,8 +261,8 @@ export function CategoryTiles() {
           <span>{c.short || c.label}</span>
         </Link>
       ))}
-      <Link to="/tim-kiem?max=500000" className="cat-tile">
-        <span className="cat-ic cat-ic-deal">500K</span><span>Dưới 500K</span>
+      <Link to="/tim-kiem?max=500000" className="cat-tile cat-hot">
+        <span className="cat-ic cat-ic-deal"><span className="hot-badge" aria-hidden="true">HOT</span>500K</span><span>Dưới 500K</span>
       </Link>
     </div>
   );
