@@ -172,7 +172,7 @@ export function Header() {
   return (
     <header className="hdr">
       <div className="wrap hdr-main">
-        <Link to="/" className="logo" aria-label="ReOwn — trang chủ">Re<span>Own</span></Link>
+        <Link to="/" className="logo" aria-label="ReOwn — trang chủ" translate="no">Re<span>Own</span></Link>
         <SearchBox />
         <nav className="hdr-actions" aria-label="Tài khoản">
           {me?.role === 'admin' && <Link to="/quan-tri" className="hdr-act hdr-sell"><Icon name="shield" /><span>Quản trị</span></Link>}
@@ -213,7 +213,7 @@ export function Footer() {
     <footer className="ftr">
       <div className="wrap ftr-in">
         <div>
-          <span className="logo">Re<span>Own</span></span>
+          <span className="logo" translate="no">Re<span>Own</span></span>
           <p className="muted small">Chợ đồ cũ cho sinh viên.</p>
         </div>
         <div>

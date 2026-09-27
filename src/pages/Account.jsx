@@ -51,16 +51,20 @@ function ReturnForm({ o, dispatch }) {
   const [v, setV] = useState({ carrier: 'GHN', trackingCode: '' });
   const [busy, setBusy] = useState(false);
   const meetup = v.carrier === 'Khác';
+  const [err, setErr] = useState('');
   const submit = async (e) => {
-    e.preventDefault(); setBusy(true);
+    e.preventDefault();
+    if (!meetup && v.trackingCode.length < 4) { setErr('Nhập mã vận đơn (ít nhất 4 ký tự) — hoặc chọn "Khác" nếu trả tận tay'); e.currentTarget.querySelector('input')?.focus(); return; }
+    setBusy(true); setErr('');
     try { await dispatch({ type: 'returnShip', orderId: o.id, carrier: meetup ? 'Gặp trực tiếp / khác' : v.carrier, trackingCode: v.trackingCode || undefined }); } finally { setBusy(false); }
   };
   const due = o.returnInfo?.dueAt;
   return (
     <form className="inline-form" onSubmit={submit}>
       <p className="small"><b>Gửi trả hàng cho người bán</b>{due ? ` trước ${date(due)}` : ''}. Quá hạn không gửi, đơn được tính là hoàn tất.</p>
-      <CarrierFields id={`rt-${o.id}`} value={v} onChange={setV} requireCode={!meetup} />
-      <div className="row"><button className="btn btn-sm" disabled={busy || (!meetup && v.trackingCode.length < 4)}>Đã gửi trả</button></div>
+      <CarrierFields id={`rt-${o.id}`} value={v} onChange={(x) => { setV(x); setErr(''); }} requireCode={!meetup} />
+      {err && <span className="small danger" role="alert">{err}</span>}
+      <div className="row"><button className="btn btn-sm" disabled={busy}>{busy ? 'Đang gửi…' : 'Đã gửi trả'}</button></div>
     </form>
   );
 }
@@ -68,6 +72,7 @@ function ReturnForm({ o, dispatch }) {
 function OrderCard({ o, product, dispatch, mode }) {
   const [stars, setStars] = useState(5);
   const [disputing, setDisputing] = useState(false);
+  const [confirm, setConfirm] = useState(null);
   const method = o.method === 'full' ? 'Trả thẳng' : `Trả sau ${o.method} kỳ`;
   const meetup = o.delivery === 'meetup';
   const canReceive = o.status === 'shipped' || (meetup && o.status === 'paid');
@@ -94,14 +99,23 @@ function OrderCard({ o, product, dispatch, mode }) {
         {o.myStars && <span className="small muted">Bạn đã đánh giá {o.myStars} sao</span>}
         <div className="ocard-actions">
           {canDispute && !disputing && <button className="btn btn-sm btn-outline" onClick={() => setDisputing(true)}>Hàng không đúng mô tả</button>}
-          {canReceive && (
+          {canReceive && (confirm ? (
             <>
-              {!meetup && <button className="btn btn-sm btn-outline" onClick={() => dispatch({ type: 'bomOrder', orderId: o.id })}>Từ chối nhận</button>}
+              <span className="small">{confirm === 'refuse' ? 'Từ chối nhận? Tiền được hoàn, lượt từ chối tính vào điểm uy tín.' : 'Xác nhận đã nhận đúng hàng? Tiền sẽ được chuyển cho người bán.'}</span>
+              <button className="btn btn-sm btn-outline" onClick={() => setConfirm(null)}>Quay lại</button>
+              <button className={`btn btn-sm ${confirm === 'refuse' ? 'danger-btn' : ''}`}
+                onClick={() => { dispatch(confirm === 'refuse' ? { type: 'bomOrder', orderId: o.id } : { type: 'confirmReceived', orderId: o.id, stars }); setConfirm(null); }}>
+                {confirm === 'refuse' ? 'Từ chối nhận' : `Xác nhận · ${stars} sao`}
+              </button>
+            </>
+          ) : (
+            <>
+              {!meetup && <button className="btn btn-sm btn-outline" onClick={() => setConfirm('refuse')}>Từ chối nhận</button>}
               <label className="sr-only" htmlFor={`st-${o.id}`}>Đánh giá người bán</label>
               <select id={`st-${o.id}`} value={stars} onChange={(e) => setStars(Number(e.target.value))}>{[5, 4, 3, 2, 1].map((s) => <option key={s} value={s}>{s} sao</option>)}</select>
-              <button className={`btn btn-sm ${meetup ? 'btn-outline' : ''}`} onClick={() => dispatch({ type: 'confirmReceived', orderId: o.id, stars })}>Đã nhận hàng</button>
+              <button className={`btn btn-sm ${meetup ? 'btn-outline' : ''}`} onClick={() => setConfirm('receive')}>Đã nhận hàng</button>
             </>
-          )}
+          ))}
           {o.status === 'completed' && !o.myStars && mode === 'api' && (
             <>
               <select aria-label="Số sao" value={stars} onChange={(e) => setStars(Number(e.target.value))}>{[5, 4, 3, 2, 1].map((s) => <option key={s} value={s}>{s} sao</option>)}</select>
@@ -126,8 +140,8 @@ function WalletPanel({ me, dispatch, devTools, walletInfo, go }) {
   const submit = async (e) => {
     e.preventDefault();
     const v = parseMoney(amount);
-    if (v < WITHDRAW_MIN) { setErr(`Tối thiểu ${money(WITHDRAW_MIN)}`); return; }
-    if (v > balance) { setErr('Vượt số dư khả dụng'); return; }
+    if (v < WITHDRAW_MIN) { setErr(`Nhập số tiền từ ${money(WITHDRAW_MIN)} trở lên`); document.getElementById('wd-amount')?.focus(); return; }
+    if (v > balance) { setErr(`Vượt số dư khả dụng — tối đa ${money(balance)}`); document.getElementById('wd-amount')?.focus(); return; }
     setBusy(true); setErr('');
     try { if (await dispatch({ type: 'withdraw', amount: v })) { setAmount(''); refresh(); } } finally { setBusy(false); }
   };
@@ -148,10 +162,10 @@ function WalletPanel({ me, dispatch, devTools, walletInfo, go }) {
         <form className="withdraw" onSubmit={submit}>
           <label htmlFor="wd-amount" className="small">Số tiền rút về tài khoản ****{info?.bankLast4 || '····'}</label>
           <div className="row wrap-row">
-            <input id="wd-amount" inputMode="numeric" value={amount} placeholder={`Tối thiểu ${money(WITHDRAW_MIN)}`}
+            <input id="wd-amount" name="withdraw-amount" autoComplete="off" inputMode="numeric" value={amount} placeholder={`Tối thiểu ${money(WITHDRAW_MIN)}`}
               onChange={(e) => { const v = parseMoney(e.target.value); setAmount(v ? v.toLocaleString('vi-VN') : ''); setErr(''); }} aria-invalid={!!err} />
             <button type="button" className="btn btn-sm btn-outline" onClick={() => setAmount(balance.toLocaleString('vi-VN'))} disabled={!balance}>Rút hết</button>
-            <button className="btn btn-sm" disabled={busy || !amount}>{busy ? 'Đang chuyển…' : 'Rút tiền'}</button>
+            <button className="btn btn-sm" disabled={busy}>{busy ? 'Đang chuyển…' : 'Rút tiền'}</button>
           </div>
           {err && <span className="small danger" role="alert">{err}</span>}
           <span className="small muted">Miễn phí, tối đa 3 lần/ngày. Bản demo mô phỏng chuyển khoản thành công ngay.</span>
@@ -216,7 +230,7 @@ function IncomeForm({ me, dispatch }) {
   return (
     <form className="row wrap-row income-form" onSubmit={(e) => { e.preventDefault(); dispatch({ type: 'updateFinance', finance: { monthlyIncome: parseMoney(v) } }); }}>
       <label htmlFor="income" className="small">Thu nhập / trợ cấp mỗi tháng</label>
-      <input id="income" inputMode="numeric" value={v} onChange={(e) => { const n = parseMoney(e.target.value); setV(n ? n.toLocaleString('vi-VN') : ''); }} placeholder="VD: 3.000.000" />
+      <input id="income" inputMode="numeric" value={v} onChange={(e) => { const n = parseMoney(e.target.value); setV(n ? n.toLocaleString('vi-VN') : ''); }} placeholder="VD: 3.000.000…" autoComplete="off" name="monthly-income" />
       <button className="btn btn-sm btn-outline">Lưu</button>
     </form>
   );

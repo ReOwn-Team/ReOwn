@@ -12,7 +12,7 @@ export function Evidence({ urls, label }) {
     <div>
       {label && <span className="small muted">{label}</span>}
       <div className="evidence">
-        {urls.map((u, i) => <a key={u.slice(-40) + i} href={imageSrc(u)} target="_blank" rel="noreferrer"><img src={imageSrc(u)} alt={`${label || 'Ảnh'} ${i + 1}`} /></a>)}
+        {urls.map((u, i) => <a key={u.slice(-40) + i} href={imageSrc(u)} target="_blank" rel="noreferrer"><img src={imageSrc(u)} alt={`${label || 'Ảnh'} ${i + 1}`} width="96" height="96" loading="lazy" decoding="async" /></a>)}
       </div>
     </div>
   );
@@ -40,7 +40,7 @@ export function CarrierFields({ id, value, onChange, requireCode = true }) {
       </select>
       <label className="sr-only" htmlFor={`${id}-t`}>Mã vận đơn</label>
       <input id={`${id}-t`} value={value.trackingCode} onChange={(e) => onChange({ ...value, trackingCode: e.target.value.replace(/\s/g, '') })}
-        placeholder={requireCode ? 'Mã vận đơn' : 'Mã vận đơn (nếu có)'} maxLength={40} inputMode="text" autoComplete="off" />
+        placeholder={requireCode ? 'Mã vận đơn' : 'Mã vận đơn (nếu có)'} maxLength={40} inputMode="text" autoComplete="off" spellCheck={false} autoCapitalize="characters" name="tracking-code" />
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function DisputeThread({ d, viewer }) {
       {!open && (
         <div className="dmsg verdict">
           <span className="small muted">Kết luận của ReOwn</span>
-          <p><b>{d.status === 'resolved_seller' ? 'Người bán đúng — đơn được tính là hoàn tất' : d.remedy === 'partial' ? `${REMEDY.partial}: ${money(d.refundAmount || 0)}` : REMEDY[d.remedy] || 'Hoàn tiền cho người mua'}</b>{d.resolution ? `. ${d.resolution}` : ''}</p>
+          <p><b>{d.status === 'resolved_seller' ? 'Người bán đúng - đơn hoàn tất' : d.remedy === 'partial' ? `${REMEDY.partial}: ${money(d.refundAmount || 0)}` : REMEDY[d.remedy] || 'Hoàn tiền cho người mua'}</b>{d.resolution ? `. ${d.resolution}` : ''}</p>
         </div>
       )}
     </div>
@@ -93,7 +93,7 @@ export function HandoverCode({ code }) {
         <strong aria-live="polite">{shown ? `${code.slice(0, 3)} ${code.slice(3)}` : '••• •••'}</strong>
       </div>
       <button type="button" className="btn btn-sm btn-outline" onClick={() => setShown(!shown)}>{shown ? 'Ẩn mã' : 'Hiện mã'}</button>
-      <p className="small muted">Chỉ đọc mã cho người bán <b>sau khi đã kiểm tra hàng đúng mô tả</b>. Người bán nhập mã là đơn hoàn tất và tiền được chuyển.</p>
+      <p className="small muted">Chỉ đọc mã cho người bán <b>sau khi đã kiểm tra hàng đúng mô tả</b>.</p>
     </div>
   );
 }

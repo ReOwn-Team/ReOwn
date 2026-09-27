@@ -71,7 +71,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <section className="login-brand">
-        <span className="logo logo-lg">Re<span>Own</span></span>
+        <span className="logo logo-lg" translate="no">Re<span>Own</span></span>
         <h1>Đồ cũ chất lượng, trả sau nhẹ nhàng</h1>
         <ul>
           <li><Icon name="shield" /> Tiền giữ hộ đến khi bạn nhận hàng</li>
@@ -96,7 +96,7 @@ export default function Login() {
             <>
               <div className="field">
                 <label htmlFor="ph">Số điện thoại</label>
-                <input id="ph" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="09xx xxx xxx" required />
+                <input id="ph" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="09xx xxx xxx…" type="tel" name="phone" required />
               </div>
               <button className="btn btn-buy" disabled={busy || phone.length !== 10}>Tiếp tục</button>
               <p className="small muted">Mã 6 số gửi qua SMS, không cần mật khẩu.</p>

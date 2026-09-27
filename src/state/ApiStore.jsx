@@ -80,10 +80,11 @@ export default function ApiStore({ children }) {
   useEffect(() => {
     seenNotes.current = null;
     refreshInbox();
-    const t = setInterval(refreshInbox, 20_000);
-    const onFocus = () => refreshInbox();
-    window.addEventListener('focus', onFocus);
-    return () => { clearInterval(t); window.removeEventListener('focus', onFocus); };
+    // Tab ẩn thì ngừng hỏi máy chủ: đỡ tốn lượt gọi serverless và để Neon được "ngủ" (gói Free tính theo giờ thức)
+    const t = setInterval(() => { if (!document.hidden) refreshInbox(); }, 20_000);
+    const onVisible = () => { if (!document.hidden) refreshInbox(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
   }, [refreshInbox, data.me?.id]);
 
   const chat = useMemo(() => ({

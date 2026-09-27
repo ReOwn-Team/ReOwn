@@ -60,10 +60,10 @@ function Filters({ params, set, onDone }) {
         </div>
         <form className="range" onSubmit={applyPrice}>
           <label className="sr-only" htmlFor="pmin">Giá từ</label>
-          <input id="pmin" inputMode="numeric" placeholder="₫ Từ" value={pmin ? Number(pmin.replace(/\D/g, '')).toLocaleString('vi-VN') : ''} onChange={(e) => setPmin(e.target.value.replace(/\D/g, ''))} />
+          <input id="pmin" inputMode="numeric" placeholder="₫ Từ…" autoComplete="off" value={pmin ? Number(pmin.replace(/\D/g, '')).toLocaleString('vi-VN') : ''} onChange={(e) => setPmin(e.target.value.replace(/\D/g, ''))} />
           <span aria-hidden="true">–</span>
           <label className="sr-only" htmlFor="pmax">Giá đến</label>
-          <input id="pmax" inputMode="numeric" placeholder="₫ Đến" value={pmax ? Number(pmax.replace(/\D/g, '')).toLocaleString('vi-VN') : ''} onChange={(e) => setPmax(e.target.value.replace(/\D/g, ''))} />
+          <input id="pmax" inputMode="numeric" placeholder="₫ Đến…" autoComplete="off" value={pmax ? Number(pmax.replace(/\D/g, '')).toLocaleString('vi-VN') : ''} onChange={(e) => setPmax(e.target.value.replace(/\D/g, ''))} />
           <button className="btn btn-sm">Áp dụng</button>
         </form>
       </fieldset>
@@ -174,7 +174,7 @@ export default function Search() {
       </section>
       {drawer && (
         <div className="drawer" role="dialog" aria-modal="true" aria-label="Bộ lọc">
-          <div className="drawer-back" onClick={() => setDrawer(false)} />
+          <div className="drawer-back" aria-hidden="true" onClick={() => setDrawer(false)} />
           <div className="drawer-panel">
             <div className="drawer-head"><strong>Bộ lọc</strong><button className="linkbtn" onClick={() => setDrawer(false)}>Đóng</button></div>
             <Filters params={params} set={set} onDone={() => setDrawer(false)} />

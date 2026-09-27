@@ -49,13 +49,13 @@ export default function ListingForm({ listing, onDone, onCancel }) {
       <form className="panel form" onSubmit={submit}>
         <h2>{editing ? 'Sửa tin' : 'Đăng tin mới'}</h2>
         <PhotoPicker photos={photos} onChange={setPhotos} maxSide={mode === 'api' ? 1280 : 800} disabled={!!progress} />
-        <div className="field"><label htmlFor="t">Tên sản phẩm</label><input id="t" value={f.title} onChange={set('title')} placeholder="VD: Laptop Asus Vivobook 14 i3 / 8GB" minLength={5} maxLength={120} required /></div>
+        <div className="field"><label htmlFor="t">Tên sản phẩm</label><input id="t" value={f.title} onChange={set('title')} placeholder="VD: Laptop Asus Vivobook 14 i3 / 8GB…" minLength={5} maxLength={120} required /></div>
         <div className="two">
           <div className="field">
             <label htmlFor="c">Danh mục</label>
             <select id="c" value={f.category} onChange={set('category')}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
           </div>
-          <div className="field"><label htmlFor="loc">Khu vực giao nhận</label><input id="loc" value={f.location} onChange={set('location')} placeholder="VD: Tân Phú" maxLength={40} /></div>
+          <div className="field"><label htmlFor="loc">Khu vực giao nhận</label><input id="loc" value={f.location} onChange={set('location')} placeholder="VD: Tân Phú…" maxLength={40} /></div>
         </div>
         <div className="field">
           <label htmlFor="pr">Giá bán</label>

@@ -35,8 +35,9 @@ function Shell() {
   const bare = pathname === '/dang-nhap';
   return (
     <>
+      <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>Bỏ qua, tới nội dung chính</a>
       {!bare && <Header />}
-      <main className={`wrap page ${bare ? 'page-bare' : ''}`}>
+      <main id="main" tabIndex={-1} className={`wrap page ${bare ? 'page-bare' : ''}`}>
         {!ready ? <p className="muted loading">Đang tải…</p> : (
           <Suspense fallback={<p className="muted loading">Đang tải…</p>}>
           <Routes>
@@ -59,7 +60,7 @@ function Shell() {
       </main>
       {!bare && <Footer />}
       {!bare && !pathname.startsWith('/san-pham') && !/^\/tin-nhan\/./.test(pathname) && <BottomNav />}
-      {state.toast && <div className="toast" role="status">{state.toast}</div>}
+      <div className="toast-region" role="status" aria-live="polite">{state.toast && <div className="toast">{state.toast}</div>}</div>
     </>
   );
 }

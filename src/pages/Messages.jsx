@@ -61,8 +61,10 @@ function Thread({ id, onActivity }) {
 
   useEffect(() => {
     poll();
-    const t = setInterval(poll, mode === 'api' ? 4000 : 1000);
-    return () => clearInterval(t);
+    const t = setInterval(() => { if (!document.hidden) poll(); }, mode === 'api' ? 4000 : 1000);
+    const onVisible = () => { if (!document.hidden) poll(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
   }, [id, poll, mode]);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs.length]);
 

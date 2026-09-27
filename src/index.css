@@ -65,7 +65,10 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; color-scheme: light; touch-action: manipulation; -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 18%, transparent); }
+:root[data-theme='dark'] { color-scheme: dark; }
+p, li, blockquote { text-wrap: pretty; }
+[id] { scroll-margin-top: 96px; }
 body { background: var(--ground); color: var(--ink); font: 400 var(--fs-md)/1.55 var(--font); -webkit-font-smoothing: antialiased; }
 h1, h2, h3 { margin: 0; line-height: 1.25; text-wrap: balance; font-weight: 700; letter-spacing: -0.015em; }
 h1 { font-size: var(--fs-2xl); }
@@ -112,7 +115,7 @@ input:not([type='radio']):not([type='checkbox']):not([type='range']), select, te
 }
 input::placeholder, textarea::placeholder { color: var(--muted); }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
-select { width: auto; }
+select { width: auto; background-color: var(--surface); color: var(--ink); }
 .field select { width: 100%; }
 textarea { resize: vertical; min-height: 96px; }
 input[type='radio'], input[type='checkbox'], input[type='range'] { accent-color: var(--accent); }
@@ -315,7 +318,7 @@ input[type='radio'], input[type='checkbox'] { width: 18px; height: 18px; margin:
 .active-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .drawer { position: fixed; inset: 0; z-index: 50; }
 .drawer-back { position: absolute; inset: 0; background: rgb(0 0 0 / 40%); animation: fade .2s var(--ease); }
-.drawer-panel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh; background: var(--surface); border-radius: 20px 20px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); overflow: auto; animation: sheet .28s var(--ease); }
+.drawer-panel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh; background: var(--surface); border-radius: 20px 20px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); overflow: auto; overscroll-behavior: contain; animation: sheet .28s var(--ease); }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-lg); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes sheet { from { transform: translateY(24px); opacity: 0; } }
@@ -888,3 +891,10 @@ p a:not(.btn), .small a:not(.btn), .notice a:not(.btn) { text-decoration: underl
   .upcoming li { grid-template-columns: 1fr auto; }
   .upcoming li span:nth-child(2) { grid-column: 1 / -1; order: 3; }
 }
+
+/* Bỏ qua tới nội dung chính (chỉ hiện khi dùng bàn phím) */
+.skip-link { position: fixed; left: 12px; top: -60px; z-index: 100; background: var(--accent); color: var(--accent-ink); padding: 10px 14px; border-radius: var(--r-sm); font-weight: 600; transition: top .15s var(--ease); }
+.skip-link:focus-visible { top: 12px; }
+main:focus { outline: none; }
+/* Lưới sản phẩm dài: bỏ qua dựng hình các thẻ ngoài màn hình */
+.grid > .pcard, .grid > .my-listing { content-visibility: auto; contain-intrinsic-size: auto 360px; }

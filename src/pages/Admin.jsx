@@ -39,7 +39,7 @@ function Products() {
         </div>
       </div>
       <label className="sr-only" htmlFor="aq">Tìm sản phẩm</label>
-      <input id="aq" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo tên sản phẩm" />
+      <input id="aq" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo tên sản phẩm…" autoComplete="off" spellCheck={false} />
       {shown.length === 0 ? <p className="muted small">Không có sản phẩm nào.</p> : (
         <ul className="adm-list">
           {shown.map(({ p, r }) => (
@@ -124,7 +124,7 @@ function Disputes({ reload }) {
                       <>
                         <div className="field">
                           <label htmlFor={`note-${d.id}`}>Kết luận</label>
-                          <textarea id={`note-${d.id}`} rows={2} value={note} onChange={(e) => { setNote(e.target.value); setErr(''); }} placeholder="VD: Video mở hộp cho thấy máy móp góc, không khớp ảnh đăng." maxLength={1000} />
+                          <textarea id={`note-${d.id}`} rows={2} value={note} onChange={(e) => { setNote(e.target.value); setErr(''); }} placeholder="VD: Video mở hộp cho thấy máy móp góc, không khớp ảnh đăng…" maxLength={1000} />
                         </div>
                         {err && <p className="small danger" role="alert">{err}</p>}
                         <div className="verdicts">
@@ -132,7 +132,7 @@ function Disputes({ reload }) {
                           <button className="btn btn-outline" onClick={() => resolve(d, 'buyer')} disabled={busy}>Hoàn tiền ngay, không cần trả hàng</button>
                           <span className="partial">
                             <label className="sr-only" htmlFor={`pa-${d.id}`}>Số tiền hoàn một phần</label>
-                            <input id={`pa-${d.id}`} inputMode="numeric" placeholder="Số tiền hoàn" value={partial} onChange={(e) => { setPartial(e.target.value); setErr(''); }} />
+                            <input id={`pa-${d.id}`} inputMode="numeric" placeholder="VD: 100.000…" autoComplete="off" value={partial} onChange={(e) => { setPartial(e.target.value); setErr(''); }} />
                             <button className="btn btn-outline" onClick={() => resolve(d, 'partial')} disabled={busy}>Hoàn một phần</button>
                           </span>
                           <button className="btn btn-outline" onClick={() => resolve(d, 'seller')} disabled={busy}>Người bán đúng — giải ngân</button>
@@ -167,7 +167,7 @@ function MfaGate({ onDone }) {
       <p className="muted">Nhập mã 6 số trong ứng dụng Google Authenticator để vào trang quản trị.{mode === 'mock' && ' Bản demo: nhập 6 số bất kỳ.'}</p>
       <form onSubmit={submit} className="form">
         <label htmlFor="totp" className="sr-only">Mã xác thực</label>
-        <input id="totp" className="otp" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus />
+        <input id="totp" className="otp" inputMode="numeric" autoComplete="one-time-code" spellCheck={false} name="totp" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus />
         {err && <p className="small danger" role="alert">{err}</p>}
         <button className="btn btn-buy" disabled={code.length !== 6 || busy}>Xác nhận</button>
       </form>

@@ -47,7 +47,7 @@ export default function PhotoPicker({ photos, onChange, maxSide = 1280, disabled
       <ul className="photo-grid" aria-labelledby={`${id}-label`}>
         {photos.map((p, i) => (
           <li key={p.key} className="photo">
-            <img src={p.src || p.url} alt={`Ảnh ${i + 1}`} />
+            <img src={p.src || p.url} alt={`Ảnh ${i + 1}`} width="160" height="160" decoding="async" />
             {!cover ? null : i === 0 ? <span className="photo-cover">Ảnh bìa</span>
               : <button type="button" className="photo-act photo-make" onClick={() => makeCover(p.key)} disabled={disabled}>Đặt làm bìa</button>}
             <button type="button" className="photo-del" onClick={() => remove(p.key)} disabled={disabled} aria-label={`Xoá ảnh ${i + 1}`}><Icon name="close" size={16} /></button>

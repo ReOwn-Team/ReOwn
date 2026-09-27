@@ -217,13 +217,13 @@ export default function Product() {
                       <div className="field">
                         <label htmlFor="ship-to">Người nhận · SĐT · địa chỉ</label>
                         <textarea id="ship-to" rows={2} maxLength={300} value={shipTo} onChange={(e) => { setShipTo(e.target.value); setAddrErr(''); }}
-                          placeholder="VD: Trần Lan · 0901 234 567 · Phòng 402, KTX khu B, ĐHQG TP.HCM" aria-invalid={!!addrErr} aria-describedby={addrErr ? 'ship-err' : undefined} />
+                          placeholder="VD: Trần Lan · 0901 234 567 · Phòng 402, KTX khu B, ĐHQG TP.HCM…" autoComplete="street-address" name="ship-to" aria-invalid={!!addrErr} aria-describedby={addrErr ? 'ship-err' : undefined} />
                         {addrErr && <span id="ship-err" className="small danger" role="alert">{addrErr}</span>}
                       </div>
                     ) : (
                       <div className="field">
                         <label htmlFor="meet-note">Gợi ý nơi / giờ hẹn (không bắt buộc)</label>
-                        <input id="meet-note" maxLength={200} value={meetupNote} onChange={(e) => setMeetupNote(e.target.value)} placeholder="VD: Cổng chính HUIT, 17h thứ Sáu" />
+                        <input id="meet-note" maxLength={200} value={meetupNote} onChange={(e) => setMeetupNote(e.target.value)} placeholder="VD: Cổng chính HUIT, 17h thứ Sáu…" autoComplete="off" name="meetup-note" />
                         <span className="small muted">Sau khi đặt, bạn nhận một mã 6 số. Chỉ đọc mã cho người bán khi đã kiểm tra hàng đúng mô tả.</span>
                       </div>
                     )}

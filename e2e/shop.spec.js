@@ -62,6 +62,7 @@ test('đặt hàng → người bán gửi → người mua nhận hàng', async
   await expect(mine.getByRole('button', { name: /Mô phỏng/ })).toHaveCount(0);
   await expect(mine).toContainText('GHN12345678');
   await mine.getByRole('button', { name: 'Đã nhận hàng' }).click();
+  await mine.getByRole('button', { name: /Xác nhận · 5 sao/ }).click();
   await expect(mine.locator('.ostatus')).toHaveText('Hoàn tất');
 });
 
@@ -159,6 +160,8 @@ test('gặp trực tiếp: người bán nhập mã người mua đọc để ho
 test('rút tiền về tài khoản ngân hàng đã xác thực', async ({ page }) => {
   await login(page, 'lan');
   await page.goto('#/tai-khoan?tab=vi');
+  await page.getByRole('button', { name: 'Rút tiền' }).click();
+  await expect(page.getByRole('alert')).toContainText('trở lên');
   await page.getByLabel(/Số tiền rút/).fill('100000');
   await page.getByRole('button', { name: 'Rút tiền' }).click();
   await expect(page.locator('.txlist').first()).toContainText('100.000');
@@ -188,8 +191,18 @@ test('admin gỡ tin ngay trên trang sản phẩm', async ({ page }) => {
   await expect(page.locator('.results .pcard')).toHaveCount(0);
 });
 
-for (const path of ['', 'tim-kiem?q=laptop', 'product', 'dang-nhap']) {
+test('bàn phím: link bỏ qua đưa tới nội dung chính', async ({ page }) => {
+  await page.goto('#/');
+  await page.keyboard.press('Tab');
+  const skip = page.getByRole('link', { name: /Bỏ qua, tới nội dung chính/ });
+  await expect(skip).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main')).toBeFocused();
+});
+
+for (const path of ['', 'tim-kiem?q=laptop', 'product', 'dang-nhap', 'tai-khoan?tab=don-mua', 'kenh-nguoi-ban']) {
   test(`không có lỗi truy cập (axe): /${path}`, async ({ page }) => {
+    if (/^(tai-khoan|kenh)/.test(path)) await login(page, 'bao');
     if (path === 'product') await openProduct(page, 'thinkpad'); else await page.goto('#/' + path);
     await page.waitForLoadState('networkidle');
     const r = await new AxeBuilder({ page }).analyze();

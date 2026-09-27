@@ -68,12 +68,19 @@ function nextStep(o) {
 
 function ShipForm({ o, run, busy, onCancel }) {
   const [v, setV] = useState({ carrier: 'GHN', trackingCode: '' });
+  const [err, setErr] = useState('');
+  const submit = (e) => {
+    e.preventDefault();
+    if (!/^[A-Za-z0-9-]{4,40}$/.test(v.trackingCode)) { setErr('Mã vận đơn gồm 4–40 chữ/số, xem trên phiếu gửi hàng'); e.currentTarget.querySelector('input')?.focus(); return; }
+    run({ type: 'shipOrder', orderId: o.id, carrier: v.carrier, trackingCode: v.trackingCode });
+  };
   return (
-    <form className="inline-form" onSubmit={(e) => { e.preventDefault(); run({ type: 'shipOrder', orderId: o.id, carrier: v.carrier, trackingCode: v.trackingCode }); }}>
+    <form className="inline-form" onSubmit={submit} noValidate>
       <p className="small"><b>Nhập mã vận đơn</b> để khách theo dõi hàng.</p>
-      <CarrierFields id={`sh-${o.id}`} value={v} onChange={setV} />
+      <CarrierFields id={`sh-${o.id}`} value={v} onChange={(x) => { setV(x); setErr(''); }} />
+      {err && <span className="small danger" role="alert">{err}</span>}
       <div className="row">
-        <button className="btn btn-sm" disabled={busy || v.trackingCode.length < 4}>Xác nhận đã gửi</button>
+        <button className="btn btn-sm" disabled={busy}>{busy ? 'Đang lưu…' : 'Xác nhận đã gửi'}</button>
         <button type="button" className="btn btn-sm btn-outline" onClick={onCancel} disabled={busy}>Để sau</button>
       </div>
     </form>
@@ -82,14 +89,22 @@ function ShipForm({ o, run, busy, onCancel }) {
 
 function HandoverForm({ o, run, busy }) {
   const [code, setCode] = useState('');
+  const [err, setErr] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    if (code.length !== 6) { setErr('Mã gồm đúng 6 chữ số — hỏi khách mở mục Đơn mua để xem'); e.currentTarget.querySelector('input')?.focus(); return; }
+    setErr('');
+    if (await run({ type: 'handover', orderId: o.id, code })) setCode('');
+  };
   return (
-    <form className="inline-form hand-form" onSubmit={async (e) => { e.preventDefault(); if (await run({ type: 'handover', orderId: o.id, code })) setCode(''); }}>
+    <form className="inline-form hand-form" onSubmit={submit} noValidate>
       <label className="small" htmlFor={`hc-${o.id}`}><b>Mã nhận hàng khách đọc</b> (6 số)</label>
       <div className="row">
-        <input id={`hc-${o.id}`} className="code-input" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          inputMode="numeric" autoComplete="one-time-code" placeholder="••••••" disabled={o.handoverLocked} />
-        <button className="btn btn-sm" disabled={busy || code.length !== 6 || o.handoverLocked}>Xác nhận đã giao</button>
+        <input id={`hc-${o.id}`} className="code-input" value={code} onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setErr(''); }}
+          inputMode="numeric" autoComplete="off" spellCheck={false} name="handover-code" placeholder="••••••" disabled={o.handoverLocked} aria-invalid={!!err} />
+        <button className="btn btn-sm" disabled={busy || o.handoverLocked}>{busy ? 'Đang kiểm tra…' : 'Xác nhận đã giao'}</button>
       </div>
+      {err && <span className="small danger" role="alert">{err}</span>}
       {o.handoverLocked && <span className="small danger">Nhập sai quá nhiều lần — nhờ khách bấm "Đã nhận hàng" trên ứng dụng.</span>}
     </form>
   );
@@ -105,7 +120,7 @@ function RespondForm({ o, run, busy, mode }) {
         placeholder="VD: Mình có video đóng gói, máy nguyên tem khi gửi…" />
       <PhotoPicker id={`rp-${o.id}`} photos={photos} onChange={setPhotos} maxSide={mode === 'api' ? 1280 : 800} disabled={busy}
         label="Ảnh / khung hình video đóng gói" hint="không bắt buộc, tối đa 3" cover={false} tip="Ảnh lúc đóng gói, phiếu gửi hàng hoặc tin nhắn thoả thuận giúp ReOwn xét công bằng." />
-      <div className="row"><button className="btn btn-sm" disabled={busy || text.trim().length < 10}>{busy ? 'Đang gửi…' : 'Gửi phản hồi'}</button></div>
+      <div className="row"><button className="btn btn-sm" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi phản hồi'}</button></div>
     </form>
   );
 }
@@ -172,6 +187,7 @@ function SalesPanel({ sales, products, dispatch, mode, params, setParams }) {
   const fallback = counts['can-gui'] ? 'can-gui' : urgent ? 'khieu-nai' : counts['dang-giao'] ? 'dang-giao' : 'tat-ca';
   const cur = SALE_TABS.find((t) => t.v === params.get('don')) || SALE_TABS.find((t) => t.v === fallback);
   const shown = sales.filter(cur.match);
+  const byId = new Map(products.map((p) => [p.id, p]));
   return (
     <section className="panel">
       <div className="otabs sub" role="tablist" aria-label="Lọc đơn bán">
@@ -186,7 +202,7 @@ function SalesPanel({ sales, products, dispatch, mode, params, setParams }) {
         ? <Empty title="Chưa có đơn bán nào">{mode === 'mock' ? 'Bản demo: đăng nhập tài khoản khác, đặt mua một món của bạn rồi quay lại đây để xử lý đơn.' : 'Khi có người đặt mua, đơn sẽ xuất hiện ở đây kèm thông báo.'}</Empty>
         : shown.length === 0
           ? <Empty title={cur.v === 'can-gui' ? 'Không có đơn nào cần gửi' : 'Không có đơn nào ở mục này'}>{cur.v === 'can-gui' ? 'Đơn mới sẽ hiện ở đây. Gửi hàng trong 3 ngày để giữ điểm uy tín.' : null}</Empty>
-          : <ul className="ocards">{shown.slice(0, 50).map((o) => <SaleRow key={o.id} o={o} product={products.find((p) => p.id === o.productId)} dispatch={dispatch} mode={mode} />)}</ul>}
+          : <ul className="ocards">{shown.slice(0, 50).map((o) => <SaleRow key={o.id} o={o} product={byId.get(o.productId)} dispatch={dispatch} mode={mode} />)}</ul>}
     </section>
   );
 }

@@ -16,7 +16,7 @@ export default function AdminHide({ id, onDone, compact = false }) {
   const finalReason = other ? custom.trim() : reason;
 
   const hide = async () => {
-    if (other && finalReason.length < 5) { setErr('Nhập lý do gỡ (ít nhất 5 ký tự)'); return; }
+    if (other && finalReason.length < 5) { setErr('Nhập lý do gỡ tin'); return; }
     setBusy(true); setErr('');
     try { await admin.hide(id, finalReason); setOpen(false); onDone?.(); } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
@@ -26,8 +26,8 @@ export default function AdminHide({ id, onDone, compact = false }) {
   }
   return (
     <div className="hide-form">
-      <label className="small" htmlFor={`hr-${id}`}>Lý do gỡ (người bán sẽ thấy)</label>
-      <select id={`hr-${id}`} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus>
+      <label className="small" htmlFor={`hr-${id}`}>Lý do gỡ tin</label>
+      <select id={`hr-${id}`} value={reason} onChange={(e) => setReason(e.target.value)}>
         {[...HIDE_REASONS, OTHER].map((r) => <option key={r}>{r}</option>)}
       </select>
       {other && (
