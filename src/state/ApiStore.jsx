@@ -154,6 +154,7 @@ export default function ApiStore({ children }) {
           if (a.stars) await client.api(`/orders/${a.orderId}/review`, { method: 'POST', body: { stars: a.stars } });
           break;
         case 'bomOrder': await client.api(`/orders/${a.orderId}/refuse`, { method: 'POST' }); break;
+        case 'cancelOverdue': await client.api(`/orders/${a.orderId}/cancel-overdue`, { method: 'POST' }); break;
         case 'openDispute': {
           const imageIds = [];
           for (const p of a.photos || []) imageIds.push((await client.uploadImage(p.blob)).id);

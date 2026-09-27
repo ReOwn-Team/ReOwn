@@ -1,7 +1,7 @@
 import { USERS, PRODUCTS, SAMPLE_ORDERS } from '../data/mock.js';
 import { installmentSchedule, fmt } from '../../shared/scoring/engine.js';
 import { DAY, LATE_DAYS } from './shared.js';
-import { DISPUTE_RESPONSE_HOURS, RETURN_SHIP_DAYS, HANDOVER_MAX_ATTEMPTS, lateFeeFor } from '../../shared/policy.js';
+import { DISPUTE_RESPONSE_HOURS, RETURN_SHIP_DAYS, HANDOVER_MAX_ATTEMPTS, lateFeeFor, shipDeadline } from '../../shared/policy.js';
 
 export const KEY = 'reown-demo-v6';
 
@@ -45,7 +45,7 @@ function remind(state, now = Date.now()) {
 export function autoReply(text) {
   const t = text.toLowerCase();
   if (/gi[aá]|b[oớ]t|fix|thương lượng/.test(t)) return 'Giá này mình để sát rồi bạn ơi. Bạn đặt qua ReOwn để được giữ tiền hộ và trả sau nhé.';
-  if (/b[aả]o h[aà]nh|l[oỗ]i|x[uư][oớ]c|pin/.test(t)) return 'Máy chạy ổn, mình có ghi rõ tình trạng trong mô tả. Nhận hàng không đúng mô tả thì bạn khiếu nại trong 3 ngày được hoàn tiền.';
+  if (/b[aả]o h[aà]nh|l[oỗ]i|x[uư][oớ]c|pin/.test(t)) return 'Máy chạy ổn, mình có ghi rõ tình trạng trong mô tả. Nhận hàng không đúng mô tả thì bạn khiếu nại trước khi bấm "Đã nhận hàng" là được hoàn tiền.';
   if (/c[oò]n|kh[oô]ng/.test(t)) return 'Còn bạn nhé! Bạn đặt trên ReOwn là mình gửi trong ngày.';
   if (/g[aặ]p|xem|ship|giao/.test(t)) return 'Mình giao qua ReOwn luôn cho tiện, tiền được giữ hộ tới khi bạn nhận hàng.';
   return 'Mình đã đọc tin nhắn, bạn cần hỏi thêm gì cứ nhắn nhé.';
@@ -148,14 +148,17 @@ function core(state, a) {
       return completeOrder(state, o, a.stars);
     }
     case 'bomOrder': {
+      // Từ chối nhận: hàng hoàn về người bán, tiền vẫn giữ hộ tới khi người bán xác nhận đã nhận lại (như máy chủ).
       const o = state.orders.find((x) => x.id === a.orderId);
-      let s = setOrder(state, o.id, { status: 'refused_by_buyer', payoutStatus: 'refunded' });
-      const plan = s.plans.find((p) => p.orderId === o.id);
-      const back = o.method === 'full' ? o.price
-        : (plan?.down || 0) + (plan?.installments.filter((i) => i.status === 'paid').reduce((a, i) => a + i.amount, 0) || 0);
-      s = { ...s, products: s.products.map((p) => (p.id === o.productId ? { ...p, sold: false } : p)), plans: s.plans.filter((p) => p.orderId !== o.id) };
-      if (back) s = mapUser(s, o.buyerId, (u) => { u.finance.savings += back; return u; });
+      if (!o || o.buyerId !== state.currentUserId || o.status !== 'shipped') return state;
+      const s = setOrder(state, o.id, { status: 'refused_by_buyer', refusedAt: Date.now() });
       return mapUser(s, o.buyerId, (u) => { u.buyer.boms += 1; return u; });
+    }
+    case 'cancelOverdue': {
+      const o = state.orders.find((x) => x.id === a.orderId);
+      if (!o || o.buyerId !== state.currentUserId || o.status !== 'paid' || Date.now() < shipDeadline(o.delivery, o.createdAt)) return state;
+      const s = refundOrder(state, o, { status: 'cancelled_by_seller' });
+      return { ...s, products: s.products.filter((p) => p.id !== o.productId) };
     }
     case 'openDispute':
       if (!a.evidence?.length) return state;
@@ -172,7 +175,13 @@ function core(state, a) {
     }
     case 'returnReceived': {
       const o = state.orders.find((x) => x.id === a.orderId);
-      if (!o || o.sellerId !== state.currentUserId || o.status !== 'returning') return state;
+      const refused = o?.status === 'refused_by_buyer' && o.payoutStatus === 'held';
+      if (!o || o.sellerId !== state.currentUserId || (o.status !== 'returning' && !refused)) return state;
+      // Hàng bị từ chối nhận còn nguyên nên mở bán lại; hàng trả sau khiếu nại thì gỡ tin.
+      if (refused) {
+        const s = refundOrder(state, o, {});
+        return { ...s, products: s.products.map((p) => (p.id === o.productId ? { ...p, sold: false } : p)) };
+      }
       const s = refundOrder(state, o, { status: 'refunded' });
       return { ...s, products: s.products.filter((p) => p.id !== o.productId) };
     }
@@ -303,18 +312,20 @@ export function reducer(state, a) {
   }
   const o = a.orderId && next.orders.find((x) => x.id === a.orderId);
   const changed = o && state.orders.find((x) => x.id === o.id)?.status !== o.status;
-  if (changed && (a.type === 'shipOrder' || a.type === 'devShip')) next = addNote(next, o.buyerId, { kind: 'order.shipped', title: `Người bán đã gửi: ${cut(o.title)}`, body: 'Kiểm tra hàng khi nhận rồi bấm "Đã nhận hàng". Sai mô tả thì khiếu nại trong 3 ngày.', link: '/tai-khoan?tab=don-mua' });
+  if (changed && (a.type === 'shipOrder' || a.type === 'devShip')) next = addNote(next, o.buyerId, { kind: 'order.shipped', title: `Người bán đã gửi: ${cut(o.title)}`, body: 'Kiểm tra hàng khi nhận rồi bấm "Đã nhận hàng". Sai mô tả thì bấm "Hàng không đúng mô tả" trước khi xác nhận.', link: '/tai-khoan?tab=don-mua' });
   if (changed && a.type === 'sellerCancel') next = addNote(next, o.buyerId, { kind: 'order.cancelled', title: `Người bán huỷ đơn: ${cut(o.title)}`, body: 'Tiền đã hoàn về ví ReOwn của bạn.', link: '/tai-khoan?tab=don-mua' });
   if (o && a.type === 'confirmReceived') {
     next = addNote(next, o.sellerId, { kind: 'order.completed', title: `Người mua đã nhận: ${title(o.productId)}`, body: 'Tiền về ví ngay.', link: '/kenh-nguoi-ban?don=hoan-tat' });
     next = addNote(next, o.sellerId, { kind: 'payout.released', title: `+${fmt(Math.round(o.price * 0.96))} vào ví ReOwn`, body: 'Tiền bán hàng (đã trừ phí sàn 4%).', link: '/tai-khoan?tab=vi', dedupeKey: `payout:${o.id}` });
   }
-  if (o && a.type === 'bomOrder') next = addNote(next, o.sellerId, { kind: 'order.refused', title: `Người mua từ chối nhận: ${title(o.productId)}`, body: 'Tin đã mở bán lại.', link: '/kenh-nguoi-ban?don=da-huy' });
+  if (changed && a.type === 'bomOrder') next = addNote(next, o.sellerId, { kind: 'order.refused', title: `Người mua từ chối nhận: ${title(o.productId)}`, body: 'Hàng đang được hoàn về. Khi nhận lại, bấm "Đã nhận lại hàng" để hoàn tiền cho khách và mở bán lại.', link: '/kenh-nguoi-ban?don=khieu-nai' });
+  if (changed && a.type === 'cancelOverdue') next = addNote(next, o.sellerId, { kind: 'order.cancelled', title: `Đơn bị huỷ vì quá hạn gửi: ${cut(o.title)}`, body: 'Tin đã được gỡ và điểm giao đúng hẹn bị trừ.', link: '/kenh-nguoi-ban?don=da-huy' });
   if (changed && a.type === 'openDispute') next = addNote(next, o.sellerId, { kind: 'dispute.opened', title: `Khiếu nại đơn ${title(o.productId)}`, body: 'Phản hồi kèm ảnh/video đóng gói trong 48 giờ để ReOwn xét công bằng.', link: '/kenh-nguoi-ban?don=khieu-nai' });
   if (o && a.type === 'respondDispute' && o.dispute?.sellerResponse) next = addNote(next, o.buyerId, { kind: 'dispute.responded', title: `Người bán đã phản hồi khiếu nại: ${title(o.productId)}`, link: '/tai-khoan?tab=don-mua' });
   if (changed && a.type === 'handover') next = addNote(next, o.sellerId, { kind: 'payout.released', title: `+${fmt(payout(o.price))} vào ví ReOwn`, body: 'Giao trực tiếp thành công (đã trừ phí sàn 4%).', link: '/tai-khoan?tab=vi', dedupeKey: `payout:${o.id}` });
   if (changed && a.type === 'returnShip') next = addNote(next, o.sellerId, { kind: 'return.shipped', title: `Người mua đã gửi trả: ${title(o.productId)}`, body: 'Nhận được hàng thì bấm "Đã nhận lại hàng".', link: '/kenh-nguoi-ban?don=khieu-nai' });
-  if (changed && a.type === 'returnReceived') next = addNote(next, o.buyerId, { kind: 'return.refunded', title: `Đã hoàn tiền: ${cut(o.title)}`, body: 'Người bán đã nhận lại hàng.', link: '/tai-khoan?tab=don-mua' });
+  const refundedNow = o && state.orders.find((x) => x.id === o.id)?.payoutStatus !== o.payoutStatus;
+  if (refundedNow && a.type === 'returnReceived') next = addNote(next, o.buyerId, { kind: 'return.refunded', title: `Đã hoàn tiền: ${cut(o.title)}`, body: 'Người bán đã nhận lại hàng.', link: '/tai-khoan?tab=don-mua' });
   if (['placeOrder', 'payInstallment'].includes(a.type)) next = remind(next);
   return next;
 }

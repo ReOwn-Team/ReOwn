@@ -6,18 +6,20 @@ import ListingForm from '../components/ListingForm.jsx';
 import Icon from '../components/Icon.jsx';
 import { ScoreGauge, Breakdown, Reasons, ProductCard, Empty, TrustBadge } from '../components/ui.jsx';
 import { money, orderStatusLabel, vnDateTime } from '../lib/format.js';
+import { shipDeadline } from '../../shared/policy.js';
 import PhotoPicker from '../components/PhotoPicker.jsx';
 import { DeliveryInfo, DisputeThread, CarrierFields } from '../components/OrderBits.jsx';
 
 const TABS = [{ v: '', label: 'Đơn bán' }, { v: 'dang-tin', label: 'Đăng tin mới' }, { v: 'tin-dang', label: 'Tin đăng' }, { v: 'uy-tin', label: 'Uy tín shop' }];
 
-const needsAction = (o) => o.status === 'returning' || (o.status === 'disputed' && o.dispute?.status === 'open' && !o.dispute?.sellerResponse);
+const awaitingReturn = (o) => o.status === 'returning' || (o.status === 'refused_by_buyer' && o.payoutStatus === 'held');
+const needsAction = (o) => awaitingReturn(o) || (o.status === 'disputed' && o.dispute?.status === 'open' && !o.dispute?.sellerResponse);
 const SALE_TABS = [
   { v: 'can-gui', label: 'Cần gửi hàng', match: (o) => o.status === 'paid' },
   { v: 'dang-giao', label: 'Đang giao', match: (o) => o.status === 'shipped' },
-  { v: 'khieu-nai', label: 'Khiếu nại & trả hàng', match: (o) => ['disputed', 'return_pending', 'returning'].includes(o.status) },
+  { v: 'khieu-nai', label: 'Khiếu nại & trả hàng', match: (o) => ['disputed', 'return_pending', 'returning'].includes(o.status) || awaitingReturn(o) },
   { v: 'hoan-tat', label: 'Hoàn tất', match: (o) => o.status === 'completed' },
-  { v: 'da-huy', label: 'Đã huỷ / hoàn tiền', match: (o) => ['refused_by_buyer', 'cancelled_by_seller', 'refunded'].includes(o.status) },
+  { v: 'da-huy', label: 'Đã huỷ / hoàn tiền', match: (o) => ['refused_by_buyer', 'cancelled_by_seller', 'refunded'].includes(o.status) && !awaitingReturn(o) },
   { v: 'tat-ca', label: 'Tất cả', match: () => true },
 ];
 const when = vnDateTime;
@@ -60,7 +62,10 @@ function nextStep(o) {
   if (o.status === 'disputed') return o.dispute?.sellerResponse ? 'Đã gửi phản hồi — ReOwn đang đối chiếu bằng chứng của hai bên.' : 'Khách khiếu nại — tiền được giữ lại. Gửi phản hồi kèm ảnh/video đóng gói trong 48 giờ.';
   if (o.status === 'return_pending') return 'ReOwn yêu cầu khách gửi trả hàng. Bạn sẽ được báo khi khách gửi.';
   if (o.status === 'returning') return `Khách đã gửi trả qua ${o.returnInfo?.carrier || 'đơn vị vận chuyển'}${o.returnInfo?.trackingCode ? ` (mã ${o.returnInfo.trackingCode})` : ''}. Nhận được hàng thì xác nhận — quá 7 ngày ReOwn tự hoàn tiền cho khách.`;
-  if (o.status === 'refused_by_buyer') return 'Khách từ chối nhận hàng, tin đã được mở bán lại.';
+  if (o.status === 'refused_by_buyer') return o.payoutStatus === 'held'
+    ? 'Khách từ chối nhận — hàng đang được hoàn về. Nhận được thì xác nhận để hoàn tiền cho khách và mở bán lại; quá 7 ngày ReOwn tự hoàn tiền.'
+    : 'Khách từ chối nhận hàng, tin đã được mở bán lại.';
+  if (o.status === 'paid' && Date.now() >= shipDeadline(o.delivery, o.createdAt)) return 'Đơn đã quá hạn gửi hàng — khách có thể huỷ bất cứ lúc nào, sau 2 ngày nữa ReOwn tự huỷ.';
   if (o.status === 'cancelled_by_seller') return 'Bạn đã huỷ đơn, tiền đã hoàn cho khách.';
   if (o.status === 'refunded') return 'ReOwn đã hoàn tiền cho khách.';
   return null;
@@ -167,7 +172,7 @@ function SaleRow({ o, product, dispatch, mode }) {
               {!meetup && !shipping && <button className="btn btn-sm" onClick={() => setShipping(true)} disabled={busy}>Xác nhận đã gửi hàng</button>}
             </>
           ))}
-          {o.status === 'returning' && <button className="btn btn-sm" onClick={() => run({ type: 'returnReceived', orderId: o.id })} disabled={busy}>Đã nhận lại hàng</button>}
+          {awaitingReturn(o) && <button className="btn btn-sm" onClick={() => run({ type: 'returnReceived', orderId: o.id })} disabled={busy}>Đã nhận lại hàng</button>}
           {o.status === 'completed' && !o.myStars && (
             <>
               <label className="small" htmlFor={`sb-${o.id}`}>Đánh giá người mua</label>

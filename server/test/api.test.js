@@ -8,6 +8,7 @@ import { seed } from '../src/db/seed.js';
 import { runJobs } from '../src/services/jobs.js';
 
 const CSRF = { 'X-ReOwn-Client': 'web' };
+const bare = (urls) => urls.map((u) => u.split('?')[0]);
 async function adminMfa(token) {
   const r = await api().post('/api/admin/mfa').set(auth(token)).send({ code: totp(config.adminTotpSecret) }).expect(200);
   return r.body.accessToken;
@@ -222,8 +223,11 @@ describe('Tranh chấp & quản trị', () => {
     await api().get('/api/admin/disputes').set(auth(huy.token)).expect(403);
     const list = (await api().get('/api/admin/disputes').set(auth(admin.token)).expect(200)).body;
     const mine = list.find((x) => x.order_id === o.id);
-    expect(mine.evidence).toEqual([pic.url]);
-    await api().get(pic.url).expect(200).expect('Content-Type', 'image/webp');
+    expect(bare(mine.evidence)).toEqual([pic.url]);
+    // Ảnh bằng chứng: không có chữ ký / chữ ký sai thì 404; link ký được xem nhưng không cache công khai
+    await api().get(pic.url).expect(404);
+    await api().get(mine.evidence[0].replace(/sig=[0-9a-f]+/, 'sig=' + '0'.repeat(32))).expect(404);
+    await api().get(mine.evidence[0]).expect(200).expect('Content-Type', 'image/webp').expect('Cache-Control', /private/);
     await api().post('/api/listings').set(auth(huy.token))
       .send({ title: 'Thử lấy ảnh khiếu nại làm ảnh tin', category: 'study', price: 100_000, condition: 80, imageIds: [pic.id] }).expect(422);
     await api().post(`/api/admin/disputes/${mine.id}/resolve`).set(auth(admin.token)).send({ outcome: 'buyer', resolution: 'Ảnh mở hộp cho thấy hàng lỗi' }).expect(200);
@@ -336,6 +340,8 @@ describe('Cấu hình an toàn mặc định', () => {
     expect(boot({ NODE_ENV: 'production', DATABASE_URL: 'postgres://x', JWT_SECRET: 'ngan' })).toMatch(/quá ngắn/);
   });
   it('không có route HTTP nào chạy job định kỳ', async () => {
+    // Route cron của Vercel chỉ nhận CRON_SECRET, không tin User-Agent (ai cũng giả được)
+    await api().get('/api/cron/jobs').set('User-Agent', 'vercel-cron/1.0').expect(401);
     await api().post('/api/dev/jobs/run').send({}).expect(404);
     await api().post('/api/admin/jobs/run').set(auth(admin.token)).expect(404);
   });
@@ -625,5 +631,17 @@ describe('Trang quản trị (API)', () => {
   });
   it('các API quản trị đã bỏ không còn tồn tại', async () => {
     for (const path of ['/overview', '/users', '/audit', '/listings/flagged']) await api().get('/api/admin' + path).set(auth(admin.token)).expect(404);
+  });
+});
+
+describe('Idempotency', () => {
+  it('hai yêu cầu trùng Idempotency-Key gửi cùng lúc nhận về cùng một đơn', async () => {
+    const l = await listingByTitle('Áo khoác Uniqlo');
+    const k = key();
+    const send = () => api().post('/api/orders').set(auth(huy.token)).set('Idempotency-Key', k)
+      .send({ delivery: 'ship', shipTo: 'Người nhận thử · 0900000000 · KTX khu B', listingId: l.id, method: 'full' });
+    const [a, b] = await Promise.all([send(), send()]);
+    expect([a.status, b.status].sort()).toEqual([200, 201]);
+    expect(a.body.id).toBe(b.body.id);
   });
 });

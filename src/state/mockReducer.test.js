@@ -45,6 +45,34 @@ describe('Bản demo: vòng đời đơn hàng', () => {
     expect(s.users.find((u) => u.id === 'u_s1').seller.cancels).toBe(1);
   });
 
+  it('từ chối nhận: tiền giữ tới khi người bán nhận lại hàng, rồi mới hoàn và mở bán lại', () => {
+    let s = buy();
+    const id = s.orders[0].id;
+    const before = wallet(s, 'u_lan');
+    s = reducer(as(s, 'u_s1'), { type: 'shipOrder', orderId: id, carrier: 'GHN', trackingCode: 'GHN123' });
+    s = reducer(as(s, 'u_lan'), { type: 'bomOrder', orderId: id });
+    expect(s.orders[0]).toMatchObject({ status: 'refused_by_buyer', payoutStatus: 'held' });
+    expect(wallet(s, 'u_lan')).toBe(before);
+    expect(casio(s).sold).toBe(true);
+    expect(reducer(s, { type: 'returnReceived', orderId: id }).orders[0].payoutStatus).toBe('held');
+    s = reducer(as(s, 'u_s1'), { type: 'returnReceived', orderId: id });
+    expect(s.orders[0]).toMatchObject({ status: 'refused_by_buyer', payoutStatus: 'refunded' });
+    expect(wallet(s, 'u_lan')).toBe(before + 350_000);
+    expect(casio(s).sold).toBe(false);
+  });
+
+  it('người bán quá hạn gửi hàng: người mua mới huỷ được, tiền hoàn đủ', () => {
+    let s = buy();
+    const id = s.orders[0].id;
+    const before = wallet(s, 'u_lan');
+    expect(reducer(s, { type: 'cancelOverdue', orderId: id }).orders[0].status).toBe('paid');
+    s = { ...s, orders: s.orders.map((o) => (o.id === id ? { ...o, createdAt: Date.now() - 4 * 86_400_000 } : o)) };
+    expect(reducer(as(s, 'u_s1'), { type: 'cancelOverdue', orderId: id }).orders[0].status).toBe('paid');
+    s = reducer(s, { type: 'cancelOverdue', orderId: id });
+    expect(s.orders[0]).toMatchObject({ status: 'cancelled_by_seller', payoutStatus: 'refunded' });
+    expect(wallet(s, 'u_lan')).toBe(before + 350_000);
+  });
+
   it('admin gỡ tin → tin biến mất, người bán được báo kèm lý do', () => {
     let s = as(initial(), 'u_admin');
     s = reducer(s, { type: 'adminHide', id: 'p4', reason: 'Giá ảo để lừa' });

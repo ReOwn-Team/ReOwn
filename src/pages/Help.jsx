@@ -15,7 +15,7 @@ export default function Help() {
         <ol className="steps">
           <li><b>Bạn đặt hàng</b> — tiền (hoặc khoản trả sau) được ReOwn giữ, người bán chưa nhận.</li>
           <li><b>Người bán gửi hàng</b> trong 3 ngày.</li>
-          <li><b>Bạn kiểm tra hàng</b> — đúng mô tả thì bấm “Đã nhận hàng”; sai mô tả thì bấm “Hàng không đúng mô tả” trong 3 ngày.</li>
+          <li><b>Bạn kiểm tra hàng</b> — đúng mô tả thì bấm “Đã nhận hàng”; sai mô tả thì bấm “Hàng không đúng mô tả” <b>trước khi xác nhận</b>. Người bán quá hạn gửi hàng thì bạn huỷ được đơn và nhận lại tiền.</li>
           <li><b>Người bán nhận tiền</b> sau khi bạn xác nhận (hoặc được hoàn tiền nếu bạn thắng khiếu nại).</li>
         </ol>
       </section>

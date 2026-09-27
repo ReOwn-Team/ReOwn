@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { SHIP_DEADLINE_DAYS } from '../../shared/policy.js';
 
 const env = process.env.NODE_ENV || 'development';
 const isProd = env === 'production';
@@ -69,11 +70,13 @@ export const config = {
   cookieSameSite: sameSite,
   cookieSecure: isProd || sameSite === 'none',
   adminTotpSecret: process.env.ADMIN_TOTP_SECRET || (isTest ? 'JBSWY3DPEHPK3PXP' : ''),
+  // Bản demo công khai: chỉ phát mã OTP của tài khoản quản trị khi đã bật 2FA, hoặc khi chủ dự án chủ động mở
+  demoAdminOpen: process.env.DEMO_ADMIN_OPEN === 'true',
   jwtIssuer: 'reown-api',
   jwtAudience: 'reown-web',
   jobsIntervalSec: Number(process.env.JOBS_INTERVAL_SEC || 300),
   platformFeeRate: 0.04,
-  shipSlaDays: 3,
+  shipSlaDays: SHIP_DEADLINE_DAYS,
   autoCompleteDays: 7,
   disputeWindowDays: 3,
 };

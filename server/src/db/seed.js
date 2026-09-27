@@ -48,7 +48,11 @@ async function history(seller, buyer, { title, category = 'study', price, daysAg
   }));
   if (outcome === 'seller_cancel') return tx((db) => orders.sellerCancel(db, { orderId: order.id, userId: seller.id }));
   await tx((db) => orders.shipOrder(db, { orderId: order.id, userId: seller.id, carrier: 'GHN', trackingCode: `GHN${String(keySeq).padStart(8, '0')}`, now: plus(t0, shipDelay) }));
-  if (outcome === 'refuse') return tx((db) => orders.refuseDelivery(db, { orderId: order.id, userId: buyer.id }));
+  if (outcome === 'refuse') {
+    // Từ chối nhận: hàng hoàn về, người bán xác nhận đã nhận lại thì người mua mới được hoàn tiền.
+    await tx((db) => orders.refuseDelivery(db, { orderId: order.id, userId: buyer.id, now: plus(t0, shipDelay + 1) }));
+    return tx((db) => orders.returnReceived(db, { orderId: order.id, userId: seller.id }));
+  }
   if (outcome.startsWith('dispute')) {
     const d = await tx((db) => orders.openDispute(db, { orderId: order.id, userId: buyer.id, reason: reason || 'Hàng không đúng như mô tả trong tin đăng', now: plus(t0, 3) }));
     if (outcome === 'dispute_open') return;

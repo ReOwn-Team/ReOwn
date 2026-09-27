@@ -2,6 +2,8 @@ import crypto from 'node:crypto';
 import sharp from 'sharp';
 import { lockUser } from './ledger.js';
 import { unprocessable, notFound } from '../lib/errors.js';
+import { hmac, safeEqual } from '../lib/crypto.js';
+import { config } from '../config.js';
 
 const MAX_IMAGES_PER_LISTING = 3;
 const MAX_PENDING_PER_USER = 9;
@@ -35,6 +37,19 @@ async function processImage(buf) {
 }
 
 const imageUrl = (id) => `/api/images/${id}`;
+
+// Ảnh bằng chứng khiếu nại có thể chứa tên, SĐT, địa chỉ trên phiếu giao hàng: chỉ phát link có chữ ký cho người trong
+// cuộc (người mua, người bán của đơn, admin). Hạn làm tròn theo giờ để link giữ nguyên trong một giờ (trình duyệt cache được).
+const HOUR = 3_600_000;
+const evidenceSig = (id, exp) => hmac(config.jwtSecret, `evidence:${id}:${exp}`).slice(0, 32);
+export function evidenceUrl(id, now = Date.now()) {
+  const exp = (Math.floor(now / HOUR) + 2) * 3600;
+  return `${imageUrl(id)}?exp=${exp}&sig=${evidenceSig(id, exp)}`;
+}
+export function evidenceTokenOk(id, exp, sig, now = Date.now()) {
+  const e = Number(exp);
+  return Number.isInteger(e) && e * 1000 > now && typeof sig === 'string' && safeEqual(sig, evidenceSig(id, e));
+}
 
 export async function saveUpload(db, ownerId, buf) {
   await lockUser(db, ownerId);
@@ -91,7 +106,7 @@ export async function imagesFor(db, listingIds) {
 
 export async function readImage(db, id) {
   const r = (await db.query(
-    `SELECT i.bytes, i.sha256 FROM listing_images i LEFT JOIN listings l ON l.id = i.listing_id
+    `SELECT i.bytes, i.sha256, i.dispute_id FROM listing_images i LEFT JOIN listings l ON l.id = i.listing_id
       WHERE i.id=$1 AND (l.status <> 'hidden' OR i.dispute_id IS NOT NULL)`, [id])).rows[0];
   if (!r) throw notFound('Không tìm thấy ảnh');
   return r;
@@ -108,7 +123,7 @@ export async function attachEvidence(db, { disputeId, ownerId, ids = [] }) {
     `UPDATE listing_images SET dispute_id=$2 WHERE id = ANY($1::uuid[]) AND owner_id=$3
         AND listing_id IS NULL AND dispute_id IS NULL`, [unique, disputeId, ownerId]);
   if (r.rowCount !== unique.length) throw unprocessable('Ảnh bằng chứng không hợp lệ hoặc đã được dùng');
-  return unique.map(imageUrl);
+  return unique.map((id) => evidenceUrl(id));
 }
 
 export async function evidenceFor(db, disputeIds) {
@@ -116,6 +131,6 @@ export async function evidenceFor(db, disputeIds) {
   const rows = (await db.query(
     'SELECT id, dispute_id, owner_id FROM listing_images WHERE dispute_id = ANY($1::uuid[]) ORDER BY created_at', [disputeIds])).rows;
   const out = {};
-  for (const r of rows) (out[r.dispute_id] ||= []).push({ url: imageUrl(r.id), ownerId: r.owner_id });
+  for (const r of rows) (out[r.dispute_id] ||= []).push({ url: evidenceUrl(r.id), ownerId: r.owner_id });
   return out;
 }

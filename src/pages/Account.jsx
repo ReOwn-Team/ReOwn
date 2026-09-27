@@ -8,12 +8,13 @@ import Icon from '../components/Icon.jsx';
 import PhotoPicker from '../components/PhotoPicker.jsx';
 import { ScoreGauge, TierScale, Breakdown, Reasons, TrustBadge, Empty } from '../components/ui.jsx';
 import { money, TIER_LABEL, orderStatusLabel, parseMoney } from '../lib/format.js';
-import { WITHDRAW_MIN, LATE_FEE, LATE_FEE_GRACE_DAYS, lateFeeFor } from '../../shared/policy.js';
+import { WITHDRAW_MIN, LATE_FEE, LATE_FEE_GRACE_DAYS, lateFeeFor, shipDeadline } from '../../shared/policy.js';
 import { DeliveryInfo, DisputeThread, HandoverCode, CarrierFields } from '../components/OrderBits.jsx';
 
 const VERIFY_LABEL = { phone: 'Số điện thoại', cccd: 'CCCD gắn chip', bank: 'Tài khoản ngân hàng', student: 'Thẻ sinh viên' };
 const VERIFY_HINT = { phone: 'Xác thực khi đăng nhập', cccd: 'Bắt buộc để dùng trả sau', bank: 'Nhận tiền bán hàng', student: 'Ưu đãi sinh viên' };
 const date = (t) => new Date(t).toLocaleDateString('vi-VN');
+const isPast = (t) => Date.now() >= t;
 const ORDER_TABS = [
   { v: 'all', label: 'Tất cả', match: () => true },
   { v: 'paid', label: 'Chờ gửi hàng', icon: 'clock', match: (o) => o.status === 'paid' },
@@ -77,6 +78,8 @@ function OrderCard({ o, product, dispatch, mode }) {
   const meetup = o.delivery === 'meetup';
   const canReceive = o.status === 'shipped' || (meetup && o.status === 'paid');
   const canDispute = (o.status === 'shipped' && !meetup) || (o.status === 'completed' && o.payoutStatus === 'held');
+  const shipBy = o.shipBy ? new Date(o.shipBy).getTime() : shipDeadline(o.delivery, o.createdAt);
+  const overdue = o.status === 'paid' && isPast(shipBy);
   return (
     <li className="ocard">
       <div className="ocard-head">
@@ -93,15 +96,19 @@ function OrderCard({ o, product, dispatch, mode }) {
       {o.dispute && <DisputeThread d={o.dispute} viewer="buyer" />}
       {o.status === 'return_pending' && <ReturnForm o={o} dispatch={dispatch} />}
       <div className="ocard-foot">
-        {o.status === 'paid' && !meetup && <span className="small muted">Tiền đang giữ hộ · chờ người bán gửi hàng (trong 3 ngày)</span>}
+        {o.status === 'paid' && (overdue
+          ? <span className="small danger">Người bán đã quá hạn {meetup ? 'giao' : 'gửi'} hàng. Bạn có thể huỷ để nhận lại tiền.</span>
+          : !meetup && <span className="small muted">Tiền đang giữ hộ · người bán gửi hàng trước {date(shipBy)}</span>)}
+        {o.status === 'refused_by_buyer' && o.payoutStatus === 'held' && <span className="small muted">Hàng đang hoàn về người bán. Tiền hoàn khi người bán nhận lại (tự hoàn sau 7 ngày).</span>}
         {o.status === 'returning' && <span className="small muted">Đã gửi trả qua {o.returnInfo?.carrier}{o.returnInfo?.trackingCode ? ` · mã ${o.returnInfo.trackingCode}` : ''}. Tự hoàn tiền nếu người bán không xác nhận trong 7 ngày.</span>}
         {o.refundAmount > 0 && <span className="small muted">Đã hoàn {money(o.refundAmount)} về ví</span>}
         {o.myStars && <span className="small muted">Bạn đã đánh giá {o.myStars} sao</span>}
         <div className="ocard-actions">
+          {overdue && <button className="btn btn-sm danger-btn" onClick={() => dispatch({ type: 'cancelOverdue', orderId: o.id })}>Huỷ đơn & hoàn tiền</button>}
           {canDispute && !disputing && <button className="btn btn-sm btn-outline" onClick={() => setDisputing(true)}>Hàng không đúng mô tả</button>}
           {canReceive && (confirm ? (
             <>
-              <span className="small">{confirm === 'refuse' ? 'Từ chối nhận? Tiền được hoàn, lượt từ chối tính vào điểm uy tín.' : 'Xác nhận đã nhận đúng hàng? Tiền sẽ được chuyển cho người bán.'}</span>
+              <span className="small">{confirm === 'refuse' ? 'Từ chối nhận? Hàng hoàn về người bán, tiền hoàn khi người bán nhận lại. Lượt từ chối tính vào điểm uy tín.' : 'Đã kiểm tra đúng hàng? Sau khi xác nhận, tiền có thể chuyển ngay cho người bán và bạn không khiếu nại được nữa.'}</span>
               <button className="btn btn-sm btn-outline" onClick={() => setConfirm(null)}>Quay lại</button>
               <button className={`btn btn-sm ${confirm === 'refuse' ? 'danger-btn' : ''}`}
                 onClick={() => { dispatch(confirm === 'refuse' ? { type: 'bomOrder', orderId: o.id } : { type: 'confirmReceived', orderId: o.id, stars }); setConfirm(null); }}>

@@ -7,7 +7,7 @@ import { orderEvents } from './notify.js';
 import { attachEvidence } from './images.js';
 import { notFound, forbidden, conflict, unprocessable } from '../lib/errors.js';
 import crypto from 'node:crypto';
-import { DISPUTE_RESPONSE_HOURS, RETURN_SHIP_DAYS, HANDOVER_MAX_ATTEMPTS } from '../../../shared/policy.js';
+import { DISPUTE_RESPONSE_HOURS, RETURN_SHIP_DAYS, HANDOVER_MAX_ATTEMPTS, AUTO_CANCEL_GRACE_DAYS, shipDeadline } from '../../../shared/policy.js';
 
 const titleOf = async (db, listingId) => (await db.query('SELECT title FROM listings WHERE id=$1', [listingId])).rows[0]?.title || 'đơn hàng';
 const DAY_MS = 86_400_000;
@@ -23,15 +23,21 @@ function expect(o, statuses, action) {
   if (!statuses.includes(o.status)) throw conflict(`Không thể ${action} khi đơn đang ở trạng thái "${o.status}"`);
 }
 
-export async function createOrder(db, { buyerId, listingId, method, term, delivery = 'ship', shipTo = null, meetupNote = null, idempotencyKey, ip, now = new Date() }) {
+async function replayOf(db, buyerId, idempotencyKey, listingId) {
   const existing = (await db.query('SELECT * FROM orders WHERE buyer_id=$1 AND idempotency_key=$2', [buyerId, idempotencyKey])).rows[0];
-  if (existing) {
-    if (existing.listing_id !== listingId) throw conflict('Idempotency-Key đã được dùng cho một đơn khác');
-    return { order: existing, replay: true };
-  }
+  if (existing && existing.listing_id !== listingId) throw conflict('Idempotency-Key đã được dùng cho một đơn khác');
+  return existing || null;
+}
+
+export async function createOrder(db, { buyerId, listingId, method, term, delivery = 'ship', shipTo = null, meetupNote = null, idempotencyKey, ip, now = new Date() }) {
+  const early = await replayOf(db, buyerId, idempotencyKey, listingId);
+  if (early) return { order: early, replay: true };
 
   const listing = (await db.query('SELECT * FROM listings WHERE id=$1 FOR UPDATE', [listingId])).rows[0];
   if (!listing) throw notFound('Không tìm thấy tin đăng');
+  // Hai request trùng key gửi cùng lúc: request sau chờ khoá tin rồi thấy đơn request trước vừa tạo → trả lại đơn đó.
+  const raced = await replayOf(db, buyerId, idempotencyKey, listingId);
+  if (raced) return { order: raced, replay: true };
   if (listing.status !== 'active') throw conflict('Món này không còn bán');
   if (listing.seller_id === buyerId) throw forbidden('Không thể mua tin của chính mình');
 
@@ -123,13 +129,16 @@ export async function sellerCancel(db, { orderId, userId, ip }) {
   await rescore(db, [o.seller_id, o.buyer_id], 'order.seller_cancel');
 }
 
-export async function refuseDelivery(db, { orderId, userId, ip }) {
+/**
+ * Người mua từ chối nhận: hàng được đơn vị vận chuyển hoàn về người bán. Tiền vẫn giữ hộ cho tới khi người bán
+ * xác nhận đã nhận lại (hoặc quá RETURN_CONFIRM_DAYS thì tự hoàn) — tránh việc giữ hàng mà vẫn được hoàn tiền.
+ */
+export async function refuseDelivery(db, { orderId, userId, ip, now = new Date() }) {
   const o = await lockOrder(db, orderId);
   if (o.buyer_id !== userId) throw forbidden();
   expect(o, ['shipped'], 'từ chối nhận hàng');
-  await db.query("UPDATE orders SET status='refused_by_buyer' WHERE id=$1", [o.id]);
-  await db.query("UPDATE listings SET status='active', updated_at=now() WHERE id=$1", [o.listing_id]);
-  await refund(db, o, 'Người mua từ chối nhận hàng');
+  await db.query("UPDATE orders SET status='refused_by_buyer', return_carrier=$2, return_tracking=$3, return_shipped_at=$4 WHERE id=$1",
+    [o.id, o.carrier, o.tracking_code, now]);
   await audit(db, { actorId: userId, action: 'order.refuse', entity: 'order', entityId: o.id, ip });
   await orderEvents.refused(db, o, await titleOf(db, o.listing_id));
   await rescore(db, [o.buyer_id], 'order.refuse');
@@ -275,14 +284,20 @@ export async function returnShipped(db, { orderId, userId, carrier, trackingCode
   await orderEvents.returnShipped(db, o, await titleOf(db, o.listing_id));
 }
 
-/** Người bán xác nhận đã nhận lại hàng (hoặc hết hạn xác nhận) → hoàn tiền cho người mua. */
+/**
+ * Người bán xác nhận đã nhận lại hàng (hoặc hết hạn xác nhận) → hoàn tiền cho người mua.
+ * Áp dụng cho hàng trả sau khiếu nại ('returning') và hàng bị từ chối nhận ('refused_by_buyer', tiền còn giữ).
+ */
 export async function returnReceived(db, { orderId, userId = null, ip, auto = false }) {
   const o = await lockOrder(db, orderId);
   if (!auto && o.seller_id !== userId) throw forbidden('Chỉ người bán mới xác nhận nhận lại hàng');
-  expect(o, ['returning'], 'xác nhận nhận lại hàng');
-  await db.query("UPDATE orders SET status='refunded' WHERE id=$1", [o.id]);
-  await db.query("UPDATE listings SET status='hidden', updated_at=now() WHERE id=$1", [o.listing_id]);
-  await refund(db, o, 'Hoàn tiền sau khi người bán nhận lại hàng');
+  expect(o, ['returning', 'refused_by_buyer'], 'xác nhận nhận lại hàng');
+  if (o.payout_status !== 'held') throw conflict('Đơn này đã được hoàn tiền');
+  const refused = o.status === 'refused_by_buyer';
+  if (!refused) await db.query("UPDATE orders SET status='refunded' WHERE id=$1", [o.id]);
+  // Hàng bị từ chối nhận vẫn nguyên vẹn nên mở bán lại; hàng trả sau khiếu nại (sai mô tả) thì gỡ tin.
+  await db.query('UPDATE listings SET status=$2, updated_at=now() WHERE id=$1', [o.listing_id, refused ? 'active' : 'hidden']);
+  await refund(db, o, refused ? 'Hoàn tiền sau khi người bán nhận lại hàng bị từ chối' : 'Hoàn tiền sau khi người bán nhận lại hàng');
   await audit(db, { actorId: userId, action: auto ? 'order.return_auto_refund' : 'order.return_received', entity: 'order', entityId: o.id, ip });
   await orderEvents.returnRefunded(db, o, await titleOf(db, o.listing_id));
   await rescore(db, [o.buyer_id, o.seller_id], 'order.return');
@@ -297,6 +312,33 @@ export async function returnExpired(db, { orderId, now = new Date() }) {
   await releaseIfDue(db, o.id, now);
   await orderEvents.returnExpired(db, o, await titleOf(db, o.listing_id));
   await rescore(db, [o.buyer_id, o.seller_id], 'order.return_expired');
+  return true;
+}
+
+/**
+ * Người bán không gửi / giao hàng đúng hạn: người mua tự huỷ được từ lúc quá hạn; quá thêm AUTO_CANCEL_GRACE_DAYS
+ * thì tác vụ định kỳ tự huỷ (userId = null). Tính là lỗi của người bán, tiền hoàn đủ cho người mua.
+ */
+export async function cancelUnshipped(db, { orderId, userId = null, ip, now = new Date() }) {
+  const o = await lockOrder(db, orderId);
+  if (userId && o.buyer_id !== userId) throw forbidden('Chỉ người mua mới huỷ được đơn quá hạn gửi hàng');
+  if (o.status !== 'paid') {
+    if (userId) expect(o, ['paid'], 'huỷ đơn');
+    return false;
+  }
+  const deadline = shipDeadline(o.delivery, o.created_at);
+  const cutoff = userId ? deadline : deadline + AUTO_CANCEL_GRACE_DAYS * DAY_MS;
+  if (now.getTime() < cutoff) {
+    if (userId) throw conflict('Người bán vẫn còn trong hạn gửi hàng', { shipBy: new Date(deadline) });
+    return false;
+  }
+  await db.query("UPDATE orders SET status='cancelled_by_seller' WHERE id=$1", [o.id]);
+  // Người bán không phản hồi: gỡ tin để người mua khác không đặt vào rồi lại bị kẹt tiền.
+  await db.query("UPDATE listings SET status='hidden', updated_at=now() WHERE id=$1", [o.listing_id]);
+  await refund(db, o, 'Người bán không gửi hàng đúng hạn');
+  await audit(db, { actorId: userId, action: userId ? 'order.buyer_cancel_overdue' : 'order.auto_cancel_overdue', entity: 'order', entityId: o.id, ip });
+  await orderEvents.overdueCancelled(db, o, await titleOf(db, o.listing_id));
+  await rescore(db, [o.seller_id, o.buyer_id], 'order.overdue_cancel');
   return true;
 }
 

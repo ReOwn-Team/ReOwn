@@ -4,13 +4,14 @@ import { api, pool, resetDb, login, auth, listingByTitle, key } from './helpers.
 import { totp } from '../src/lib/crypto.js';
 import { config } from '../src/config.js';
 import { runJobs } from '../src/services/jobs.js';
-import { LATE_FEE } from '../../shared/policy.js';
+import { LATE_FEE, SHIP_DEADLINE_DAYS } from '../../shared/policy.js';
 
 let lan, huy, bao, ha, tam, admin;
 const balance = async (u) => (await api().get('/api/me/wallet').set(auth(u.token)).expect(200)).body.balance;
 const photo = () => sharp({ create: { width: 300, height: 300, channels: 3, background: '#3a6' } }).jpeg().toBuffer();
 const upload = async (u) => (await api().post('/api/uploads/images').set(auth(u.token)).set('Content-Type', 'image/jpeg').send(await photo()).expect(201)).body;
 const order = (u, listingId, body) => api().post('/api/orders').set(auth(u.token)).set('Idempotency-Key', key()).send({ listingId, method: 'full', ...body });
+const bare = (urls) => urls.map((u) => u.split('?')[0]);
 const ship = { delivery: 'ship', shipTo: 'Trần Ngọc Lan · 0900000002 · KTX khu B, ĐHQG TP.HCM' };
 
 async function disputed(buyer, seller, title) {
@@ -75,9 +76,10 @@ describe('Khiếu nại hai chiều', () => {
     await api().post(`/api/orders/${o.id}/dispute/respond`).set(auth(bao.token)).send({ text: 'Video đóng gói cho thấy đế nguyên vẹn', imageIds: [pic.id] }).expect(200);
     await api().post(`/api/orders/${o.id}/dispute/respond`).set(auth(bao.token)).send({ text: 'Gửi phản hồi lần thứ hai' }).expect(409);
     const buyerView = (await api().get(`/api/orders/${o.id}`).set(auth(lan.token)).expect(200)).body;
-    expect(buyerView.dispute).toMatchObject({ sellerResponse: 'Video đóng gói cho thấy đế nguyên vẹn', sellerEvidence: [pic.url] });
+    expect(buyerView.dispute.sellerResponse).toBe('Video đóng gói cho thấy đế nguyên vẹn');
+    expect(bare(buyerView.dispute.sellerEvidence)).toEqual([pic.url]);
     const row = (await api().get('/api/admin/disputes').set(auth(admin.token)).expect(200)).body.find((x) => x.id === d.id);
-    expect(row.seller_evidence).toEqual([pic.url]);
+    expect(bare(row.seller_evidence)).toEqual([pic.url]);
     expect(row.evidence).toHaveLength(1);
 
     await api().post(`/api/admin/disputes/${d.id}/resolve`).set(auth(admin.token)).send({ outcome: 'partial', resolution: 'Lỗi nhỏ ở đế', refundAmount: l.price }).expect(422);
@@ -148,5 +150,42 @@ describe('Ví & trả sau', () => {
     await api().post(`/api/installments/plans/${plan.id}/payoff`).set(auth(lan.token)).expect(409);
     const after = (await api().get('/api/me').set(auth(lan.token))).body.plans.find((p) => p.id === plan.id);
     expect(after.status).toBe('paid_off');
+  });
+});
+
+describe('Hoàn tiền an toàn', () => {
+  it('từ chối nhận: tiền giữ tới khi người bán nhận lại hàng, rồi mới hoàn và mở bán lại', async () => {
+    const l = await listingByTitle('Đèn học chống cận');
+    const b0 = await balance(lan);
+    const o = (await order(lan, l.id, ship).expect(201)).body;
+    await api().post(`/api/orders/${o.id}/ship`).set(auth(tam.token)).send({ carrier: 'GHN', trackingCode: 'GHN11112222' }).expect(200);
+    const refused = (await api().post(`/api/orders/${o.id}/refuse`).set(auth(lan.token)).expect(200)).body;
+    expect(refused).toMatchObject({ status: 'refused_by_buyer', payoutStatus: 'held' });
+    expect(await balance(lan)).toBe(b0 - l.price);
+    await api().post(`/api/orders/${o.id}/return/received`).set(auth(lan.token)).expect(403);
+    const back = (await api().post(`/api/orders/${o.id}/return/received`).set(auth(tam.token)).expect(200)).body;
+    expect(back).toMatchObject({ status: 'refused_by_buyer', payoutStatus: 'refunded' });
+    expect(await balance(lan)).toBe(b0);
+    expect((await pool.query('SELECT status FROM listings WHERE id=$1', [l.id])).rows[0].status).toBe('active');
+    await api().post(`/api/orders/${o.id}/return/received`).set(auth(tam.token)).expect(409);
+  });
+
+  it('người bán không gửi hàng: người mua tự huỷ khi quá hạn; quá thêm 2 ngày thì ReOwn tự huỷ và hoàn tiền', async () => {
+    const [a, b] = [await listingByTitle('Ấm siêu tốc'), await listingByTitle('Balo laptop')];
+    const b0 = await balance(lan);
+    const oa = (await order(lan, a.id, ship).expect(201)).body;
+    const ob = (await order(lan, b.id, ship).expect(201)).body;
+    expect(new Date(oa.shipBy) - new Date(oa.createdAt)).toBe(SHIP_DEADLINE_DAYS * 86_400_000);
+    await api().post(`/api/orders/${oa.id}/cancel-overdue`).set(auth(lan.token)).expect(409);
+    await api().post(`/api/orders/${oa.id}/cancel-overdue`).set(auth(bao.token)).expect(403);
+    await pool.query("UPDATE orders SET created_at = created_at - interval '4 days' WHERE id = ANY($1::uuid[])", [[oa.id, ob.id]]);
+    const ca = (await api().post(`/api/orders/${oa.id}/cancel-overdue`).set(auth(lan.token)).expect(200)).body;
+    expect(ca).toMatchObject({ status: 'cancelled_by_seller', payoutStatus: 'refunded' });
+    // Đơn thứ hai mới quá hạn 1 ngày (< 2 ngày ân hạn): tác vụ định kỳ chưa huỷ
+    expect((await runJobs()).overdueCancelled).toBe(0);
+    await pool.query("UPDATE orders SET created_at = created_at - interval '2 days' WHERE id=$1", [ob.id]);
+    expect((await runJobs()).overdueCancelled).toBe(1);
+    expect((await api().get(`/api/orders/${ob.id}`).set(auth(lan.token))).body.status).toBe('cancelled_by_seller');
+    expect(await balance(lan)).toBe(b0);
   });
 });

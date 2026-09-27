@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { tx } from '../db/pool.js';
+import { tx, query } from '../db/pool.js';
 import { config } from '../config.js';
-import { ah, unauthorized } from '../lib/errors.js';
+import { ah, unauthorized, AppError } from '../lib/errors.js';
 import { parse, z, phone } from '../lib/validate.js';
 import { maskPhone } from '../lib/crypto.js';
 import * as auth from '../services/auth.js';
@@ -19,11 +19,25 @@ const limiter = rateLimit({ windowMs: 10 * 60_000, limit: config.otpPerIp10m, st
 
 const publicUser = (u) => ({ id: u.id, name: u.name, role: u.role });
 
+/**
+ * Có được trả mã OTP về giao diện không (thay cho SMS). Chỉ khi bật công cụ dev / bản demo. Riêng bản demo công khai,
+ * số của quản trị viên chỉ nhận mã khi đã bật 2FA (ADMIN_TOTP_SECRET) hoặc chủ dự án chủ động mở (DEMO_ADMIN_OPEN=true)
+ * — nếu không, ai biết số admin cũng vào được trang quản trị.
+ */
+async function showCode(phoneNumber) {
+  if (!config.devTools) return false;
+  if (!config.demoDeployment || config.adminTotpSecret || config.demoAdminOpen) return true;
+  const u = (await query('SELECT role FROM users WHERE phone=$1', [phoneNumber])).rows[0];
+  return u?.role !== 'admin';
+}
+
 r.post('/otp/request', limiter, ah(async (req, res) => {
   const body = parse(z.object({ phone }), req.body);
+  // Chưa tích hợp nhà cung cấp SMS: ngoài bản demo / máy dev thì báo lỗi rõ ràng thay vì "đã gửi" mà không ai nhận được.
+  if (!config.devTools) throw new AppError(503, 'sms_unavailable', 'Chưa cấu hình dịch vụ SMS nên chưa gửi được mã đăng nhập');
   const code = await tx((db) => auth.requestOtp(db, body.phone));
   console.info('[otp] issued for', maskPhone(body.phone));
-  res.json({ sent: true, ttlSec: config.otpTtlSec, ...(config.devTools ? { devCode: code } : {}) });
+  res.json({ sent: true, ttlSec: config.otpTtlSec, ...(await showCode(body.phone) ? { devCode: code } : {}) });
 }));
 
 r.post('/otp/verify', limiter, ah(async (req, res) => {

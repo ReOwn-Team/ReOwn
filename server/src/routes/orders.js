@@ -55,6 +55,7 @@ r.post('/:id/handover', ah(async (req, res) => {
   res.json(await view(orderId, req.user.id));
 }));
 r.post('/:id/cancel', act((db, a) => orders.sellerCancel(db, a)));
+r.post('/:id/cancel-overdue', act((db, a) => orders.cancelUnshipped(db, a)));
 r.post('/:id/refuse', act((db, a) => orders.refuseDelivery(db, a)));
 r.post('/:id/confirm', act((db, a) => orders.confirmReceived(db, a)));
 r.post('/:id/dispute', act((db, a) => {

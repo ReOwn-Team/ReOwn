@@ -7,7 +7,7 @@ const SLIDES = [
   { id: 'bnpl', tone: 'blue', title: 'Trả sau 3 kỳ 0% phí', sub: 'Laptop, điện thoại chia nhỏ theo tháng', cta: 'Xem món trả sau', to: '/tim-kiem?bnpl=1', img: 'dell-latitude-7490.jpg', tag: 'Ưu đãi' },
   { id: 'cheap', tone: 'orange', title: 'Đồ học tập dưới 500K', sub: 'Máy tính, giáo trình, đèn học', cta: 'Săn ngay', to: '/tim-kiem?max=500000&sort=price-asc', img: 'casio-fx-580vn-x.jpg', tag: 'Từ 120K' },
   { id: 'phone', tone: 'green', title: 'Điện thoại cũ, giá mềm', sub: 'Người bán xếp hạng A–E minh bạch', cta: 'Xem điện thoại', to: '/tim-kiem?cat=phone', img: 'redmi-note-11.jpg', tag: 'Hạng A–E' },
-  { id: 'safe', tone: 'violet', title: 'Giữ tiền đến khi nhận hàng', sub: 'Sai mô tả? Hoàn tiền trong 3 ngày', cta: 'Tìm hiểu', to: '/ho-tro#giu-ho', img: 'sony-wh-ch520.jpg', tag: 'An toàn' },
+  { id: 'safe', tone: 'violet', title: 'Giữ tiền đến khi nhận hàng', sub: 'Sai mô tả? Khiếu nại trước khi xác nhận', cta: 'Tìm hiểu', to: '/ho-tro#giu-ho', img: 'sony-wh-ch520.jpg', tag: 'An toàn' },
 ];
 const DELAY = 5000;
 
@@ -16,6 +16,8 @@ const prefersReduced = () => typeof matchMedia === 'function' && matchMedia('(pr
 /** Banner khuyến mãi tự chuyển: vuốt / chấm / mũi tên để chuyển, dừng khi rê chuột, focus, chạm hoặc bấm tạm dừng. */
 export default function HeroCarousel({ onBudget }) {
   const track = useRef(null);
+  const resume = useRef(null);
+  useEffect(() => () => clearTimeout(resume.current), []);
   const [i, setI] = useState(0);
   const [hold, setHold] = useState(false); // tạm dừng do rê chuột / focus / chạm
   const [stopped, setStopped] = useState(prefersReduced); // người dùng bấm dừng, hoặc máy bật giảm chuyển động
@@ -50,8 +52,8 @@ export default function HeroCarousel({ onBudget }) {
         aria-label="Ưu đãi nổi bật"
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHold(true); }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHold(false); }}
-        onTouchStart={() => setHold(true)}
-        onTouchEnd={() => setTimeout(() => setHold(false), 1500)}
+        onTouchStart={() => { clearTimeout(resume.current); setHold(true); }}
+        onTouchEnd={() => { clearTimeout(resume.current); resume.current = setTimeout(() => setHold(false), 1500); }}
         onFocus={() => setHold(true)}
         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHold(false); }}
       >

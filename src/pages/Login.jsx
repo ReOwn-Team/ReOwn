@@ -18,6 +18,7 @@ export default function Login() {
   const nav = useNavigate();
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  const [prefilled, setPrefilled] = useState(false);
   const [name, setName] = useState('');
   const [step, setStep] = useState('phone');
   const [err, setErr] = useState('');
@@ -31,8 +32,10 @@ export default function Login() {
       if (mode === 'mock') {
         if (!mockUser(p)) throw new Error('Bản trải nghiệm chỉ có các tài khoản mẫu bên dưới');
         setCode(MOCK_CODE);
+        setPrefilled(true);
       } else {
         const r = await client.requestOtp(p);
+        setPrefilled(!!r.devCode);
         if (r.devCode) setCode(r.devCode);
       }
       setPhone(p); setStep('code');
@@ -103,7 +106,7 @@ export default function Login() {
             </>
           ) : (
             <>
-              <p className="small muted">Mã đã gửi tới <b>{phone}</b>{devTools ? ' (đã điền sẵn)' : ''}.</p>
+              <p className="small muted">Mã đã gửi tới <b>{phone}</b>{prefilled ? ' (đã điền sẵn)' : ''}.</p>
               <div className="field">
                 <label htmlFor="otp">Mã OTP</label>
                 <input id="otp" className="otp" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} required />

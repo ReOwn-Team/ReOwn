@@ -6,6 +6,7 @@ import { apiLimiter } from './lib/limits.js';
 import { invalidateCatalog } from './services/catalogCache.js';
 import { config } from './config.js';
 import { AppError } from './lib/errors.js';
+import { safeEqual } from './lib/crypto.js';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import listingRoutes, { recommendations, search } from './routes/listings.js';
@@ -35,10 +36,12 @@ export function createApp() {
   });
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, devTools: config.devTools, demo: config.demoDeployment }));
-  // Vercel Cron gọi route này theo lịch trong vercel.json (serverless không chạy được setInterval)
+  // Vercel Cron gọi route này theo lịch trong vercel.json (serverless không chạy được setInterval).
+  // Bắt buộc CRON_SECRET: Vercel tự gửi "Authorization: Bearer <CRON_SECRET>". Không tin User-Agent vì ai cũng giả được,
+  // mà route này trên bản demo còn seed lại toàn bộ CSDL.
   app.get('/api/cron/jobs', async (req, res, next) => {
     const secret = process.env.CRON_SECRET;
-    const ok = secret ? req.get('authorization') === `Bearer ${secret}` : /vercel-cron/.test(req.get('user-agent') || '');
+    const ok = !!secret && safeEqual(req.get('authorization') || '', `Bearer ${secret}`);
     if (!ok) return res.status(401).json({ error: { code: 'unauthorized', message: 'Không có quyền' } });
     try {
       const out = config.demoDeployment ? { reset: await resetDemo(), jobs: await runJobs() } : await runJobs();

@@ -1,9 +1,17 @@
 import { piiHash } from '../lib/crypto.js';
 import { audit } from '../lib/audit.js';
-import { conflict } from '../lib/errors.js';
+import { conflict, AppError } from '../lib/errors.js';
+import { config } from '../config.js';
 import { rescore } from './scoring.js';
 
+/**
+ * Đối tác xác thực giả lập: duyệt mọi giấy tờ. Chỉ dùng ở bản demo / máy dev. Ngoài môi trường đó, xác thực CCCD, ngân hàng
+ * mở trả sau và rút tiền — duyệt bừa là cho phép gian lận, nên đóng tính năng cho tới khi tích hợp đối tác eKYC thật.
+ */
 function mockProvider(type) {
+  if (!config.devTools && !config.demoDeployment) {
+    throw new AppError(503, 'provider_unavailable', 'Chưa tích hợp đối tác xác thực giấy tờ, tính năng tạm đóng');
+  }
   return { ok: true, ref: `mock-${type}-${Date.now()}` };
 }
 

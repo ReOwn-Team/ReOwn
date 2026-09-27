@@ -22,7 +22,7 @@ export const orderEvents = {
     await notify(db, o.seller_id, { kind: 'order.new', title: `Có đơn mới: ${short(title)}`, body: `Gửi hàng trong ${config.shipSlaDays} ngày để giữ điểm giao đúng hẹn.`, link: ORDER_LINK_SELLER + '?don=can-gui', sms: true });
   },
   async shipped(db, o, title) {
-    await notify(db, o.buyer_id, { kind: 'order.shipped', title: `Người bán đã gửi: ${short(title)}`, body: 'Kiểm tra hàng khi nhận rồi bấm "Đã nhận hàng". Sai mô tả thì khiếu nại trong 3 ngày.', link: ORDER_LINK_BUYER });
+    await notify(db, o.buyer_id, { kind: 'order.shipped', title: `Người bán đã gửi: ${short(title)}`, body: 'Kiểm tra hàng khi nhận rồi bấm "Đã nhận hàng". Sai mô tả thì bấm "Hàng không đúng mô tả" trước khi xác nhận.', link: ORDER_LINK_BUYER });
   },
   async completed(db, o, title, releaseAt) {
     await notify(db, o.seller_id, { kind: 'order.completed', title: `Người mua đã nhận: ${short(title)}`, body: `Tiền về ví ${new Date(releaseAt) <= new Date() ? 'ngay' : 'ngày ' + vnDate(releaseAt)}.`, link: ORDER_LINK_SELLER + '?don=hoan-tat' });
@@ -34,7 +34,11 @@ export const orderEvents = {
     await notify(db, o.buyer_id, { kind: 'order.cancelled', title: `Người bán đã huỷ: ${short(title)}`, body: 'Tiền đã được hoàn về ví / khoản trả sau đã huỷ.', link: ORDER_LINK_BUYER });
   },
   async refused(db, o, title) {
-    await notify(db, o.seller_id, { kind: 'order.refused', title: `Người mua từ chối nhận: ${short(title)}`, body: 'Tin đã mở bán lại.', link: ORDER_LINK_SELLER + '?don=da-huy' });
+    await notify(db, o.seller_id, { kind: 'order.refused', title: `Người mua từ chối nhận: ${short(title)}`, body: 'Hàng đang được hoàn về. Khi nhận lại, bấm "Đã nhận lại hàng" để hoàn tiền cho khách và mở bán lại (sau 7 ngày ReOwn tự hoàn).', link: ORDER_LINK_SELLER + '?don=khieu-nai' });
+  },
+  async overdueCancelled(db, o, title) {
+    await notify(db, o.buyer_id, { kind: 'order.cancelled', title: 'Đã huỷ đơn quá hạn gửi: ' + short(title), body: 'Người bán không gửi hàng đúng hạn. Tiền đã hoàn về ví / khoản trả sau đã huỷ.', link: ORDER_LINK_BUYER });
+    await notify(db, o.seller_id, { kind: 'order.cancelled', title: 'Đơn bị huỷ vì quá hạn gửi: ' + short(title), body: 'Tin đã được gỡ và điểm giao đúng hẹn bị trừ. Đăng lại tin khi bạn sẵn sàng bán.', link: ORDER_LINK_SELLER + '?don=da-huy', sms: true });
   },
   async disputeOpened(db, o, title) {
     await notify(db, o.seller_id, { kind: 'dispute.opened', title: `Khiếu nại đơn ${short(title)}`, body: 'Tiền được giữ lại chờ ReOwn xử lý. Phản hồi kèm ảnh/video đóng gói trong 48 giờ để được xét công bằng.', link: ORDER_LINK_SELLER + '?don=khieu-nai', sms: true });
