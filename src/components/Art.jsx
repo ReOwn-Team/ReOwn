@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { imageSrc } from '../api/client.js';
+import { coverSrc } from '../lib/photos.js';
 const G = {
   laptop: <><rect x="20" y="24" width="60" height="38" rx="3" className="f" /><rect x="25" y="29" width="50" height="28" rx="1" className="s" /><path d="M12 66h76l-5 8H17z" className="f" /></>,
   monitor: <><rect x="14" y="20" width="72" height="44" rx="3" className="f" /><rect x="19" y="25" width="62" height="34" className="s" /><path d="M44 64h12l3 10H41z" className="f" /><path d="M34 76h32" /></>,
@@ -29,9 +30,8 @@ export function Glyph({ name, className = '' }) {
   );
 }
 
-const coverSrc = (name) => `${import.meta.env.BASE_URL}img/products/${name}`;
 
-export default function Art({ product, size = 'md', index = 0, children }) {
+export default function Art({ product, size = 'md', index = 0, onBroken, children }) {
   const uploaded = product.images?.[index];
   const src = uploaded ? imageSrc(uploaded) : index === 0 && product.cover ? coverSrc(product.cover) : null;
   const [broken, setBroken] = useState(null);
@@ -39,7 +39,7 @@ export default function Art({ product, size = 'md', index = 0, children }) {
   return (
     <div className={`art art-${size} ${photo ? 'has-photo' : ''}`}>
       {photo
-        ? <img src={src} alt={product.title || ''} loading={size === 'lg' ? 'eager' : 'lazy'} decoding="async" draggable="false" onError={() => setBroken(src)} />
+        ? <img src={src} alt={product.title || ''} loading={size === 'lg' ? 'eager' : 'lazy'} decoding="async" draggable="false" onError={() => { setBroken(src); onBroken?.(src); }} />
         : <Glyph name={product.icon || BY_CAT[product.category]} />}
       {children}
     </div>

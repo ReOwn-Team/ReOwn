@@ -7,6 +7,7 @@ import Home from './pages/Home.jsx';
 import Search from './pages/Search.jsx';
 import Product from './pages/Product.jsx';
 import NotificationsPage from './components/Notifications.jsx';
+import { PageSkeleton } from './components/ui.jsx';
 
 const Account = lazy(() => import('./pages/Account.jsx'));
 const SellerCenter = lazy(() => import('./pages/SellerCenter.jsx'));
@@ -38,8 +39,9 @@ function Shell() {
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>Bỏ qua, tới nội dung chính</a>
       {!bare && <Header />}
       <main id="main" tabIndex={-1} className={`wrap page ${bare ? 'page-bare' : ''}`}>
-        {!ready ? <p className="muted loading">Đang tải…</p> : (
-          <Suspense fallback={<p className="muted loading">Đang tải…</p>}>
+        {!ready ? <PageSkeleton /> : (
+          <Suspense fallback={<PageSkeleton />}>
+          <div className="route" key={pathname}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/tim-kiem" element={<Search />} />
@@ -55,6 +57,7 @@ function Shell() {
             <Route path="/dang-nhap" element={<Login />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
+          </div>
           </Suspense>
         )}
       </main>

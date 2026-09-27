@@ -35,7 +35,7 @@ function NotificationList({ onPick, compact, page }) {
         {data?.unread > 0 && <button type="button" className="linkbtn small" onClick={readAll}>Đánh dấu đã đọc</button>}
       </div>
       {!data ? <p className="muted small notes-empty">Đang tải…</p>
-        : data.items.length === 0 ? <p className="muted small notes-empty">Chưa có thông báo. Đơn hàng, tiền về ví và lịch trả kỳ sẽ hiện ở đây.</p>
+        : data.items.length === 0 ? <p className="muted small notes-empty">Chưa có thông báo.</p>
           : (
             <ul className="notes-list">
               {data.items.map((n) => (

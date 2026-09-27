@@ -1,19 +1,27 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { imageSrc } from '../api/client.js';
 import { money, vnDateTime } from '../lib/format.js';
 import { CARRIERS } from '../../shared/policy.js';
 import Icon from './Icon.jsx';
 
+const Lightbox = lazy(() => import('./Lightbox.jsx'));
+
 const hoursLeft = (t) => Math.round((new Date(t).getTime() - Date.now()) / 3_600_000);
 
 export function Evidence({ urls, label }) {
+  const [open, setOpen] = useState(null);
   if (!urls?.length) return null;
   return (
     <div>
       {label && <span className="small muted">{label}</span>}
       <div className="evidence">
-        {urls.map((u, i) => <a key={u.slice(-40) + i} href={imageSrc(u)} target="_blank" rel="noreferrer"><img src={imageSrc(u)} alt={`${label || 'Ảnh'} ${i + 1}`} width="96" height="96" loading="lazy" decoding="async" /></a>)}
+        {urls.map((u, i) => (
+          <a key={u.slice(-40) + i} href={imageSrc(u)} target="_blank" rel="noreferrer" onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); setOpen(i); }}>
+            <img src={imageSrc(u)} alt={`${label || 'Ảnh'} ${i + 1}`} width="96" height="96" loading="lazy" decoding="async" />
+          </a>
+        ))}
       </div>
+      {open != null && <Suspense fallback={null}><Lightbox srcs={urls.map(imageSrc)} alt={label || 'Ảnh'} start={open} onClose={() => setOpen(null)} /></Suspense>}
     </div>
   );
 }

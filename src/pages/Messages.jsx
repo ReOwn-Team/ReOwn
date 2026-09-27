@@ -12,7 +12,7 @@ const time = (t) => new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', m
 
 function ConversationList({ items, activeId }) {
   if (!items) return <p className="muted small conv-empty">Đang tải…</p>;
-  if (!items.length) return <p className="muted small conv-empty">Chưa có cuộc trò chuyện. Mở một món bất kỳ và bấm “Chat với người bán”.</p>;
+  if (!items.length) return <p className="muted small conv-empty">Chưa có cuộc trò chuyện.</p>;
   return (
     <ul className="conv-list">
       {items.map((c) => (

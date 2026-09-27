@@ -1,38 +1,60 @@
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../state/useStore.js';
 import { bnplOffer, listingRisk, installmentSchedule } from '../../shared/scoring/engine.js';
 import { CATEGORIES } from '../data/mock.js';
 import { newIdempotencyKey } from '../api/client.js';
 import Art from '../components/Art.jsx';
+import { photoSrcs } from '../lib/photos.js';
 import Icon from '../components/Icon.jsx';
 import AdminHide from '../components/AdminHide.jsx';
 import { Breakdown, Reasons, TrustBadge, Stars, ProductCard, Empty } from '../components/ui.jsx';
 import { money, discount, timeAgo, TIER_LABEL } from '../lib/format.js';
 
+// Chỉ tải trình xem ảnh khi người dùng mở nó.
+const Lightbox = lazy(() => import('../components/Lightbox.jsx'));
+
 function Gallery({ p }) {
   const n = p.images?.length || 0;
   const [i, setI] = useState(0);
+  const [open, setOpen] = useState(false);
   const touch = useRef(null);
+  const swiped = useRef(false);
+  const [broken, setBroken] = useState(() => new Set());
+  const all = photoSrcs(p);
+  const srcs = all.filter((s) => !broken.has(s));
+  const zoomable = !!all[i] && !broken.has(all[i]);
   const go = (d) => setI((x) => (x + d + n) % n);
+  // Di chuột trên desktop: phóng ảnh theo vị trí con trỏ, cập nhật thẳng biến CSS (không render lại).
+  const lens = (e) => {
+    if (e.pointerType !== 'mouse') return;
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--zx', `${((e.clientX - r.left) / r.width) * 100}%`);
+    e.currentTarget.style.setProperty('--zy', `${((e.clientY - r.top) / r.height) * 100}%`);
+  };
   return (
     <div className="gallery">
       <div
-        className="gallery-main"
-        onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
-        onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - (touch.current ?? 0); if (n > 1 && Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); }}
-        onKeyDown={(e) => { if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1); }}
-        tabIndex={n > 1 ? 0 : undefined}
+        className={`gallery-main ${zoomable ? 'can-zoom' : ''}`}
+        onTouchStart={(e) => { touch.current = e.touches[0].clientX; swiped.current = false; }}
+        onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - (touch.current ?? 0); if (n > 1 && Math.abs(dx) > 40) { swiped.current = true; go(dx < 0 ? 1 : -1); } }}
+        onPointerMove={zoomable ? lens : undefined}
+        onClick={(e) => { if (!zoomable || swiped.current || e.target.closest('button')) return; setOpen(true); }}
+        onKeyDown={(e) => { if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1); if (zoomable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(true); } }}
+        tabIndex={n > 1 || zoomable ? 0 : undefined}
+        role={zoomable ? 'button' : undefined}
         aria-roledescription={n > 1 ? 'thư viện ảnh' : undefined}
-        aria-label={n > 1 ? `Ảnh ${i + 1} trên ${n}` : undefined}
+        aria-label={zoomable ? `Phóng to ảnh${n > 1 ? ` ${i + 1} trên ${n}` : ''}` : undefined}
       >
-        <Art product={p} size="lg" index={i}><span className="cond">Mới {p.condition}%</span></Art>
+        <Art key={i} product={p} size="lg" index={i} onBroken={(s) => setBroken((b) => new Set(b).add(s))}><span className="cond">Mới {p.condition}%</span></Art>
+        {zoomable && <span className="gal-zoom" aria-hidden="true"><Icon name="zoomIn" size={18} /></span>}
         {n > 1 && <>
           <button type="button" className="gal-nav prev" onClick={() => go(-1)} aria-label="Ảnh trước"><Icon name="chevronLeft" size={20} /></button>
           <button type="button" className="gal-nav next" onClick={() => go(1)} aria-label="Ảnh sau"><Icon name="chevron" size={20} /></button>
           <span className="gal-count">{i + 1}/{n}</span>
         </>}
       </div>
+      {open && <Suspense fallback={null}><Lightbox srcs={srcs} alt={p.title} start={Math.max(0, srcs.indexOf(all[i]))} onClose={() => setOpen(false)} /></Suspense>}
       {n > 1 && (
         <div className="gallery-thumbs">
           {p.images.map((_, k) => (
@@ -52,14 +74,12 @@ function SellerCard({ seller, sres, count, onChat, chatBusy }) {
       <div className="sc-top">
         <span className="avatar lg">{seller.name.split(' ').pop()[0]}</span>
         <div className="sc-main">
-          <strong>{seller.name}</strong>
-          <span className="small muted">{seller.school}</span>
+          <strong title={seller.name}>{seller.name}</strong>
+          {seller.school && <span className="small muted" title={seller.school}>{seller.school}</span>}
         </div>
-        <div className="sc-acts">
-          {onChat && <button type="button" className="btn btn-outline btn-sm" onClick={onChat} disabled={chatBusy}><Icon name="chat" size={16} /> Chat</button>}
-          <Link to={`/shop/${seller.id}`} className="btn btn-outline btn-sm"><Icon name="shop" size={16} /> Xem shop</Link>
-        </div>
+        <Link to={`/shop/${seller.id}`} className="btn btn-outline btn-sm sc-shop"><Icon name="shop" size={16} />Xem shop</Link>
       </div>
+      {onChat && <button type="button" className="btn btn-outline btn-sm sc-chat" onClick={onChat} disabled={chatBusy}><Icon name="chat" size={16} />Chat với người bán</button>}
       <dl className="sc-stats">
         <div><dt>Uy tín</dt><dd><TrustBadge result={sres} long /></dd></div>
         <div><dt>Đánh giá</dt><dd>{sres.reviewCount ? <Stars value={sres.adjAvg} count={sres.reviewCount} /> : <span className="muted">Chưa có</span>}</dd></div>
@@ -159,7 +179,7 @@ export default function Product() {
 
           <div className="pd-price">
             <strong className="price">{money(p.price)}</strong>
-            {off > 0 && risk.level === 'low' && <span className="pd-save">Rẻ hơn {off}% giá tham khảo</span>}
+            {off > 0 && risk.level === 'low' && <span className="pd-save">-{off}% so với giá tham khảo</span>}
           </div>
 
           {risk.level !== 'low' && (
@@ -207,7 +227,7 @@ export default function Product() {
                   <fieldset className="deliv">
                     <legend className="small"><b>Cách nhận hàng</b></legend>
                     <div className="deliv-opts" role="radiogroup" aria-label="Cách nhận hàng">
-                      {[['ship', 'truck', 'Giao tận nơi', 'Người bán gửi qua GHN, GHTK… kèm mã vận đơn'], ['meetup', 'pin', 'Gặp trực tiếp', 'Hẹn ở trường / KTX, kiểm tra hàng rồi đọc mã nhận hàng']].map(([v, ic, t, d]) => (
+                      {[['ship', 'truck', 'Giao tận nơi', 'GHN, GHTK… có mã vận đơn'], ['meetup', 'pin', 'Gặp trực tiếp', 'Ở trường / KTX']].map(([v, ic, t, d]) => (
                         <button key={v} type="button" role="radio" aria-checked={delivery === v} className={`deliv-opt ${delivery === v ? 'on' : ''}`} onClick={() => { setDelivery(v); setAddrErr(''); }}>
                           <Icon name={ic} size={20} /><span><b>{t}</b><span className="small muted">{d}</span></span>
                         </button>
@@ -224,11 +244,10 @@ export default function Product() {
                       <div className="field">
                         <label htmlFor="meet-note">Gợi ý nơi / giờ hẹn (không bắt buộc)</label>
                         <input id="meet-note" maxLength={200} value={meetupNote} onChange={(e) => setMeetupNote(e.target.value)} placeholder="VD: Cổng chính HUIT, 17h thứ Sáu…" autoComplete="off" name="meetup-note" />
-                        <span className="small muted">Sau khi đặt, bạn nhận một mã 6 số. Chỉ đọc mã cho người bán khi đã kiểm tra hàng đúng mô tả.</span>
+                        <span className="small muted">Chỉ đọc mã nhận hàng khi đã kiểm tra hàng.</span>
                       </div>
                     )}
                   </fieldset>
-                  <p className="small muted">Tiền được giữ hộ đến khi bạn xác nhận nhận hàng.</p>
                   <div className="row">
                     <button className="btn btn-buy" onClick={place} disabled={busy}>{busy ? 'Đang đặt…' : 'Đặt hàng'}</button>
                     <button className="btn btn-outline" onClick={() => setConfirming(false)}>Quay lại</button>
@@ -238,24 +257,24 @@ export default function Product() {
             </section>
           )}
 
-          <ul className="promise">
-            <li><Icon name="shield" size={18} /><span>Tiền giữ hộ đến khi bạn nhận hàng</span></li>
-            <li><Icon name="bag" size={18} /><span>Hoàn tiền nếu sai mô tả (trong 3 ngày)</span></li>
-            <li><Icon name="user" size={18} /><span>Uy tín tính từ giao dịch thật</span></li>
+          <ul className="promise" aria-label="ReOwn đảm bảo">
+            <li><Icon name="shield" size={16} />Giữ tiền đến khi nhận hàng</li>
+            <li><Icon name="bag" size={16} />Hoàn tiền nếu sai mô tả</li>
+            <li><Icon name="check" size={16} />Uy tín từ giao dịch thật</li>
           </ul>
         </div>
       </div>
 
       <div className="pd-lower">
         <section className="panel">
-          <h2>Mô tả từ người bán</h2>
+          <h2>Mô tả</h2>
           <p className="desc">{p.desc || 'Người bán chưa thêm mô tả.'}</p>
           <table className="specs">
             <tbody>
               <tr><th>Danh mục</th><td>{cat?.label}</td></tr>
               <tr><th>Tình trạng</th><td>{p.condition}% · {p.condition >= 90 ? 'như mới' : p.condition >= 80 ? 'còn tốt' : 'đã qua sử dụng nhiều'}</td></tr>
-              <tr><th>Giá tham khảo ReOwn</th><td>{risk.ref ? <>{money(risk.ref.price)} <span className="muted small">({risk.ref.source === 'peers' ? risk.ref.label.toLowerCase() : 'theo mẫu tương đương'})</span></> : <span className="muted">Chưa đủ dữ liệu</span>}</td></tr>
-              {p.location && <tr><th>Khu vực giao nhận</th><td>{p.location}</td></tr>}
+              <tr><th>Giá tham khảo</th><td>{risk.ref ? <>{money(risk.ref.price)} <span className="muted small">({risk.ref.source === 'peers' ? risk.ref.label.toLowerCase() : 'theo mẫu tương đương'})</span></> : <span className="muted">Chưa đủ dữ liệu</span>}</td></tr>
+              {p.location && <tr><th>Khu vực</th><td>{p.location}</td></tr>}
             </tbody>
           </table>
         </section>

@@ -99,10 +99,7 @@ function BudgetPicker() {
   return (
     <section className="budget" id="tui-tien" aria-labelledby="budget-h">
       <div className="budget-form">
-        <div className="budget-head">
-          <h2 id="budget-h">Món vừa túi tiền của bạn</h2>
-          <p className="muted">Chỉ hiện món bạn trả nổi.</p>
-        </div>
+        <h2 id="budget-h">Món vừa túi tiền của bạn</h2>
         <div className="budget-fields">
           <div className="field">
             <label htmlFor="income">Thu nhập/tháng</label>
@@ -157,8 +154,8 @@ export default function Home() {
   return (
     <div className="home">
       <Hero sample={sample} sampleSeller={sample && userById(sample.sellerId)} sampleScore={sample && sellerScores[sample.sellerId]} />
-      <BudgetPicker />
       <CategoryTiles />
+      <BudgetPicker />
       <Shelf title="Trả sau 0% trong 3 kỳ" to="/tim-kiem?min=900000&sort=price-asc" items={bnpl} sellerScores={sellerScores} userById={userById} />
       <Shelf title="Dưới 500K" to="/tim-kiem?max=500000&sort=price-asc" items={cheap} sellerScores={sellerScores} userById={userById} />
       <section className="shelf">

@@ -135,3 +135,12 @@ export function Empty({ title, children, action }) {
     </div>
   );
 }
+
+export function PageSkeleton() {
+  return (
+    <div className="skel" role="status" aria-label="Đang tải…">
+      <div className="skel-block skel-hero" />
+      <div className="skel-grid">{Array.from({ length: 4 }, (_, i) => <div key={i} className="skel-block skel-card" />)}</div>
+    </div>
+  );
+}

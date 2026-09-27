@@ -168,7 +168,7 @@ function WalletPanel({ me, dispatch, devTools, walletInfo, go }) {
             <button className="btn btn-sm" disabled={busy}>{busy ? 'Đang chuyển…' : 'Rút tiền'}</button>
           </div>
           {err && <span className="small danger" role="alert">{err}</span>}
-          <span className="small muted">Miễn phí, tối đa 3 lần/ngày. Bản demo mô phỏng chuyển khoản thành công ngay.</span>
+          <span className="small muted">Miễn phí · tối đa 3 lần/ngày</span>
         </form>
       )}
       {info?.withdrawals?.length > 0 && (
@@ -429,7 +429,6 @@ export default function Account() {
               <ScoreGauge result={res} label="Khi mua hàng" />
               <div className="score-side">
                 <TierScale score={res.score} />
-                <p className="small muted">Điểm càng cao, hạn mức trả sau càng lớn.</p>
               </div>
             </div>
             <div className="score-grid">
