@@ -21,7 +21,7 @@ export default function Shop() {
         <dl className="shop-stats">
           <div><dt>Đang bán</dt><dd>{items.length}</dd></div>
           <div><dt>Điểm uy tín</dt><dd>{s.score}/100</dd></div>
-          <div><dt>Nhận tiền</dt><dd>{s.policy.escrowDays ? `sau ${s.policy.escrowDays} ngày` : 'ngay'}</dd></div>
+          <div><dt>Nhận tiền</dt><dd>{`sau ${s.policy.escrowDays} ngày`}</dd></div>
         </dl>
       </header>
       {s.tier.id >= 'D' && <div className="alert alert-high">Người bán {s.tier.id === 'E' ? 'rủi ro cao' : 'cần lưu ý'}. Chỉ thanh toán trong ReOwn.</div>}

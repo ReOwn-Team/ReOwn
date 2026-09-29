@@ -58,8 +58,20 @@ describe('Giao hàng', () => {
     await api().post(`/api/orders/${o.id}/handover`).set(auth(lan.token)).send({ code: o.handoverCode }).expect(403);
     const before = await balance(bao);
     const done = (await api().post(`/api/orders/${o.id}/handover`).set(auth(bao.token)).send({ code: o.handoverCode }).expect(200)).body;
-    expect(done.status).toBe('completed');
+    expect(done).toMatchObject({ status: 'completed', payoutStatus: 'held' });
+    expect(await balance(bao)).toBe(before);
+    await runJobs(new Date(Date.now() + 3 * 86_400_000 + 60_000));
     expect(await balance(bao)).toBe(before + Math.round(l.price * 0.96));
+  });
+});
+
+describe('Hạn khiếu nại sau khi nhận hàng', () => {
+  it('người mua vẫn khiếu nại được trong 3 ngày sau khi nhận, kể cả mua của người bán hạng A', async () => {
+    const l = await listingByTitle('Màn hình Dell');
+    const o = (await order(lan, l.id, { delivery: 'meetup' }).expect(201)).body;
+    await api().post(`/api/orders/${o.id}/handover`).set(auth(bao.token)).send({ code: o.handoverCode }).expect(200);
+    const pic = await upload(lan);
+    await api().post(`/api/orders/${o.id}/dispute`).set(auth(lan.token)).send({ reason: 'Màn hình có điểm chết không ghi trong tin', imageIds: [pic.id] }).expect(200);
   });
 });
 

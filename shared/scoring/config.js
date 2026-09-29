@@ -54,13 +54,15 @@ export const THIN_FILE_MIN_ONTIME = 3;
 export const THIN_FILE_TIER = 'C';
 
 export const SELLER_POLICY = {
-  A: { escrowDays: 0, boost: 1.15, note: 'Nhận tiền ngay khi người mua xác nhận, được ưu tiên hiển thị' },
-  B: { escrowDays: 1, boost: 1.05, note: 'Giải ngân sau 1 ngày' },
-  C: { escrowDays: 3, boost: 1.0, note: 'Giải ngân sau 3 ngày' },
+  A: { escrowDays: 3, boost: 1.15, note: 'Giải ngân ngay khi hết 3 ngày khiếu nại, được ưu tiên hiển thị' },
+  B: { escrowDays: 3, boost: 1.05, note: 'Giải ngân khi hết 3 ngày khiếu nại' },
+  C: { escrowDays: 4, boost: 1.0, note: 'Giải ngân sau 4 ngày' },
   D: { escrowDays: 5, boost: 0.85, note: 'Giải ngân sau 5 ngày, giảm hiển thị' },
   E: { escrowDays: 7, boost: 0, note: 'Ẩn khỏi gợi ý AI, giữ tiền 7 ngày' },
 };
 export const UNVERIFIED_SELLER_MAX_LISTINGS = 3;
+/** Người mua được khiếu nại trong N ngày sau khi nhận hàng — tiền phải còn giữ hộ ít nhất bằng chừng ấy. */
+export const DISPUTE_WINDOW_DAYS = 3;
 
 export const SUSPICIOUS_PRICE_RATIO = 0.45;
 

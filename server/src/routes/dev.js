@@ -7,7 +7,7 @@ import { post, wallet, acct } from '../services/ledger.js';
 import { payInstallment } from '../services/bnpl.js';
 import { rescore } from '../services/scoring.js';
 import { installmentReminders, deliverSms } from '../services/notify.js';
-import { shipOrder } from '../services/orders.js';
+import { shipOrder, releaseIfDue } from '../services/orders.js';
 
 const r = Router();
 
@@ -53,6 +53,18 @@ r.post('/installments/:id/due-in', requireAuth, ah(async (req, res) => {
          FROM bnpl_plans p WHERE p.id=i.plan_id AND i.id=$1 AND p.user_id=$3 AND i.status='due' RETURNING i.id`,
       [id, days, req.user.id])).rows[0];
     if (ok) { await installmentReminders(db); await deliverSms(db); }
+  });
+  res.json({ ok: true });
+}));
+
+r.post('/orders/:id/release-now', requireAuth, ah(async (req, res) => {
+  const id = parse(uuid, req.params.id);
+  await tx(async (db) => {
+    const o = (await db.query("SELECT seller_id FROM orders WHERE id=$1 AND status='completed' AND payout_status='held' FOR UPDATE", [id])).rows[0];
+    if (!o) throw notFound('Không có khoản đang giữ hộ cho đơn này');
+    if (o.seller_id !== req.user.id) throw forbidden();
+    await db.query('UPDATE orders SET release_at=now() WHERE id=$1', [id]);
+    await releaseIfDue(db, id);
   });
   res.json({ ok: true });
 }));

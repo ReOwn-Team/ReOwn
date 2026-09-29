@@ -105,7 +105,10 @@ describe('Bản demo: giao nhận, khiếu nại, ví, trả sau', () => {
     s = reducer(s, { type: 'handover', orderId: o.id, code: o.handoverCode === '000000' ? '111111' : '000000' });
     expect(s.orders[0]).toMatchObject({ status: 'paid', handoverAttempts: 1 });
     s = reducer(s, { type: 'handover', orderId: o.id, code: o.handoverCode });
-    expect(s.orders[0].status).toBe('completed');
+    expect(s.orders[0]).toMatchObject({ status: 'completed', payoutStatus: 'held' });
+    expect(wallet(s, 'u_s1')).toBe(seller0);
+    s = reducer(s, { type: 'devRelease', orderId: o.id });
+    expect(s.orders[0].payoutStatus).toBe('released');
     expect(wallet(s, 'u_s1')).toBe(seller0 + 180_000 - Math.round(180_000 * 0.04));
   });
 

@@ -146,6 +146,9 @@ export async function seed({ force = false } = {}) {
       await db.query('UPDATE listings SET risk_level=$2, risk_flags=$3 WHERE id=$1', [l.id, r.level, JSON.stringify(r.flags)]);
     }
   });
+  // Đơn lịch sử đã quá hạn giữ tiền → giải ngân luôn (không chờ tác vụ định kỳ)
+  const due = (await pool.query("SELECT id FROM orders WHERE status='completed' AND payout_status='held' AND release_at <= now()")).rows;
+  for (const { id } of due) await tx((db) => orders.releaseIfDue(db, id));
   return U;
 }
 

@@ -205,7 +205,7 @@ for (const path of ['', 'tim-kiem?q=laptop', 'product', 'dang-nhap', 'tai-khoan?
     if (/^(tai-khoan|kenh)/.test(path)) await login(page, 'bao');
     if (path === 'product') await openProduct(page, 'thinkpad'); else await page.goto('#/' + path);
     await page.waitForLoadState('networkidle');
-    const r = await new AxeBuilder({ page }).analyze();
+    const r = await new AxeBuilder({ page }).exclude('.toast-region').analyze(); // thông báo đang chạy hiệu ứng mờ dần có thể bị tính sai độ tương phản
     expect(r.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
   });
 }

@@ -146,12 +146,15 @@ describe('Đặt hàng, trả sau và tiền giữ hộ', () => {
     await api().post(`/api/dev/orders/${order.id}/simulate-ship`).set(auth(bao.token)).expect(403);
   });
 
-  it('gửi hàng → nhận hàng → giải ngân ngay cho người bán hạng A, sàn thu 4%', async () => {
+  it('gửi hàng → nhận hàng → tiền giữ đủ 3 ngày khiếu nại (kể cả hạng A) rồi mới giải ngân, sàn thu 4%', async () => {
     const before = (await api().get('/api/me/wallet').set(auth(bao.token))).body.balance;
     await api().post(`/api/orders/${order.id}/ship`).set(auth(bao.token)).send({ carrier: 'GHN', trackingCode: 'GHN00000000' }).expect(200);
     const r = await api().post(`/api/orders/${order.id}/confirm`).set(auth(lan.token)).expect(200);
     expect(r.body.status).toBe('completed');
-    expect(r.body.payoutStatus).toBe('released');
+    expect(r.body.payoutStatus).toBe('held');
+    expect(new Date(r.body.releaseAt) - new Date(r.body.completedAt)).toBe(3 * 86_400_000);
+    expect((await api().get('/api/me/wallet').set(auth(bao.token))).body.balance).toBe(before);
+    await runJobs(new Date(Date.now() + 3 * 86_400_000 + 60_000));
     const after = (await api().get('/api/me/wallet').set(auth(bao.token))).body.balance;
     expect(after - before).toBe(3_200_000 - 128_000);
   });

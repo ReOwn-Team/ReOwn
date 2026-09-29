@@ -146,7 +146,7 @@ export async function refuseDelivery(db, { orderId, userId, ip, now = new Date()
 
 export async function complete(db, o, now) {
   const { result } = await sellerScore(db, o.seller_id);
-  const releaseAt = addDays(now, result.policy.escrowDays);
+  const releaseAt = addDays(now, Math.max(result.policy.escrowDays, config.disputeWindowDays));
   await db.query("UPDATE orders SET status='completed', completed_at=$2, release_at=$3 WHERE id=$1", [o.id, now, releaseAt]);
   await db.query("UPDATE listings SET status='sold', updated_at=now() WHERE id=$1", [o.listing_id]);
   await orderEvents.completed(db, o, await titleOf(db, o.listing_id), releaseAt);

@@ -130,7 +130,7 @@ function RespondForm({ o, run, busy, mode }) {
   );
 }
 
-function SaleRow({ o, product, dispatch, mode }) {
+function SaleRow({ o, product, dispatch, mode, devTools }) {
   const [stars, setStars] = useState(5);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [shipping, setShipping] = useState(false);
@@ -172,6 +172,9 @@ function SaleRow({ o, product, dispatch, mode }) {
               {!meetup && !shipping && <button className="btn btn-sm" onClick={() => setShipping(true)} disabled={busy}>Xác nhận đã gửi hàng</button>}
             </>
           ))}
+          {devTools && o.status === 'completed' && o.payoutStatus === 'held' && (
+            <button className="linkbtn small" onClick={() => run({ type: 'devRelease', orderId: o.id })} disabled={busy}>Mô phỏng: hết hạn khiếu nại</button>
+          )}
           {awaitingReturn(o) && <button className="btn btn-sm" onClick={() => run({ type: 'returnReceived', orderId: o.id })} disabled={busy}>Đã nhận lại hàng</button>}
           {o.status === 'completed' && !o.myStars && (
             <>
@@ -186,7 +189,7 @@ function SaleRow({ o, product, dispatch, mode }) {
   );
 }
 
-function SalesPanel({ sales, products, dispatch, mode, params, setParams }) {
+function SalesPanel({ sales, products, dispatch, mode, devTools, params, setParams }) {
   const counts = Object.fromEntries(SALE_TABS.map((t) => [t.v, sales.filter(t.match).length]));
   const urgent = sales.filter(needsAction).length;
   const fallback = counts['can-gui'] ? 'can-gui' : urgent ? 'khieu-nai' : counts['dang-giao'] ? 'dang-giao' : 'tat-ca';
@@ -207,13 +210,13 @@ function SalesPanel({ sales, products, dispatch, mode, params, setParams }) {
         ? <Empty title="Chưa có đơn bán nào">{mode === 'mock' ? 'Bản demo: đăng nhập tài khoản khác, đặt mua một món của bạn rồi quay lại đây để xử lý đơn.' : 'Khi có người đặt mua, đơn sẽ xuất hiện ở đây kèm thông báo.'}</Empty>
         : shown.length === 0
           ? <Empty title={cur.v === 'can-gui' ? 'Không có đơn nào cần gửi' : 'Không có đơn nào ở mục này'}>{cur.v === 'can-gui' ? 'Đơn mới sẽ hiện ở đây. Gửi hàng trong 3 ngày để giữ điểm uy tín.' : null}</Empty>
-          : <ul className="ocards">{shown.slice(0, 50).map((o) => <SaleRow key={o.id} o={o} product={byId.get(o.productId)} dispatch={dispatch} mode={mode} />)}</ul>}
+          : <ul className="ocards">{shown.slice(0, 50).map((o) => <SaleRow key={o.id} o={o} product={byId.get(o.productId)} dispatch={dispatch} mode={mode} devTools={devTools} />)}</ul>}
     </section>
   );
 }
 
 export default function SellerCenter() {
-  const { state, me, sellerScores, dispatch, mode } = useStore();
+  const { state, me, sellerScores, dispatch, mode, devTools } = useStore();
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || '';
   const [confirmHide, setConfirmHide] = useState(null);
@@ -241,7 +244,7 @@ export default function SellerCenter() {
         {TABS.map((t) => <button key={t.v} role="tab" aria-selected={tab === t.v || (t.v === 'tin-dang' && tab === 'sua')} className={tab === t.v || (t.v === 'tin-dang' && tab === 'sua') ? 'on' : ''} onClick={() => setParams(t.v ? { tab: t.v } : {})}>{t.label}{t.v === '' && toShip ? <span className="count-pill">{toShip}</span> : null}</button>)}
       </div>
 
-      {tab === '' && <SalesPanel sales={sales} products={state.products} dispatch={dispatch} mode={mode} params={params} setParams={setParams} />}
+      {tab === '' && <SalesPanel sales={sales} products={state.products} dispatch={dispatch} mode={mode} devTools={devTools} params={params} setParams={setParams} />}
 
       {tab === 'dang-tin' && <ListingForm key="new" onDone={() => setParams({ tab: 'tin-dang' })} />}
 

@@ -84,7 +84,7 @@ function SellerCard({ seller, sres, count, onChat, chatBusy }) {
         <div><dt>Uy tín</dt><dd><TrustBadge result={sres} long /></dd></div>
         <div><dt>Đánh giá</dt><dd>{sres.reviewCount ? <Stars value={sres.adjAvg} count={sres.reviewCount} /> : <span className="muted">Chưa có</span>}</dd></div>
         <div><dt>Đang bán</dt><dd>{count} món</dd></div>
-        <div><dt>Nhận tiền</dt><dd>{sres.policy.escrowDays ? `sau ${sres.policy.escrowDays} ngày` : 'khi bạn xác nhận'}</dd></div>
+        <div><dt>Nhận tiền</dt><dd>{`${sres.policy.escrowDays} ngày sau khi bạn nhận hàng`}</dd></div>
       </dl>
       <details className="why-tier">
         <summary>Vì sao hạng {sres.tier.id}? <span className="muted">({sres.score}/100)</span></summary>

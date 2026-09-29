@@ -108,7 +108,7 @@ function OrderCard({ o, product, dispatch, mode }) {
           {canDispute && !disputing && <button className="btn btn-sm btn-outline" onClick={() => setDisputing(true)}>Hàng không đúng mô tả</button>}
           {canReceive && (confirm ? (
             <>
-              <span className="small">{confirm === 'refuse' ? 'Từ chối nhận? Hàng hoàn về người bán, tiền hoàn khi người bán nhận lại. Lượt từ chối tính vào điểm uy tín.' : 'Đã kiểm tra đúng hàng? Sau khi xác nhận, tiền có thể chuyển ngay cho người bán và bạn không khiếu nại được nữa.'}</span>
+              <span className="small">{confirm === 'refuse' ? 'Từ chối nhận? Hàng hoàn về người bán, tiền hoàn khi người bán nhận lại. Lượt từ chối tính vào điểm uy tín.' : 'Đã kiểm tra đúng hàng? ReOwn giữ tiền thêm 3 ngày — phát hiện lỗi trong thời gian này bạn vẫn khiếu nại được.'}</span>
               <button className="btn btn-sm btn-outline" onClick={() => setConfirm(null)}>Quay lại</button>
               <button className={`btn btn-sm ${confirm === 'refuse' ? 'danger-btn' : ''}`}
                 onClick={() => { dispatch(confirm === 'refuse' ? { type: 'bomOrder', orderId: o.id } : { type: 'confirmReceived', orderId: o.id, stars }); setConfirm(null); }}>

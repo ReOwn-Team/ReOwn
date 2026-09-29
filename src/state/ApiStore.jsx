@@ -148,6 +148,7 @@ export default function ApiStore({ children }) {
         case 'withdraw': await client.api('/me/wallet/withdraw', { method: 'POST', body: { amount: a.amount } }); break;
         case 'payoff': await client.api(`/installments/plans/${a.planId}/payoff`, { method: 'POST' }); break;
         case 'devShip': await client.api(`/dev/orders/${a.orderId}/simulate-ship`, { method: 'POST' }); break;
+        case 'devRelease': await client.api(`/dev/orders/${a.orderId}/release-now`, { method: 'POST' }); break;
         case 'sellerCancel': await client.api(`/orders/${a.orderId}/cancel`, { method: 'POST' }); break;
         case 'confirmReceived':
           await client.api(`/orders/${a.orderId}/confirm`, { method: 'POST' });
