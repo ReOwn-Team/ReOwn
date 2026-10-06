@@ -1,5 +1,5 @@
 :root {
-  --acc-l: #2563eb; --acc-l-h: #1d4ed8; --acc-d: #7aa7ff; --acc-d-h: #a3c2ff;
+  --acc-l: #0b7a5b; --acc-l-h: #09664c; --acc-d: #3fbf93; --acc-d-h: #6fd6b0;
 
   /* Nền trung tính pha nhẹ màu nhấn để cả giao diện cùng một tông, đổi theo màu người dùng chọn. */
   --ground: color-mix(in oklab, var(--accent) 5%, #f2f3f6);
@@ -41,7 +41,7 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-pop: cubic-bezier(0.34, 1.36, 0.64, 1);
 }
-:root[data-accent='green'] { --acc-l: #0b7a5b; --acc-l-h: #09664c; --acc-d: #3fbf93; --acc-d-h: #6fd6b0; }
+:root[data-accent='blue'] { --acc-l: #2563eb; --acc-l-h: #1d4ed8; --acc-d: #7aa7ff; --acc-d-h: #a3c2ff; }
 :root[data-accent='orange'] { --acc-l: #c2410c; --acc-l-h: #9a3412; --acc-d: #fb923c; --acc-d-h: #fdba74; }
 :root[data-accent='violet'] { --acc-l: #7c3aed; --acc-l-h: #6d28d9; --acc-d: #b196ff; --acc-d-h: #c9b6ff; }
 
@@ -144,9 +144,10 @@ input[type='radio'], input[type='checkbox'] { width: 18px; height: 18px; margin:
 
 .hdr { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); border-bottom: 1px solid var(--line); }
 .hdr-main { display: flex; align-items: center; gap: 28px; min-height: 72px; }
-.logo { font-weight: 800; font-size: 1.625rem; letter-spacing: -0.035em; color: var(--ink); text-decoration: none; flex: none; }
+.logo { font-weight: 800; font-size: 1.625rem; letter-spacing: -0.035em; color: var(--ink); text-decoration: none; flex: none; display: inline-flex; align-items: center; gap: 8px; }
+.logo-mark { color: var(--accent); flex: none; width: 1.25em; height: 1.25em; }
 .logo:hover { text-decoration: none; }
-.logo span { color: var(--accent); }
+.logo-word span { color: var(--accent); }
 .logo-lg { font-size: 2.25rem; }
 .searchbox { flex: 1; max-width: 640px; position: relative; display: flex; align-items: center; background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 999px; padding: 4px 4px 4px 18px; transition: border-color .15s, box-shadow .15s, background .15s; }
 .searchbox:focus-within { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }

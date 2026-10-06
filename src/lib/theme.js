@@ -5,12 +5,12 @@ export const MODES = [
   { v: 'system', label: 'Theo máy', icon: 'monitor' },
 ];
 export const ACCENTS = [
-  { v: 'blue', label: 'Xanh dương', swatch: '#2563eb' },
   { v: 'green', label: 'Xanh lá', swatch: '#0b7a5b' },
+  { v: 'blue', label: 'Xanh dương', swatch: '#2563eb' },
   { v: 'orange', label: 'Cam', swatch: '#c2410c' },
   { v: 'violet', label: 'Tím', swatch: '#7c3aed' },
 ];
-const DEFAULT_THEME = { mode: 'system', accent: 'blue' };
+const DEFAULT_THEME = { mode: 'system', accent: 'green' };
 
 export function readTheme() {
   try {
@@ -23,7 +23,7 @@ export function readTheme() {
 function applyTheme({ mode, accent }) {
   const root = document.documentElement;
   if (mode === 'system') delete root.dataset.theme; else root.dataset.theme = mode;
-  if (accent === 'blue') delete root.dataset.accent; else root.dataset.accent = accent;
+  if (accent === 'green') delete root.dataset.accent; else root.dataset.accent = accent;
 }
 
 export function saveTheme(t) {

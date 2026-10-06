@@ -10,6 +10,7 @@ import { readHistory, pushHistory, removeHistory, clearHistory } from '../lib/se
 import { api } from '../api/client.js';
 import { useDismiss } from '../lib/useDismiss.js';
 import Icon from './Icon.jsx';
+import Logo from './Logo.jsx';
 import ThemeMenu from './ThemeMenu.jsx';
 import { NotificationBell, ChatLink } from './Notifications.jsx';
 
@@ -187,7 +188,7 @@ export function Header() {
     <header className="hdr">
       <div className="wrap hdr-main">
         <BackButton />
-        <Link to="/" className="logo" aria-label="ReOwn — trang chủ" translate="no">Re<span>Own</span></Link>
+        <Link to="/" className="logo" aria-label="ReOwn — trang chủ" translate="no"><Logo /></Link>
         <SearchBox />
         <nav className="hdr-actions" aria-label="Tài khoản">
           {me?.role === 'admin' && <Link to="/quan-tri" className="hdr-act hdr-sell"><Icon name="shield" /><span>Quản trị</span></Link>}
@@ -228,7 +229,7 @@ export function Footer() {
     <footer className="ftr">
       <div className="wrap ftr-in">
         <div>
-          <span className="logo" translate="no">Re<span>Own</span></span>
+          <span className="logo" translate="no"><Logo size={26} /></span>
           <p className="muted small">Chợ đồ cũ cho sinh viên.</p>
         </div>
         <div>

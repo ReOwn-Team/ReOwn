@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../state/useStore.js';
 import Icon from '../components/Icon.jsx';
+import Logo from '../components/Logo.jsx';
 import * as client from '../api/client.js';
 
 const DEMO = [
@@ -74,7 +75,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <section className="login-brand">
-        <span className="logo logo-lg" translate="no">Re<span>Own</span></span>
+        <span className="logo logo-lg" translate="no"><Logo size={44} /></span>
         <h1>Đồ cũ chất lượng, trả sau nhẹ nhàng</h1>
         <ul>
           <li><Icon name="shield" /> Tiền giữ hộ đến khi bạn nhận hàng</li>
