@@ -104,7 +104,7 @@ set E2E_API=1&amp;&amp; npm run e2e   # thêm bản nối API (cần PostgreSQL,
 <pre><code>0.30 × vừa sức + 0.25 × uy tín người bán + 0.20 × rẻ hơn giá tham chiếu + 0.15 × độ mới + 0.10 × phổ biến ở nhóm cùng thu nhập</code></pre>
 <p>"Vừa sức" cao nhất khi món chiếm khoảng 70% ngân sách (trả thẳng: tiền đang có; trả sau: sức góp còn trống) và giảm khi sát 100%, để không luôn đẩy món rẻ nhất lên đầu. Cộng/trừ nhẹ theo hạng người bán, trừ 8 điểm nếu tin có cảnh báo; khi chưa chọn nhu cầu, mỗi danh mục tối đa 2 trong 5 món đầu. Tín hiệu "cùng thu nhập" là lọc cộng tác đơn giản; giai đoạn 2 thay bằng collaborative filtering thật.</p></section>
 <section id="backend"><h2>5. Kiến trúc backend</h2><p><strong>Modular monolith</strong>: một tiến trình Express chia module theo nghiệp vụ, PostgreSQL + SQL thuần (<code>pg</code>). Transaction, <code>SELECT … FOR UPDATE</code>, partial unique index và trigger quyết định tính đúng của tiền, nên viết SQL rõ ràng thay vì giấu sau ORM. Các bên thứ ba (SMS OTP, eKYC, cổng thanh toán, đối tác cho vay) đều <strong>mô phỏng</strong> nhưng đã có chỗ cắm rõ ràng.</p>
-<pre><code>server/src
+<pre><code>apps/api/src
 ├── app.js / index.js    Express, middleware bảo mật, lịch chạy jobs
 ├── config.js            biến môi trường + quy tắc vận hành (phí 4%, SLA gửi hàng 3 ngày…)
 ├── db/                  pool + tx(), migrations/*.sql, seed

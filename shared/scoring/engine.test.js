@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { scoreBuyer, scoreSeller, bnplOffer, recommend, listingRisk, installmentSchedule, effectiveIncome, referencePrice, scanListingText } from './engine.js';
-import { USERS, PRODUCTS, PAST_ORDERS, EXTRA_REVIEWER_SCORES } from '../../src/data/mock.js';
+import { USERS, PRODUCTS, PAST_ORDERS, EXTRA_REVIEWER_SCORES } from '../../apps/web/src/data/mock.js';
 
 const byId = (id) => structuredClone(USERS.find((u) => u.id === id));
 const base = () => byId('u_lan');

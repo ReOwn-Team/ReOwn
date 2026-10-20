@@ -1,4 +1,3 @@
-# Chạy PostgreSQL cho ReOwn bằng Docker: docker compose up -d
 services:
   db:
     image: postgres:16
@@ -7,9 +6,9 @@ services:
       POSTGRES_PASSWORD: reown
       POSTGRES_DB: reown
     ports:
-      - "127.0.0.1:5432:5432" # chỉ máy này truy cập được; mật khẩu reown/reown chỉ dùng cho dev
+      - "127.0.0.1:5432:5432"
     volumes:
       - reown-db:/var/lib/postgresql/data
-      - ./server/docker-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./apps/api/docker-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 volumes:
   reown-db:
