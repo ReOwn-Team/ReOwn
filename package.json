@@ -9,9 +9,7 @@
     "build:single": "vite build --mode single",
     "preview": "vite preview",
     "test": "vitest run",
-    "dev:api": "vite --mode api",
-    "build:api": "vite build --mode api",
-    "build:vercel": "VITE_API_URL=same-origin vite build",
+    "build:vercel": "VITE_API_URL= vite build",
     "e2e": "playwright test"
   },
   "dependencies": {

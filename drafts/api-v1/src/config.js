@@ -25,7 +25,7 @@ function required(name, devDefault) {
   }
   if (demoDeployment) return null;
   if (devTools && devDefault) return devDefault;
-  throw new Error(`Thiếu biến môi trường bắt buộc: ${name} (máy dev: đặt DEV_TOOLS=true trong apps/api/.env)`);
+  throw new Error(`Thiếu biến môi trường bắt buộc: ${name} (máy dev: đặt DEV_TOOLS=true trong drafts/api-v1/.env)`);
 }
 const secret = (name, fixed) => () => {
   const v = fixed ?? runtimeSecrets[name];

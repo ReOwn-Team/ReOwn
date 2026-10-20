@@ -8,7 +8,7 @@ import { post, wallet, acct } from '../services/ledger.js';
 import * as orders from '../services/orders.js';
 import { payInstallment } from '../services/bnpl.js';
 import { rescore, sellerScore } from '../services/scoring.js';
-import { PRODUCTS } from '../../../web/src/data/mock.js';
+import { PRODUCTS } from '../../../../apps/web/src/data/mock.js';
 
 const DAY = 86_400_000;
 const ago = (days) => new Date(Date.now() - days * DAY);

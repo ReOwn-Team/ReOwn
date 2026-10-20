@@ -1,4 +1,4 @@
-const TARGET = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'api' ? 'http://localhost:4000' : '');
+const TARGET = import.meta.env.VITE_API_URL || '';
 export const API_ENABLED = !!TARGET;
 export const API_URL = TARGET === 'same-origin' ? '' : TARGET.replace(/\/$/, '');
 

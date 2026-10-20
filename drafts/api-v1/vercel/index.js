@@ -1,9 +1,9 @@
 // Điểm vào serverless trên Vercel: toàn bộ /api/* được chuyển về đây (xem vercel.json).
 // Bản triển khai này là BẢN DEMO (_demo-env.js): mã OTP hiện trên giao diện, công cụ demo bật, khoá bí mật tự sinh.
 import './_demo-env.js';
-import { createApp } from '../apps/api/src/app.js';
-import { bootstrap } from '../apps/api/src/db/bootstrap.js';
-import { runJobs } from '../apps/api/src/services/jobs.js';
+import { createApp } from '../src/app.js';
+import { bootstrap } from '../src/db/bootstrap.js';
+import { runJobs } from '../src/services/jobs.js';
 
 const app = createApp();
 let ready = null;

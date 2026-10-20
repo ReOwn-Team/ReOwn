@@ -1,27 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "VITE_API_URL=same-origin vite build",
-  "outputDirectory": "dist",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api"
-    }
-  ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 60,
-      "includeFiles": "apps/api/src/db/migrations/**"
-    }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/jobs",
-      "schedule": "0 20 * * *"
-    }
-  ],
-  "regions": [
-    "iad1"
-  ]
+  "buildCommand": "VITE_API_URL= vite build",
+  "outputDirectory": "dist"
 }
