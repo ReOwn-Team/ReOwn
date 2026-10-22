@@ -1,7 +1,13 @@
-# Backend bản nháp (api-v1)
+# Archived backend draft (api-v1)
 
-Mã Express/PostgreSQL cũ, migration, test và cấu hình triển khai Vercel cũ. Chỉ giữ để tham khảo khi viết backend mới tại [apps/api/](../../apps/api/); không được gọi hoặc triển khai từ cấu hình dự án hiện tại.
+This directory preserves the previous Express/PostgreSQL backend, migrations, tests, and deployment configuration as reference material for the rewrite in [apps/api/](../../apps/api/). It is **not** connected to the current web app or deployed by the root [vercel.json](../../vercel.json).
 
-`vercel/` chứa điểm vào serverless cũ. `docker-compose.yml` chứa môi trường PostgreSQL của bản nháp. Tài liệu nghiệp vụ cũ nằm trong [docs/](../../docs/).
+- `src/` — application code and database migrations.
+- `test/` — backend tests from the old implementation.
+- `vercel/` — former serverless entry point; inactive.
+- `docker-compose.yml` and `docker-init.sql` — old local PostgreSQL setup.
+- `e2e-api.spec.js` — old API-mode browser test; excluded from current browser tests.
 
-Nếu cần chạy lại bản nháp để đối chiếu, cần cài dependencies riêng, cấu hình PostgreSQL riêng và kiểm tra các thao tác `db:reset` trước khi thực hiện vì lệnh này xóa dữ liệu trong database được cấu hình.
+If you need to run this draft for comparison, install its dependencies separately and use an isolated database. Check the database URL before running `db:reset`: that command drops the configured database schema and recreates it with sample data. The draft's demo settings are not suitable for a production deployment.
+
+Historical product and architecture notes are in [docs/](../../docs/).
