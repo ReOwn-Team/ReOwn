@@ -26,3 +26,8 @@ dist-single
 dist-api
 test-results
 playwright-report
+
+.env
+.env.*
+.env.example
+/apps/api/src/generated/prisma/
