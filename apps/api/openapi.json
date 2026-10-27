@@ -1,0 +1,980 @@
+{
+  "components": {
+    "schemas": {
+      "AuthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "enum": [
+              900
+            ],
+            "type": "number"
+          },
+          "tokenType": {
+            "enum": [
+              "Bearer"
+            ],
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserProfile"
+          }
+        },
+        "required": [
+          "user",
+          "accessToken",
+          "tokenType",
+          "expiresIn"
+        ],
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "ok"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "HttpError": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message"
+        ],
+        "type": "object"
+      },
+      "LoginUserRequest": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "identifier": {
+                "anyOf": [
+                  {
+                    "format": "email",
+                    "maxLength": 254,
+                    "type": "string"
+                  },
+                  {
+                    "pattern": "^\\+[1-9]\\d{7,14}$",
+                    "type": "string"
+                  }
+                ]
+              },
+              "password": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "identifier",
+              "password"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "email": {
+                "format": "email",
+                "maxLength": 254,
+                "type": "string"
+              },
+              "password": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "email",
+              "password"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "password": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "phone": {
+                "pattern": "^\\+[1-9]\\d{7,14}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "phone",
+              "password"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Send exactly one identifier form: identifier (email or E.164 phone), legacy email, or phone, together with password. Email is trimmed/lowercased."
+      },
+      "RegisterUserRequest": {
+        "additionalProperties": false,
+        "description": "Name and email are trimmed before validation; email is lowercased. Phone uses E.164. Password is never trimmed.",
+        "properties": {
+          "displayName": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 12,
+            "type": "string"
+          },
+          "phone": {
+            "pattern": "^\\+[1-9]\\d{7,14}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "displayName",
+          "email",
+          "phone",
+          "password"
+        ],
+        "type": "object"
+      },
+      "UpdateUserRequest": {
+        "additionalProperties": false,
+        "description": "Only displayName can be updated; it is trimmed before validation.",
+        "properties": {
+          "displayName": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "displayName"
+        ],
+        "type": "object"
+      },
+      "UserProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "avatarKey": {
+            "nullable": true,
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "emailVerified": {
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kycStatus": {
+            "type": "integer"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "phoneVerified": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "avatarKey",
+          "email",
+          "phone",
+          "emailVerified",
+          "phoneVerified",
+          "kycStatus",
+          "role",
+          "status"
+        ],
+        "type": "object"
+      },
+      "ValidationError": {
+        "additionalProperties": false,
+        "properties": {
+          "errors": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": {
+            "enum": [
+              "Validation failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "errors"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessToken": {
+        "bearerFormat": "JWT",
+        "description": "15-minute access token bound to an active session family.",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "developmentRefreshCookie": {
+        "description": "Only for explicit COOKIE_SECURE=false on localhost development.",
+        "in": "cookie",
+        "name": "reown_refresh",
+        "type": "apiKey"
+      },
+      "refreshCookie": {
+        "description": "Production/default Secure HttpOnly refresh cookie; browser managed.",
+        "in": "cookie",
+        "name": "__Secure-reown_refresh",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Personal account API v1. Access tokens are Bearer JWTs; refresh tokens are HttpOnly cookies. Cookie mutations require the exact configured Origin plus X-ReOwn-Client: web. Use credentials: include in browser requests.",
+    "title": "ReOwn API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "Revokes all live tokens in the cookie's family, immediately invalidating its access tokens. Missing or unknown cookie is idempotent. Other login families are unaffected. Requires CSRF headers even without a cookie.",
+        "operationId": "authLogout",
+        "parameters": [
+          {
+            "description": "Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript.",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          {
+            "description": "CSRF protection: send together with credentials: include and the configured Origin.",
+            "in": "header",
+            "name": "X-ReOwn-Client",
+            "required": true,
+            "schema": {
+              "enum": [
+                "web"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session family revoked (if found) and refresh cookie cleared. No response body.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": [
+                    "no-store"
+                  ],
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "description": "Expires the refresh cookie with the same name and path.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded. Observe Retry-After before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {},
+          {
+            "refreshCookie": []
+          },
+          {
+            "developmentRefreshCookie": []
+          }
+        ],
+        "summary": "Log out the current session family",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "Reads only the HttpOnly refresh cookie. Atomically revokes the old token and sets its successor without extending the 30-day absolute expiry. Reuse revokes the whole family. Serialize refresh calls, including across browser tabs; do not blindly retry after a lost response. A 401 clears the cookie; 403/500 do not.",
+        "operationId": "authRefresh",
+        "parameters": [
+          {
+            "description": "Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript.",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          {
+            "description": "CSRF protection: send together with credentials: include and the configured Origin.",
+            "in": "header",
+            "name": "X-ReOwn-Client",
+            "required": true,
+            "schema": {
+              "enum": [
+                "web"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": [
+                    "no-store"
+                  ],
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "description": "Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded. Observe Retry-After before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "refreshCookie": []
+          },
+          {
+            "developmentRefreshCookie": []
+          }
+        ],
+        "summary": "Rotate the refresh token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "description": "Reports process liveness, not database readiness.",
+        "operationId": "healthCheck",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Check API liveness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/users/login": {
+      "post": {
+        "description": "Send identifier plus password. Legacy email/password or phone/password forms remain supported; do not mix identifier forms. Login failures return the same generic 401. Shares a 10-request/15-minute/IP limit with registration.",
+        "operationId": "usersLogin",
+        "parameters": [
+          {
+            "description": "Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript.",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          {
+            "description": "CSRF protection: send together with credentials: include and the configured Origin.",
+            "in": "header",
+            "name": "X-ReOwn-Client",
+            "required": true,
+            "schema": {
+              "enum": [
+                "web"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": [
+                    "no-store"
+                  ],
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "description": "Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded. Observe Retry-After before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "summary": "Log in with email or phone and password",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "description": "Identity comes only from the verified JWT. The user and session family must still be active.",
+        "operationId": "usersGetMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "The authenticated user's private profile; never contains password or token hashes.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": [
+                    "no-store"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Read my private profile",
+        "tags": [
+          "users"
+        ]
+      },
+      "patch": {
+        "description": "Only displayName may be changed. IDs, email, phone, role, status, password and verification fields are rejected.",
+        "operationId": "usersUpdateMe",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "The authenticated user's private profile; never contains password or token hashes.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": [
+                    "no-store"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Update my display name",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/register": {
+      "post": {
+        "description": "Creates an unverified user and a new 30-day absolute session family. Requires exact Origin and X-ReOwn-Client headers. Refresh token is cookie-only.",
+        "operationId": "usersRegister",
+        "parameters": [
+          {
+            "description": "Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript.",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          {
+            "description": "CSRF protection: send together with credentials: include and the configured Origin.",
+            "in": "header",
+            "name": "X-ReOwn-Client",
+            "required": true,
+            "schema": {
+              "enum": [
+                "web"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": [
+                    "no-store"
+                  ],
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "description": "Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded. Observe Retry-After before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "summary": "Register a personal account",
+        "tags": [
+          "users"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Registration, email/phone-password login and private profile",
+      "name": "users"
+    },
+    {
+      "description": "Refresh rotation and per-login session-family logout",
+      "name": "auth"
+    },
+    {
+      "description": "Service liveness",
+      "name": "health"
+    }
+  ]
+}

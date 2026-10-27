@@ -12,9 +12,9 @@ model User {
     id            String  @id @default(uuid()) @db.Uuid
     displayName   String  @map("display_name")
     avatarKey     String? @map("avatar_key")
-    phone         String
+    phone         String  @unique(map: "users_phone_unique")
     phoneVerified Int     @map("phone_verified")
-    email         String
+    email         String  @unique(map: "users_email_unique")
     emailVerified Int     @map("email_verified")
     passwordHash  String  @map("password_hash")
     kycStatus     Int     @map("kyc_status")
@@ -39,6 +39,7 @@ model User {
 
 model Session {
     id               String    @id @default(uuid()) @db.Uuid
+    familyId         String    @map("family_id") @db.Uuid
     userId           String    @map("user_id") @db.Uuid
     refreshTokenHash String    @unique(map: "sessions_refresh_token_hash_unique") @map("refresh_token_hash")
     expiresAt        DateTime  @map("expires_at") @db.Timestamp(0)
@@ -49,6 +50,7 @@ model Session {
 
     user User @relation(fields: [userId], references: [id])
 
+    @@index([familyId], map: "sessions_family_id_index")
     @@map("sessions")
 }
 
