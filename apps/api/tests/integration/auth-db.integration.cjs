@@ -266,7 +266,7 @@ async function run() {
             "-c statement_timeout=5000 -c lock_timeout=4000 -c timezone=UTC",
     };
 
-    await command("/usr/bin/initdb", [
+    await command("initdb", [
         "-D",
         data,
         "--username=reown_test",
@@ -278,7 +278,7 @@ async function run() {
     ]);
     abort.signal.throwIfAborted();
     postgres = spawn(
-        "/usr/bin/postgres",
+        "postgres",
         [
             "-D",
             data,
