@@ -16,30 +16,46 @@ jobs:
     test:
         runs-on: ubuntu-24.04
         timeout-minutes: 20
+        env:
+            NEXT_TELEMETRY_DISABLED: "1"
         steps:
             - uses: actions/checkout@v5
             - uses: actions/setup-node@v5
               with:
                   node-version: "22"
                   cache: npm
-                  cache-dependency-path: package-lock.json
-            - name: Cài thư viện
+                  cache-dependency-path: |
+                      package-lock.json
+                      apps/web/package-lock.json
+            - name: Cài thư viện shared
+              working-directory: .
               run: npm ci
-            - name: Unit test (engine, tìm kiếm, bản demo)
+            - name: Cài thư viện web
+              working-directory: apps/web
+              run: npm ci
+            - name: Unit test shared
+              working-directory: .
               run: npm test
-            - name: Build
+            - name: Lint web
+              working-directory: apps/web
+              run: npm run lint
+            - name: Typecheck web
+              working-directory: apps/web
+              run: npm run typecheck
+            - name: Build Next.js
+              working-directory: .
               run: npm run build
-            - name: Build standalone demo
-              run: npm run build:single
             - name: Cài Chromium cho Playwright
+              working-directory: apps/web
               run: npx playwright install --with-deps chromium
-            - name: Test trình duyệt (bản demo)
+            - name: Smoke test trình duyệt
+              working-directory: .
               run: npm run e2e
             - uses: actions/upload-artifact@v6
               if: failure()
               with:
                   name: playwright-report
                   path: |
-                      playwright-report
-                      test-results
+                      apps/web/playwright-report
+                      apps/web/test-results
                   retention-days: 7
