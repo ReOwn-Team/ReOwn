@@ -20,7 +20,7 @@
     },
     "dependencies": {
         "@asteasolutions/zod-to-openapi": "^7.3.4",
-        "@nestjs/common": "^11.1.0",
+        "@nestjs/common": "^12.3.2",
         "@nestjs/core": "^11.1.0",
         "@nestjs/platform-express": "^11.1.0",
         "@nestjs/swagger": "^11.4.7",
