@@ -47,7 +47,7 @@ jobs:
       - name: Unit, HTTP and contract tests
         run: npm test -- --ci
       - name: Upload verified OpenAPI contract
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: openapi-contract
           path: |
