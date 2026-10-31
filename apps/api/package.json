@@ -19,7 +19,7 @@
         "prisma:studio": "prisma studio"
     },
     "dependencies": {
-        "@asteasolutions/zod-to-openapi": "^7.3.4",
+        "@asteasolutions/zod-to-openapi": "^9.1.0",
         "@nestjs/common": "^11.1.0",
         "@nestjs/core": "^11.1.0",
         "@nestjs/platform-express": "^11.1.0",
