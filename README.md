@@ -1,31 +1,99 @@
 # ReOwn
 
-Chợ đồ cũ cho sinh viên: trả sau, gợi ý theo túi tiền, chấm điểm rủi ro hai chiều.
+**A secondhand marketplace experience designed for students.** ReOwn brings product discovery, budget-aware recommendations, and buyer and seller trust signals into one responsive web app.
+
+> [!IMPORTANT]
+> ReOwn is currently a **frontend prototype**. Accounts, listings, orders, wallets, and installment payments are simulated with sample data stored in the browser. No transactions, identity checks, lending, or payments are processed. A new backend is planned but has not been implemented.
+
+## What you can explore
+
+- Browse and search secondhand listings, then filter by category, price, condition, and seller trust.
+- Adjust income, savings, and interests to explore budget-based recommendations.
+- Walk through simulated buying, selling, messaging, notifications, and order flows.
+- Inspect buyer and seller scoring explanations and example installment schedules.
+- Use the responsive interface in light or dark mode.
+
+These flows demonstrate product behavior, **not** a production financial service.
+
+## Technology
+
+### Planned stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js, React, TypeScript |
+| Styling | Tailwind CSS |
+| Backend | NestJS, TypeScript |
+| Runtime | Node.js |
+| Database | PostgreSQL |
+| ORM | Prisma |
+| Cache and job queues | Redis (planned) |
+| Object storage | Cloudflare R2 |
+| Containers | Docker |
+| Source control and CI | GitHub, GitHub Actions |
+
+Redis is intended for short-lived caching, rate limiting, and background jobs; PostgreSQL remains the system of record. Job queue tooling is not selected yet.
+
+### Search and AI: future options
+
+| Need | Candidate | When to consider it |
+| --- | --- | --- |
+| Product search | PostgreSQL full-text search first; Elasticsearch only if search requirements or scale justify a separate index | Advanced relevance, typo tolerance, or high-volume faceting beyond the simpler approach. |
+| Semantic search | PostgreSQL with pgvector | Vector-based retrieval if a validated feature needs it. |
+| Custom model training | PyTorch **or** TensorFlow | Only if real data and a defined AI use case warrant training and maintaining a model. |
+
+These are **evaluation candidates**, not selected dependencies. Elasticsearch is a search engine, not a replacement for PostgreSQL as the system of record; PyTorch and TensorFlow are machine-learning frameworks, not required for API-based AI features. Any AI service would sit behind the NestJS API. Model provider and inference tooling remain undecided. Current scoring and recommendations are rule-based, not AI-powered.
+
+### Current prototype
+
+The runnable frontend uses React 19, React Router 7, JavaScript (JSX), CSS, and Vite 8. Mock data and interactions run in the browser using `localStorage` and shared JavaScript modules. Vitest and Playwright cover the frontend; Vercel currently builds the static web app. The former Express/PostgreSQL backend is archived in [drafts/api-v1/](drafts/api-v1/) and is not deployed. PostgreSQL and Docker exist only in that archive. **Next.js, Tailwind CSS, NestJS, Prisma, Redis, and Cloudflare R2 are not implemented yet.**
+
+## Run locally
+
+**Requirements:** Node.js 22 and npm.
 
 ```bash
-npm install && npm run dev            # chỉ giao diện, dữ liệu giả lập — http://localhost:5173
-
-cd server && copy .env.example .env   # macOS/Linux: cp
-npm install && npm run db:reset && npm run dev   # API — http://localhost:4000/api/health
-cd .. && npm run dev:api              # giao diện nối API — http://localhost:5173
+npm ci
+npm run dev
 ```
 
-Tài liệu đầy đủ (chức năng, hệ thống điểm, kiến trúc, bảo mật, ảnh sản phẩm): `docs/ReOwn-tai-lieu.html` hoặc `docs/ReOwn-tai-lieu.docx`.
+Visit http://localhost:5173. The prototype runs without PostgreSQL or an API server. Leave `VITE_API_URL` unset or empty to enable the browser-based demo. Demo state is stored in your browser; clearing site storage resets local changes.
 
-## Triển khai bản demo lên Vercel
+## Development
 
-Đặt thêm trong Environment Variables của dự án Vercel:
+| Command | Description |
+| --- | --- |
+| `npm test` | Run unit tests for shared logic and the web prototype. |
+| `npm run build` | Create a production build in `dist/`. |
+| `npm run preview` | Serve the production build locally. |
+| `npm run e2e` | Run Playwright tests against the demo. |
 
-- `CRON_SECRET`: chuỗi ngẫu nhiên (`openssl rand -hex 32`). Vercel tự gửi kèm khi gọi cron. Thiếu biến này thì `/api/cron/jobs` luôn trả 401, vì route đó seed lại toàn bộ CSDL demo.
-- `ADMIN_TOTP_SECRET` (khuyến nghị): khi có biến này, số quản trị viên mới nhận mã OTP trên giao diện và phải qua 2FA. Nếu không đặt, bản demo công khai **không** phát mã cho số admin. Chỉ đặt `DEMO_ADMIN_OPEN=true` khi bạn chấp nhận cho mọi người vào trang quản trị.
+Install the browser before the first end-to-end run:
 
-## Chưa sẵn sàng chạy thật
+```bash
+npx playwright install chromium
+npm run e2e
+```
 
-Các phần sau đang là giả lập, chỉ bật ở bản demo / máy dev. Ở production chúng báo lỗi 503 thay vì âm thầm "thành công":
+GitHub Actions runs unit tests, builds the web app, and exercises browser flows on pushes and pull requests.
 
-| Phần | Hiện tại | Cần làm trước khi chạy thật |
-|---|---|---|
-| Gửi mã OTP | Trả mã về giao diện | Tích hợp nhà cung cấp SMS |
-| Xác thực CCCD / ngân hàng / sinh viên | Duyệt mọi giấy tờ | Tích hợp đối tác eKYC |
-| Nạp tiền vào ví | Chỉ có nút nạp giả lập (route `/api/dev`) | Tích hợp cổng thanh toán |
-| Rút tiền | Ghi nhận thành công ngay | Tích hợp chuyển khoản ngân hàng |
+## Repository layout
+
+```text
+apps/
+  web/               Current React/Vite prototype; planned Next.js frontend
+  api/               Reserved for the planned NestJS backend (no service yet)
+shared/              Search, scoring, and policy logic
+drafts/
+  api-v1/            Archived Express/PostgreSQL backend
+docs/                Product and architecture documentation
+.github/workflows/    Automated checks
+```
+
+The [archived backend](drafts/api-v1/) includes its tests and former Vercel entry point. It is retained for reference, not deployed. Some [documentation](docs/) describes that earlier implementation.
+
+## Deployment status
+
+[vercel.json](vercel.json) builds and serves the static frontend only. No backend function, API route, or scheduled job is configured. The Vercel build clears `VITE_API_URL` to keep the deployed app in demo mode. Changes to this repository do not affect an existing deployment until it is redeployed.
+
+For the backend rewrite, start in [apps/api/](apps/api/). Review the archived code and documentation as references, not as production-ready components.

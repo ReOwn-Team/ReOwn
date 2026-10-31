@@ -1,57 +1,61 @@
 name: CI
 
 on:
-  push:
-  pull_request:
+    push:
+    pull_request:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:16
+    test:
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
         env:
-          POSTGRES_USER: reown
-          POSTGRES_PASSWORD: reown
-          POSTGRES_DB: reown
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U reown" --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      DEV_TOOLS: 'true'
-      DATABASE_URL: postgresql://reown:reown@localhost:5432/reown
-      TEST_DATABASE_URL: postgresql://reown:reown@localhost:5432/reown_test
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            server/package-lock.json
-      - name: Tạo CSDL test
-        run: PGPASSWORD=reown psql -h localhost -U reown -d reown -c 'CREATE DATABASE reown_test'
-      - name: Cài thư viện
-        run: npm ci && npm ci --prefix server
-      - name: Unit test (engine, tìm kiếm, bản demo)
-        run: npm test
-      - name: Test API trên PostgreSQL
-        run: npm test --prefix server
-      - name: Build
-        run: npm run build
-      - name: Cài Chromium cho Playwright
-        run: npx playwright install --with-deps chromium
-      - name: Test trình duyệt (bản demo + bản nối API)
-        run: npm run e2e
-        env:
-          E2E_API: '1'
-      - uses: actions/upload-artifact@v6
-        if: failure()
-        with:
-          name: playwright-report
-          path: |
-            playwright-report
-            test-results
-          retention-days: 7
+            NEXT_TELEMETRY_DISABLED: "1"
+        steps:
+            - uses: actions/checkout@v5
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: "22"
+                  cache: npm
+                  cache-dependency-path: |
+                      package-lock.json
+                      apps/web/package-lock.json
+            - name: Cài thư viện shared
+              working-directory: .
+              run: npm ci
+            - name: Cài thư viện web
+              working-directory: apps/web
+              run: npm ci
+            - name: Unit test shared
+              working-directory: .
+              run: npm test
+            - name: Lint web
+              working-directory: apps/web
+              run: npm run lint
+            - name: Typecheck web
+              working-directory: apps/web
+              run: npm run typecheck
+            - name: Build Next.js
+              working-directory: .
+              run: npm run build
+            - name: Cài Chromium cho Playwright
+              working-directory: apps/web
+              run: npx playwright install --with-deps chromium
+            - name: Smoke test trình duyệt
+              working-directory: .
+              run: npm run e2e
+            - uses: actions/upload-artifact@v6
+              if: failure()
+              with:
+                  name: playwright-report
+                  path: |
+                      apps/web/playwright-report
+                      apps/web/test-results
+                  retention-days: 7

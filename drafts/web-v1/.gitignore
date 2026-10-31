@@ -1,0 +1,19 @@
+# Dependencies and generated output
+node_modules/
+dist/
+dist-single/
+dist-ssr/
+coverage/
+.vite/
+
+# Browser test artifacts
+playwright-report/
+playwright/.cache/
+test-results/
+blob-report/
+
+# Local environment and logs
+.env
+.env.*
+*.local
+*.log

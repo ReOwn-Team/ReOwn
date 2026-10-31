@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normText, searchProducts, matchScore } from './search.js';
-import { PRODUCTS } from '../src/data/mock.js';
+import { PRODUCTS } from '../apps/web/src/data/mock.js';
 
 const top = (q) => searchProducts(q, PRODUCTS).map((x) => x.product.title);
 

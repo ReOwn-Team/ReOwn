@@ -1,0 +1,274 @@
+generator client {
+    provider     = "prisma-client"
+    output       = "../src/generated/prisma"
+    moduleFormat = "cjs"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model User {
+    id            String  @id @default(uuid()) @db.Uuid
+    displayName   String  @map("display_name")
+    avatarKey     String? @map("avatar_key")
+    phone         String  @unique(map: "users_phone_unique")
+    phoneVerified Int     @map("phone_verified")
+    email         String  @unique(map: "users_email_unique")
+    emailVerified Int     @map("email_verified")
+    passwordHash  String  @map("password_hash")
+    kycStatus     Int     @map("kyc_status")
+    role          String  @db.VarChar(255)
+    status        String  @db.VarChar(255)
+
+    sessions               Session[]
+    verificationChallenges VerificationChallenge[]
+    products               Product[]               @relation("ProductSeller")
+    ordersAsBuyer          Order[]                 @relation("OrderBuyer")
+    ordersAsSeller         Order[]                 @relation("OrderSeller")
+    ordersCancelled        Order[]                 @relation("OrderCancelledBy")
+    reviewsWritten         Review[]                @relation("ReviewReviewer")
+    reviewsReceived        Review[]                @relation("ReviewReviewee")
+    reportsFiled           Report[]                @relation("ReportReporter")
+    reportsAgainst         Report[]                @relation("ReportReportedUser")
+    reportsAssigned        Report[]                @relation("ReportAssignedTo")
+    auditLogs              AuditLog[]
+
+    @@map("users")
+}
+
+model Session {
+    id               String    @id @default(uuid()) @db.Uuid
+    familyId         String    @map("family_id") @db.Uuid
+    userId           String    @map("user_id") @db.Uuid
+    refreshTokenHash String    @unique(map: "sessions_refresh_token_hash_unique") @map("refresh_token_hash")
+    expiresAt        DateTime  @map("expires_at") @db.Timestamp(0)
+    revokedAt        DateTime? @map("revoked_at") @db.Timestamp(0)
+    lastUsedAt       DateTime? @map("last_used_at") @db.Timestamp(0)
+    userAgent        String?   @map("user_agent")
+    ipAddress        Int?      @map("ip_address")
+
+    user User @relation(fields: [userId], references: [id])
+
+    @@index([familyId], map: "sessions_family_id_index")
+    @@map("sessions")
+}
+
+model VerificationChallenge {
+    id            String    @id @default(uuid()) @db.Uuid
+    userId        String    @map("user_id") @db.Uuid
+    purpose       String    @db.VarChar(255)
+    channel       String    @db.VarChar(255)
+    destination   String
+    secretHash    String?   @map("secret_hash")
+    expiresAt     DateTime  @map("expires_at") @db.Timestamp(0)
+    consumedAt    DateTime? @map("consumed_at") @db.Timestamp(0)
+    invalidatedAt DateTime? @map("invalidated_at") @db.Timestamp(0)
+
+    user User @relation(fields: [userId], references: [id])
+
+    @@map("verification_challenges")
+}
+
+model Category {
+    id          String   @id @default(uuid()) @db.Uuid
+    parentId    String?  @map("parent_id") @db.Uuid
+    name        String   @db.VarChar(100)
+    slug        String   @db.VarChar(120)
+    description String?
+    sortOrder   Int?     @default(0) @map("sort_order")
+    isActive    Boolean? @default(true) @map("is_active")
+
+    parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+    children Category[] @relation("CategoryHierarchy")
+    products Product[]
+
+    @@map("categories")
+}
+
+model Product {
+    id           String    @id @default(uuid()) @db.Uuid
+    sellerId     String    @map("seller_id") @db.Uuid
+    categoryId   String    @map("category_id") @db.Uuid
+    title        String    @db.VarChar(200)
+    description  String
+    price        Int
+    amount       Int
+    condition    String    @db.VarChar(255)
+    knownDefects String?   @map("known_defects")
+    status       String    @db.VarChar(255)
+    publishedAt  DateTime? @map("published_at") @db.Timestamp(0)
+    deletedAt    DateTime? @map("deleted_at") @db.Timestamp(0)
+
+    seller   User           @relation("ProductSeller", fields: [sellerId], references: [id])
+    category Category       @relation(fields: [categoryId], references: [id])
+    images   ProductImage[]
+    orders   Order[]
+    reports  Report[]
+
+    @@map("products")
+}
+
+model ProductImage {
+    id        String  @id @default(uuid()) @db.Uuid
+    productId String  @map("product_id") @db.Uuid
+    objectKey String  @map("object_key")
+    sortOrder Int?    @map("sort_order")
+    altText   String? @map("alt_text")
+    mimeType  String  @map("mime_type") @db.VarChar(200)
+    sizeBytes Int     @map("size_bytes")
+
+    product Product @relation(fields: [productId], references: [id])
+
+    @@map("product_images")
+}
+
+model Order {
+    id                   String    @id @default(uuid()) @db.Uuid
+    orderCode            String    @unique(map: "orders_order_code_unique") @map("order_code") @db.VarChar(30)
+    idempotencyKey       String    @unique(map: "orders_idempotency_key_unique") @map("idempotency_key") @db.Uuid
+    productId            String    @map("product_id") @db.Uuid
+    buyerId              String    @map("buyer_id") @db.Uuid
+    sellerId             String    @map("seller_id") @db.Uuid
+    productSnapshot      Json      @map("product_snapshot") @db.JsonB
+    itemPrice            Int       @map("item_price")
+    shippingFee          Int?      @default(0) @map("shipping_fee")
+    platformFee          Int?      @default(0) @map("platform_fee")
+    amount               Int
+    totalPrice           Int       @map("total_price")
+    paymentMethod        Int       @map("payment_method")
+    fulfillmentMethod    Int       @map("fulfillment_method")
+    recipientName        String    @map("recipient_name") @db.VarChar(200)
+    recipientPhone       String    @map("recipient_phone") @db.VarChar(20)
+    deliveryAddress      Json?     @map("delivery_address") @db.JsonB
+    meetupLocation       String?   @map("meetup_location")
+    buyerNote            String[]  @map("buyer_note")
+    status               String    @db.VarChar(255)
+    reservationExpiresAt DateTime? @map("reservation_expires_at") @db.Timestamp(0)
+    confirmedAt          DateTime? @map("confirmed_at") @db.Timestamp(0)
+    cancelledById        String?   @map("cancelled_by") @db.Uuid
+    cancellationReason   String?   @map("cancellation_reason")
+
+    product          Product           @relation(fields: [productId], references: [id])
+    buyer            User              @relation("OrderBuyer", fields: [buyerId], references: [id])
+    seller           User              @relation("OrderSeller", fields: [sellerId], references: [id])
+    cancelledBy      User?             @relation("OrderCancelledBy", fields: [cancelledById], references: [id])
+    payments         Payment[]
+    installmentPlans InstallmentPlan[]
+    reviews          Review[]
+    reports          Report[]
+
+    @@map("orders")
+}
+
+model Payment {
+    id                String    @id @default(uuid()) @db.Uuid
+    orderId           String    @map("order_id") @db.Uuid
+    idempotencyKey    String    @unique(map: "payments_idempotency_key_unique") @map("idempotency_key") @db.Uuid
+    provider          String    @db.VarChar(200)
+    providerPaymentId String?   @map("provider_payment_id")
+    amount            Int
+    status            String    @db.VarChar(255)
+    paidAt            DateTime? @map("paid_at") @db.Timestamp(0)
+    expiresAt         DateTime? @map("expires_at") @db.Timestamp(0)
+
+    order Order @relation(fields: [orderId], references: [id])
+
+    @@map("payments")
+}
+
+model InstallmentPlan {
+    id                    String   @id @default(uuid()) @db.Uuid
+    orderId               String   @map("order_id") @db.Uuid
+    provider              String   @db.VarChar(50)
+    providerApplicationId String?  @map("provider_application_id")
+    providerContractId    String?  @map("provider_contract_id")
+    isSimulated           Boolean? @default(true) @map("is_simulated")
+    principalAmount       Int      @map("principal_amount")
+    financingFee          Int      @map("financing_fee")
+    status                Int
+    acceptedAt            DateTime @map("accepted_at") @db.Timestamp(0)
+    rejectionReason       String?  @map("rejection_reason")
+
+    order        Order         @relation(fields: [orderId], references: [id])
+    installments Installment[]
+
+    @@map("installment_plans")
+}
+
+model Installment {
+    id                    String   @id @default(uuid()) @db.Uuid
+    planId                String   @map("plan_id") @db.Uuid
+    sequenceNumber        Int      @map("sequence_number")
+    providerInstallmentId Int?     @map("provider_installment_id")
+    dueAt                 DateTime @map("due_at") @db.Timestamp(0)
+    principalAmount       Int      @map("principal_amount")
+    feeAmount             Int      @map("fee_amount")
+    amountDue             Int      @map("amount_due")
+    amountPaid            Int?     @default(0) @map("amount_paid")
+    status                String   @db.VarChar(255)
+    paidAt                DateTime @map("paid_at") @db.Timestamp(0)
+
+    plan InstallmentPlan @relation(fields: [planId], references: [id])
+
+    @@map("installments")
+}
+
+model Review {
+    id           String  @id @default(uuid()) @db.Uuid
+    orderId      String  @map("order_id") @db.Uuid
+    reviewerId   String  @map("reviewer_id") @db.Uuid
+    revieweeId   String  @map("reviewee_id") @db.Uuid
+    rating       Int
+    comment      String
+    status       String
+    hiddenReason String? @map("hidden_reason")
+
+    order    Order @relation(fields: [orderId], references: [id])
+    reviewer User  @relation("ReviewReviewer", fields: [reviewerId], references: [id])
+    reviewee User  @relation("ReviewReviewee", fields: [revieweeId], references: [id])
+
+    @@map("reviews")
+}
+
+model Report {
+    id             String    @id @default(uuid()) @db.Uuid
+    reporterId     String    @map("reporter_id") @db.Uuid
+    productId      String?   @map("product_id") @db.Uuid
+    orderId        String?   @map("order_id") @db.Uuid
+    reportedUserId String?   @map("reported_user_id") @db.Uuid
+    reasonCode     String    @map("reason_code") @db.VarChar(255)
+    description    String
+    status         String    @db.VarChar(255)
+    assignedToId   String?   @map("assigned_to") @db.Uuid
+    resolutionNote String?   @map("resolution_note")
+    resolvedAt     DateTime? @map("resolved_at") @db.Timestamp(0)
+    createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+    updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamp(0)
+
+    reporter     User     @relation("ReportReporter", fields: [reporterId], references: [id])
+    product      Product? @relation(fields: [productId], references: [id])
+    order        Order?   @relation(fields: [orderId], references: [id])
+    reportedUser User?    @relation("ReportReportedUser", fields: [reportedUserId], references: [id])
+    assignedTo   User?    @relation("ReportAssignedTo", fields: [assignedToId], references: [id])
+
+    @@index([status, createdAt], map: "reports_status_created_at_index")
+    @@map("reports")
+}
+
+model AuditLog {
+    id         String   @id @default(uuid()) @db.Uuid
+    actorId    String?  @map("actor_id") @db.Uuid
+    actorType  String   @map("actor_type") @db.VarChar(255)
+    action     String   @db.VarChar(100)
+    entityType String   @map("entity_type") @db.VarChar(50)
+    entityId   String   @map("entity_id") @db.Uuid
+    metadata   Json?    @db.JsonB
+    requestId  String?  @map("request_id") @db.VarChar(100)
+    createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+
+    actor User? @relation(fields: [actorId], references: [id])
+
+    @@index([entityType, entityId, createdAt], map: "audit_logs_entity_type_entity_id_created_at_index")
+    @@map("audit_logs")
+}

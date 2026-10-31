@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: reown
+      POSTGRES_PASSWORD: reown
+      POSTGRES_DB: reown
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - reown-db:/var/lib/postgresql/data
+      - ./docker-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+volumes:
+  reown-db:

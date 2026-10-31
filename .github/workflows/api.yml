@@ -1,0 +1,84 @@
+name: API CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/api
+
+env:
+  # Prisma CLI requires a URL for generation; no job connects to this database.
+  DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/reown_ci?schema=public
+
+jobs:
+  quality:
+    name: API tests and OpenAPI contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Install API dependencies
+        run: npm ci
+      - name: Validate Prisma schema
+        run: npm run prisma:validate
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+      - name: Build and check OpenAPI JSON and shared types
+        run: npm run openapi:check
+      - name: Typecheck source and tests
+        run: npx tsc --project tsconfig.test.json --noEmit
+      - name: Typecheck shared frontend contract
+        run: npx tsc --noEmit --strict --skipLibCheck --types node --moduleResolution node ../../shared/api/index.ts
+      - name: Unit, HTTP and contract tests
+        run: npm test -- --ci
+      - name: Upload verified OpenAPI contract
+        uses: actions/upload-artifact@v6
+        with:
+          name: openapi-contract
+          path: |
+            apps/api/openapi.json
+            shared/api/schema.d.ts
+            shared/api/index.ts
+          if-no-files-found: error
+          retention-days: 7
+
+  database:
+    name: PostgreSQL migrations and session concurrency
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Install PostgreSQL binaries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-16
+          test -x /usr/lib/postgresql/16/bin/initdb
+          test -x /usr/lib/postgresql/16/bin/postgres
+          python3 -c 'import os; open(os.environ["GITHUB_PATH"], "a").write("/usr/lib/postgresql/16/bin\n")'
+      - name: Install API dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+      - name: Test migrations, rotation, replay and concurrent logout
+        # The runner creates and cleans up its own temporary SCRAM-protected cluster.
+        run: npm run test:db
