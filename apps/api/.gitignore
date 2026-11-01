@@ -1,0 +1,6 @@
+# Publish only the non-secret environment template.
+!.env.example
+
+.data/
+
+.dev-dist/

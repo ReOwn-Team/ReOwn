@@ -1,0 +1,158 @@
+.account-workspace {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+  padding-block: 32px 56px;
+}
+.account-sidebar {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 8px;
+}
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 8px 24px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.account-identity > div {
+  min-width: 0;
+}
+.account-identity strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+.account-identity-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+.account-workspace .account-nav {
+  flex-direction: column;
+  gap: 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.account-workspace .account-nav a {
+  min-height: 48px;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 13px;
+  white-space: normal;
+}
+.account-workspace .account-nav a.active {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-weight: 600;
+}
+.account-workspace-content {
+  min-width: 0;
+  container-type: inline-size;
+  container-name: account-content;
+}
+.account-workspace-content > .container {
+  padding: 0;
+  max-width: none;
+}
+.account-mobile-menu {
+  display: none;
+}
+@container account-content (max-width: 800px) {
+  .two-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sell-preview,
+  .purchase-summary {
+    position: static;
+  }
+  .profile-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .order-list-main,
+  .order-list-actions,
+  .listing-card-main {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 1023px) {
+  .account-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding-block: 20px 40px;
+  }
+  .account-sidebar {
+    display: none;
+  }
+  .account-mobile-menu {
+    display: block;
+    position: sticky;
+    top: 8px;
+    z-index: 30;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .account-mobile-menu > summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    min-height: 60px;
+    list-style: none;
+    border-radius: 12px;
+  }
+  .account-mobile-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+  .account-mobile-menu > summary > span {
+    flex: 1;
+  }
+  .account-mobile-menu small {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .account-mobile-menu strong {
+    display: block;
+    font-size: 13px;
+    margin-top: 2px;
+  }
+  .account-mobile-menu[open] > summary > svg:last-child {
+    transform: rotate(180deg);
+  }
+  .account-mobile-menu .account-nav {
+    padding: 0 8px 8px;
+    max-height: 55dvh;
+    overflow-y: auto;
+  }
+}
+
+.account-nav a {
+  position: relative;
+}
+.account-nav a > * {
+  position: relative;
+  z-index: 1;
+}
+.account-workspace .account-nav a.active {
+  background: transparent;
+}

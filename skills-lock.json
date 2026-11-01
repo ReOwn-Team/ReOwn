@@ -7,6 +7,12 @@
       "skillPath": "skills/accessibility/SKILL.md",
       "computedHash": "612f913bcb03f0787b103c848cd7664b676a9aaf31f25d3270cc69cf5caaab95"
     },
+    "animate-ui": {
+      "source": "imskyleen/animate-ui",
+      "sourceType": "github",
+      "skillPath": "skills/animate-ui/SKILL.md",
+      "computedHash": "1497e1ce800102d5fa514d3faa545db88082a06feb09789f7da02bfc32535d1b"
+    },
     "apple-design": {
       "source": "emilkowalski/skills",
       "sourceType": "github",

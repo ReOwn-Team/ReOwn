@@ -1,5 +1,6 @@
 module.exports = {
     rootDir: ".",
+    setupFiles: ["<rootDir>/tests/setup-env.cjs"],
     testMatch: ["<rootDir>/tests/**/*.spec.ts"],
     transform: {
         "^.+\\.(t|j)s$": [

@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 const isCI = Boolean(process.env.CI);
 const executablePath = process.env.PW_CHROMIUM;
-const baseURL = "http://127.0.0.1:3001";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3001";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -10,10 +10,7 @@ export default defineConfig({
   forbidOnly: isCI,
   workers: 1,
   reporter: isCI
-    ? [
-        ["list"],
-        ["html", { outputFolder: "playwright-report", open: "never" }],
-      ]
+    ? [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]]
     : "list",
   use: {
     baseURL,
@@ -38,7 +35,7 @@ export default defineConfig({
   ],
   webServer: {
     // Build first with `npm run build`; smoke tests exercise the production server.
-    command: "npm run start -- --hostname 127.0.0.1",
+    command: `node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port ${new URL(baseURL).port || "3001"}`,
     url: baseURL,
     reuseExistingServer: !isCI,
     env: { NEXT_TELEMETRY_DISABLED: "1" },

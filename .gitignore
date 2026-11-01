@@ -31,3 +31,9 @@ playwright-report
 .env.*
 .env.example
 /apps/api/src/generated/prisma/
+
+# Real student-card samples (PII) - never commit
+raw-data/
+/apps/api/.kyc-spike/
+/apps/api/models/kyc/*.onnx
+/apps/api/models/kyc/*.traineddata

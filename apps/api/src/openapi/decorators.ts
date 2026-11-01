@@ -12,9 +12,13 @@ const errorDescriptions: Record<number, string> = {
     400: "Invalid JSON or request validation failed; unknown fields are rejected.",
     401: "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed.",
     403: "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure.",
+    404: "Resource not found or not owned by the current user.",
+    413: "Upload exceeds the allowed size.",
     409: "An account with these details already exists; the conflicting field is not disclosed.",
+    422: "The request was understood but the content cannot be used (for example, KYC photos that must be retaken). The body carries a machine-readable error code and reasons.",
     429: "Rate limit exceeded. Observe Retry-After before retrying.",
     500: "Unexpected server or database error.",
+    503: "A required Redis or R2 storage dependency is unavailable or not configured.",
 };
 
 export function ApiErrors(...statuses: number[]) {

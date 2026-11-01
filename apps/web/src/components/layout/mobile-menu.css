@@ -1,0 +1,92 @@
+dialog.dialog.mobile-menu-dialog {
+  inset: 0 auto 0 0;
+  width: min(360px, calc(100vw - 24px));
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0 24px 24px 0;
+  color: var(--foreground);
+}
+.mobile-menu-dialog > .dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: max(24px, env(safe-area-inset-top)) 24px
+    max(24px, env(safe-area-inset-bottom));
+}
+.mobile-menu-dialog .dialog-close {
+  position: sticky;
+  top: 0;
+  right: auto;
+  align-self: flex-end;
+  flex-shrink: 0;
+  margin-bottom: -60px;
+  background: var(--surface);
+  z-index: 2;
+}
+.mobile-menu-dialog h2 {
+  margin: 0;
+  padding-right: 36px;
+}
+.mobile-menu-identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.mobile-menu-identity > svg {
+  width: 40px;
+  height: 40px;
+  padding: 9px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  flex-shrink: 0;
+}
+.mobile-menu-identity p {
+  margin: 4px 0 0;
+}
+.mobile-menu-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mobile-menu-links a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  text-decoration: none;
+  border-radius: 8px;
+}
+.mobile-menu-links a:hover {
+  background: var(--brand-soft);
+}
+.mobile-menu-links svg,
+.mobile-menu-links .figma-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.mobile-menu-secondary {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.mobile-menu-help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: auto;
+  font-size: 12px;
+}
+.mobile-menu-help a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}

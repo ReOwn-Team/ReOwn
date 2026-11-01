@@ -1,0 +1,215 @@
+.price-preview {
+  display: grid;
+  gap: 20px;
+}
+.price-preview-price {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.price-preview-price > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.price-preview-price .detail-price {
+  font-family: "Manrope", var(--font-app);
+  font-size: 35px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.price-preview-price p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.price-preview-controls {
+  display: grid;
+  gap: 10px;
+}
+.price-preview-controls h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.price-preview-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.price-preview-methods label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.price-preview-methods label.is-selected {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.price-preview-methods input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--brand-strong);
+}
+.price-preview-installments {
+  display: grid;
+  gap: 9px;
+  padding-top: 4px;
+}
+.price-preview-term-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.price-preview .price-preview-terms {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+.price-preview-terms [data-slot="toggle-group-item"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: white;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.price-preview-terms [data-slot="toggle-group-item"][data-state="on"] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+.price-preview-terms svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.price-preview-estimate {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.price-preview-monthly {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+}
+.price-preview-monthly > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.price-preview-monthly strong {
+  color: #ff3b30;
+  font-family: "Manrope", var(--font-app);
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.price-preview-summary {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.price-preview-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.price-preview-summary dt {
+  color: var(--muted);
+}
+.price-preview-summary dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 500;
+}
+.price-preview-schedule {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.price-preview-schedule summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  color: var(--brand-strong);
+  font-size: 12px;
+  font-weight: 600;
+  list-style: none;
+}
+.price-preview-schedule summary::-webkit-details-marker {
+  display: none;
+}
+.price-preview-schedule summary svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 160ms ease;
+}
+.price-preview-schedule[open] summary svg {
+  transform: rotate(180deg);
+}
+.price-preview-schedule table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.price-preview-schedule tr {
+  border-top: 1px solid var(--border);
+}
+.price-preview-schedule th,
+.price-preview-schedule td {
+  padding: 9px 0;
+}
+.price-preview-schedule th {
+  text-align: left;
+  font-weight: 400;
+}
+.price-preview-schedule td,
+.price-preview-schedule thead th:last-child {
+  text-align: right;
+}
+.price-preview-schedule thead th {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.price-preview-schedule p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+@media (max-width: 767px) {
+  .price-preview {
+    gap: 15px;
+  }
+  .price-preview-price .detail-price {
+    font-size: 32px;
+  }
+  .price-preview-methods label {
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+  .price-preview-terms [data-slot="toggle-group-item"] {
+    font-size: 11px;
+    padding-inline: 2px;
+  }
+}

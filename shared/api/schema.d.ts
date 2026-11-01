@@ -4,6 +4,176 @@
  */
 
 export interface paths {
+    "/api/v1/admin/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: list up to 50 submissions awaiting review */
+        get: operations["kycReviewList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/kyc/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: extracted fields and automated observations */
+        get: operations["kycReviewDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/kyc/{id}/assets/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: stream one decrypted image (every view is audited) */
+        get: operations["kycReviewAsset"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/kyc/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin: approve or reject; images and data are erased */
+        post: operations["kycReviewDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: list up to 50 current pending reviews */
+        get: operations["productReviewsList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-reviews/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: review snapshot, private metadata, inspection history */
+        get: operations["productReviewDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-reviews/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin: approve/reject the current pending revision */
+        post: operations["productReviewDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-reviews/{id}/images/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: metadata-free review image */
+        get: operations["productReviewImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-reviews/{id}/inspections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin: create a new inspection attempt for current pending review */
+        post: operations["productReviewRetry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-reviews/{id}/originals/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: private original, unavailable after 30 days */
+        get: operations["productReviewOriginal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/logout": {
         parameters: {
             query?: never;
@@ -18,6 +188,40 @@ export interface paths {
          * @description Revokes all live tokens in the cookie's family, immediately invalidating its access tokens. Missing or unknown cookie is idempotent. Other login families are unaffected. Requires CSRF headers even without a cookie.
          */
         post: operations["authLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/otp/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a new OTP, invalidating the previous code */
+        post: operations["authOtpResend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify a single-use email OTP and create a session */
+        post: operations["authOtpVerify"];
         delete?: never;
         options?: never;
         head?: never;
@@ -64,6 +268,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/kyc/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read your student-card verification status */
+        get: operations["kycStatus"];
+        put?: never;
+        post?: never;
+        /** Withdraw verification and erase stored images and data */
+        delete: operations["kycWithdraw"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit a student card front and selfie for verification */
+        post: operations["kycSubmit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-images/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a public product photo */
+        get: operations["productImageGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List up to 100 published listings */
+        get: operations["productsList"];
+        put?: never;
+        /** Publish a listing with 1–6 real photos */
+        post: operations["productsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the current seller's listings */
+        get: operations["productsMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/mine/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a listing owned by the current seller */
+        get: operations["productsGetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/mine/{id}/images/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a metadata-free image belonging to an owned listing */
+        get: operations["productImageOwned"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/mine/{id}/inspection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read observations for your current listing revision */
+        get: operations["productOwnerInspection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a published listing */
+        get: operations["productsGet"];
+        /** Update your unsold listing and photo order */
+        put: operations["productsUpdate"];
+        post?: never;
+        /** Soft-delete your unsold listing without orders */
+        delete: operations["productsDelete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Hide, republish or mark your listing sold */
+        patch: operations["productsStatus"];
+        trace?: never;
+    };
     "/api/v1/users/login": {
         parameters: {
             query?: never;
@@ -75,7 +453,7 @@ export interface paths {
         put?: never;
         /**
          * Log in with email or phone and password
-         * @description Send identifier plus password. Legacy email/password or phone/password forms remain supported; do not mix identifier forms. Login failures return the same generic 401. Shares a 10-request/15-minute/IP limit with registration.
+         * @description Validates identifier/password and sends an OTP to the account email. Does not create a session. Legacy email/password and phone/password inputs remain supported.
          */
         post: operations["usersLogin"];
         delete?: never;
@@ -119,7 +497,7 @@ export interface paths {
         put?: never;
         /**
          * Register a personal account
-         * @description Creates an unverified user and a new 30-day absolute session family. Requires exact Origin and X-ReOwn-Client headers. Refresh token is cookie-only.
+         * @description Sends a registration OTP. No user or session is created until email verification succeeds. Requires exact Origin and X-ReOwn-Client headers.
          */
         post: operations["usersRegister"];
         delete?: never;
@@ -160,6 +538,341 @@ export interface components {
         } | {
             password: string;
             phone: string;
+        };
+        OtpChallenge: {
+            challengeId: string;
+            emailHint: string;
+            expiresIn: number;
+            /** @enum {boolean} */
+            requiresOtp: true;
+            resendAfter: number;
+        };
+        OtpResendRequest: {
+            challengeId: string;
+        };
+        OtpVerifyRequest: {
+            challengeId: string;
+            code: string;
+        };
+        ProductInput: {
+            /** @enum {string} */
+            category: "Laptop" | "Điện thoại" | "Phụ kiện" | "Sách" | "Đồ dùng" | "Sở thích";
+            /** @enum {string} */
+            condition: "Như mới" | "Dùng tốt" | "Cần sửa chữa";
+            /** @enum {boolean} */
+            confirmed: true;
+            description: string;
+            fulfillmentMethods: ("shipping" | "meetup")[];
+            images: ({
+                /** Format: uuid */
+                id: string;
+            } | {
+                upload: number;
+            })[];
+            knownDefects: string;
+            location: string;
+            price: number;
+            /** Format: uuid */
+            requestId?: string;
+            title: string;
+        };
+        ProductInspection: {
+            attempts: number;
+            createdAt: string;
+            errorCode: string | null;
+            /** Format: uuid */
+            id: string;
+            model: string | null;
+            nextAttemptAt: string;
+            promptVersion: string;
+            report: {
+                imageQuality: {
+                    /** @enum {string} */
+                    certainty: "low" | "medium" | "high";
+                    evidence: string;
+                    imageIds: string[];
+                    observation: string;
+                }[];
+                inconsistencies: {
+                    /** @enum {string} */
+                    certainty: "low" | "medium" | "high";
+                    evidence: string;
+                    imageIds: string[];
+                    observation: string;
+                }[];
+                limitations: string[];
+                productObservations: {
+                    /** @enum {string} */
+                    certainty: "low" | "medium" | "high";
+                    evidence: string;
+                    imageIds: string[];
+                    observation: string;
+                }[];
+                summary: string;
+                visibleDefects: {
+                    /** @enum {string} */
+                    certainty: "low" | "medium" | "high";
+                    evidence: string;
+                    imageIds: string[];
+                    observation: string;
+                }[];
+            } | null;
+            /** Format: uuid */
+            reviewId: string;
+            /** @enum {string} */
+            status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+            updatedAt: string;
+        };
+        ProductInspectionReport: {
+            imageQuality: {
+                /** @enum {string} */
+                certainty: "low" | "medium" | "high";
+                evidence: string;
+                imageIds: string[];
+                observation: string;
+            }[];
+            inconsistencies: {
+                /** @enum {string} */
+                certainty: "low" | "medium" | "high";
+                evidence: string;
+                imageIds: string[];
+                observation: string;
+            }[];
+            limitations: string[];
+            productObservations: {
+                /** @enum {string} */
+                certainty: "low" | "medium" | "high";
+                evidence: string;
+                imageIds: string[];
+                observation: string;
+            }[];
+            summary: string;
+            visibleDefects: {
+                /** @enum {string} */
+                certainty: "low" | "medium" | "high";
+                evidence: string;
+                imageIds: string[];
+                observation: string;
+            }[];
+        };
+        ProductOwnerInspection: {
+            inspection: {
+                attempts: number;
+                createdAt: string;
+                errorCode: string | null;
+                /** Format: uuid */
+                id: string;
+                promptVersion: string;
+                report: {
+                    imageQuality: {
+                        /** @enum {string} */
+                        certainty: "low" | "medium" | "high";
+                        evidence: string;
+                        imageIds: string[];
+                        observation: string;
+                    }[];
+                    inconsistencies: {
+                        /** @enum {string} */
+                        certainty: "low" | "medium" | "high";
+                        evidence: string;
+                        imageIds: string[];
+                        observation: string;
+                    }[];
+                    limitations: string[];
+                    productObservations: {
+                        /** @enum {string} */
+                        certainty: "low" | "medium" | "high";
+                        evidence: string;
+                        imageIds: string[];
+                        observation: string;
+                    }[];
+                    summary: string;
+                    visibleDefects: {
+                        /** @enum {string} */
+                        certainty: "low" | "medium" | "high";
+                        evidence: string;
+                        imageIds: string[];
+                        observation: string;
+                    }[];
+                } | null;
+                /** @enum {string} */
+                status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+                updatedAt: string;
+            } | null;
+            /** @enum {string} */
+            reviewStatus: "not_required" | "pending" | "approved" | "rejected";
+            revision: number;
+        };
+        ProductResponse: {
+            category: string;
+            condition: string;
+            description: string;
+            fulfillmentMethods: ("shipping" | "meetup")[];
+            /** Format: uuid */
+            id: string;
+            images: {
+                /** Format: uuid */
+                id: string;
+                mimeType: string;
+                sizeBytes: number;
+                url: string;
+            }[];
+            knownDefects: string;
+            location: string;
+            price: number;
+            publishedAt: string | null;
+            rejectionReason: string | null;
+            /** @enum {string} */
+            reviewStatus: "not_required" | "pending" | "approved" | "rejected";
+            revision: number;
+            seller: {
+                displayName: string;
+                /** Format: uuid */
+                id: string;
+            };
+            /** @enum {string} */
+            status: "published" | "hidden" | "sold";
+            title: string;
+            updatedAt: string;
+        };
+        ProductReviewDecision: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            productId: string;
+            reason: string | null;
+            reviewedAt: string;
+            /** Format: uuid */
+            reviewedBy: string;
+            revision: number;
+            /** @enum {string} */
+            status: "approved" | "rejected";
+        };
+        ProductReviewDetail: {
+            createdAt: string;
+            evidence: {
+                expiresAt: string;
+                /** Format: uuid */
+                id: string;
+                metadata: {
+                    capturedAtLocal: string;
+                    latitude: number;
+                    longitude: number;
+                    make: string | null;
+                    model: string | null;
+                    utcOffset: string | null;
+                };
+                originalMime: string;
+                purgedAt: string | null;
+                sha256: string;
+            }[];
+            /** Format: uuid */
+            id: string;
+            inspections: {
+                attempts: number;
+                createdAt: string;
+                errorCode: string | null;
+                /** Format: uuid */
+                id: string;
+                model: string | null;
+                nextAttemptAt: string;
+                promptVersion: string;
+                report: {
+                    imageQuality: {
+                        /** @enum {string} */
+                        certainty: "low" | "medium" | "high";
+                        evidence: string;
+                        imageIds: string[];
+                        observation: string;
+                    }[];
+                    inconsistencies: {
+                        /** @enum {string} */
+                        certainty: "low" | "medium" | "high";
+                        evidence: string;
+                        imageIds: string[];
+                        observation: string;
+                    }[];
+                    limitations: string[];
+                    productObservations: {
+                        /** @enum {string} */
+                        certainty: "low" | "medium" | "high";
+                        evidence: string;
+                        imageIds: string[];
+                        observation: string;
+                    }[];
+                    summary: string;
+                    visibleDefects: {
+                        /** @enum {string} */
+                        certainty: "low" | "medium" | "high";
+                        evidence: string;
+                        imageIds: string[];
+                        observation: string;
+                    }[];
+                } | null;
+                /** Format: uuid */
+                reviewId: string;
+                /** @enum {string} */
+                status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+                updatedAt: string;
+            }[];
+            product: {
+                deletedAt: string | null;
+                /** @enum {string} */
+                reviewStatus: "not_required" | "pending" | "approved" | "rejected";
+                revision: number;
+            };
+            /** Format: uuid */
+            productId: string;
+            reason: string | null;
+            reviewedAt: string | null;
+            /** Format: uuid */
+            reviewedBy: string | null;
+            revision: number;
+            snapshot: {
+                category: string;
+                condition: string;
+                description: string;
+                fulfillmentMethods: string[];
+                images: {
+                    /** Format: uuid */
+                    id: string;
+                    mimeType: string;
+                    sha256: string;
+                    sizeBytes: number;
+                    sortOrder: number;
+                    url: string;
+                }[];
+                knownDefects: string;
+                location: string;
+                price: number;
+                title: string;
+            };
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "superseded";
+        };
+        ProductReviewSummary: {
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            inspections: {
+                errorCode: string | null;
+                /** Format: uuid */
+                id: string;
+                status: string;
+            }[];
+            product: {
+                revision: number;
+                /** Format: uuid */
+                sellerId: string;
+                title: string;
+            };
+            /** Format: uuid */
+            productId: string;
+            revision: number;
+        };
+        ProductStatusRequest: {
+            /** @enum {string} */
+            status: "published" | "hidden" | "sold";
         };
         /** @description Name and email are trimmed before validation; email is lowercased. Phone uses E.164. Password is never trimmed. */
         RegisterUserRequest: {
@@ -203,6 +916,402 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    kycReviewList: {
+        parameters: {
+            query?: {
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending submissions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    kycReviewDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Decrypted for this request only */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    kycReviewAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    kycReviewDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    decision: "approve" | "reject";
+                    reason?: string;
+                    /** @description Corrected student id when OCR misread it */
+                    studentId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Decision recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description An account with these details already exists; the conflicting field is not disclosed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productReviewsList: {
+        parameters: {
+            query?: {
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending review summaries with revision and AI job status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductReviewSummary"][];
+                };
+            };
+        };
+    };
+    productReviewDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review detail; inspection reports are observations, never verdicts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    productReviewDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    decision: "approve" | "reject";
+                    reason?: string;
+                    revision: number;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductReviewDecision"];
+                };
+            };
+        };
+    };
+    productReviewImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    productReviewRetry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductInspection"];
+                };
+            };
+        };
+    };
+    productReviewOriginal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     authLogout: {
         parameters: {
             query?: never;
@@ -249,6 +1358,196 @@ export interface operations {
             };
             /** @description Unexpected server or database error. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    authOtpResend: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript. */
+                Origin: string;
+                /** @description CSRF protection: send together with credentials: include and the configured Origin. */
+                "X-ReOwn-Client": "web";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpResendRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtpChallenge"];
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Rate limit exceeded. Observe Retry-After before retrying. */
+            429: {
+                headers: {
+                    /** @description Seconds before retrying */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    authOtpVerify: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript. */
+                Origin: string;
+                /** @description CSRF protection: send together with credentials: include and the configured Origin. */
+                "X-ReOwn-Client": "web";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    /** @description Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description An account with these details already exists; the conflicting field is not disclosed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Rate limit exceeded. Observe Retry-After before retrying. */
+            429: {
+                headers: {
+                    /** @description Seconds before retrying */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -322,6 +1621,15 @@ export interface operations {
                     "application/json": components["schemas"]["HttpError"];
                 };
             };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
         };
     };
     healthCheck: {
@@ -343,10 +1651,805 @@ export interface operations {
             };
         };
     };
+    kycStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status only; no personal data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    kycWithdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stored KYC data erased */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    kycSubmit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Front of the student card (JPEG, PNG or WebP)
+                     */
+                    card_front: string;
+                    /** @description Consent version the user accepted */
+                    consent: string;
+                    /**
+                     * Format: binary
+                     * @description Live selfie (JPEG, PNG or WebP)
+                     */
+                    selfie: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Accepted for admin review */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description An account with these details already exists; the conflicting field is not disclosed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Upload exceeds the allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description The request was understood but the content cannot be used (for example, KYC photos that must be retaken). The body carries a machine-readable error code and reasons. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Rate limit exceeded. Observe Retry-After before retrying. */
+            429: {
+                headers: {
+                    /** @description Seconds before retrying */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productImageGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productsList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"][];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productsCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @description JSON matching ProductInput */
+                    data: string;
+                    files?: string[];
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description An account with these details already exists; the conflicting field is not disclosed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Upload exceeds the allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productsMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"][];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productsGetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productImageOwned: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    productOwnerInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOwnerInspection"];
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productsGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productsUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @description JSON matching ProductInput */
+                    data: string;
+                    files?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description An account with these details already exists; the conflicting field is not disclosed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Upload exceeds the allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productsDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Listing removed; review history retained */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description An account with these details already exists; the conflicting field is not disclosed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    productsStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductStatusRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Resource not found or not owned by the current user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description An account with these details already exists; the conflicting field is not disclosed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
     usersLogin: {
         parameters: {
             query?: never;
             header: {
+                /** @description Fresh hCaptcha response token; verified on the server before sending an OTP. */
+                "X-HCaptcha-Response": string;
                 /** @description Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript. */
                 Origin: string;
                 /** @description CSRF protection: send together with credentials: include and the configured Origin. */
@@ -361,16 +2464,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage. */
-            200: {
+            202: {
                 headers: {
                     "Cache-Control"?: "no-store";
-                    /** @description Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh. */
-                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthResponse"];
+                    "application/json": components["schemas"]["OtpChallenge"];
                 };
             };
             /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
@@ -413,6 +2513,15 @@ export interface operations {
             };
             /** @description Unexpected server or database error. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -517,6 +2626,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Fresh hCaptcha response token; verified on the server before sending an OTP. */
+                "X-HCaptcha-Response": string;
                 /** @description Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript. */
                 Origin: string;
                 /** @description CSRF protection: send together with credentials: include and the configured Origin. */
@@ -531,16 +2642,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage. */
-            201: {
+            202: {
                 headers: {
                     "Cache-Control"?: "no-store";
-                    /** @description Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh. */
-                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthResponse"];
+                    "application/json": components["schemas"]["OtpChallenge"];
                 };
             };
             /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
@@ -583,6 +2691,15 @@ export interface operations {
             };
             /** @description Unexpected server or database error. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description A required Redis or R2 storage dependency is unavailable or not configured. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

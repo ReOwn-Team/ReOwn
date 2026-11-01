@@ -8,6 +8,7 @@ const { AppModule } = require("../dist/app.module");
 const { PrismaService } = require("../dist/prisma/prisma.service");
 const { AccessTokenProvider } = require("../dist/providers/access-token.provider");
 const { AuthCookieProvider } = require("../dist/providers/auth-cookie.provider");
+const { REDIS_CONNECTION } = require("../dist/redis/redis.service");
 const { configureHttp } = require("../dist/config/http.config");
 const { createOpenApiDocument } = require("../dist/openapi/document");
 
@@ -23,6 +24,7 @@ async function main() {
     // Use the real module graph, but never instantiate secret- or database-dependent providers.
     const module = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(PrismaService).useValue({})
+        .overrideProvider(REDIS_CONNECTION).useValue(null)
         .overrideProvider(AccessTokenProvider).useValue({})
         .overrideProvider(AuthCookieProvider).useValue({ clientOrigin: "http://localhost:5173" })
         .compile();

@@ -1,3 +1,6 @@
+import { HcaptchaGuard } from "../captcha/hcaptcha.guard";
+import { OtpAuthService } from "../otp/otp-auth.service";
+import { otpRetryHeader } from "./otp.controller";
 import {
     Body,
     Controller,
@@ -28,7 +31,13 @@ import { AccessTokenGuard } from "../guards/access-token.guard";
 import type { UserProfile } from "../models/user.model";
 import { ZodValidationPipe } from "../pipes/zod-validation.pipe";
 import { UsersService } from "../services/users.service";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+    ApiBearerAuth,
+    ApiHeader,
+    ApiOperation,
+    ApiTags,
+    ApiResponse,
+} from "@nestjs/swagger";
 import {
     ApiAuthSuccess,
     ApiCsrfHeaders,
@@ -46,59 +55,71 @@ export class UsersController {
     constructor(
         private readonly users: UsersService,
         private readonly cookies: AuthCookieProvider,
+        private readonly otp: OtpAuthService,
     ) {}
 
     @ApiOperation({
         operationId: "usersRegister",
         summary: "Register a personal account",
         description:
-            "Creates an unverified user and a new 30-day absolute session family. Requires exact Origin and X-ReOwn-Client headers. Refresh token is cookie-only.",
+            "Sends a registration OTP. No user or session is created until email verification succeeds. Requires exact Origin and X-ReOwn-Client headers.",
     })
     @ApiRequestBody("RegisterUserRequest")
     @ApiCsrfHeaders()
-    @ApiAuthSuccess(201)
-    @ApiErrors(400, 403, 409, 429, 500)
+    @ApiHeader({name:"X-HCaptcha-Response",required:true,description:"Fresh hCaptcha response token; verified on the server before sending an OTP.",schema:{type:"string"}})
+    @ApiResponse({
+        status: 202,
+        schema: { $ref: "#/components/schemas/OtpChallenge" },
+        headers: {
+            "Cache-Control": { schema: { type: "string", enum: ["no-store"] } },
+        },
+    })
+    @ApiErrors(400, 403, 409, 429, 500, 503)
     @Post("register")
-    @UseGuards(CookieCsrfGuard)
+    @HttpCode(HttpStatus.ACCEPTED)
+    @UseGuards(CookieCsrfGuard, HcaptchaGuard)
     @Header("Cache-Control", "no-store")
     async register(
         @Body(new ZodValidationPipe(registerUserSchema)) dto: RegisterUserDto,
         @Res({ passthrough: true }) response: Response,
     ) {
-        const result = await this.users.register(dto);
-        this.cookies.set(
-            response,
-            result.refreshToken,
-            result.refreshExpiresAt,
-        );
-        return result.auth;
+        try {
+            return await this.otp.register(dto);
+        } catch (error) {
+            return otpRetryHeader(error, response);
+        }
     }
 
     @ApiOperation({
         operationId: "usersLogin",
         summary: "Log in with email or phone and password",
         description:
-            "Send identifier plus password. Legacy email/password or phone/password forms remain supported; do not mix identifier forms. Login failures return the same generic 401. Shares a 10-request/15-minute/IP limit with registration.",
+            "Validates identifier/password and sends an OTP to the account email. Does not create a session. Legacy email/password and phone/password inputs remain supported.",
     })
     @ApiRequestBody("LoginUserRequest")
     @ApiCsrfHeaders()
-    @ApiAuthSuccess(200)
-    @ApiErrors(400, 401, 403, 429, 500)
+    @ApiHeader({name:"X-HCaptcha-Response",required:true,description:"Fresh hCaptcha response token; verified on the server before sending an OTP.",schema:{type:"string"}})
+    @ApiResponse({
+        status: 202,
+        schema: { $ref: "#/components/schemas/OtpChallenge" },
+        headers: {
+            "Cache-Control": { schema: { type: "string", enum: ["no-store"] } },
+        },
+    })
+    @ApiErrors(400, 401, 403, 429, 500, 503)
     @Post("login")
-    @UseGuards(CookieCsrfGuard)
-    @HttpCode(HttpStatus.OK)
+    @UseGuards(CookieCsrfGuard, HcaptchaGuard)
+    @HttpCode(HttpStatus.ACCEPTED)
     @Header("Cache-Control", "no-store")
     async login(
         @Body(new ZodValidationPipe(loginUserSchema)) dto: LoginUserDto,
         @Res({ passthrough: true }) response: Response,
     ) {
-        const result = await this.users.login(dto);
-        this.cookies.set(
-            response,
-            result.refreshToken,
-            result.refreshExpiresAt,
-        );
-        return result.auth;
+        try {
+            return await this.otp.login(dto);
+        } catch (error) {
+            return otpRetryHeader(error, response);
+        }
     }
 
     @ApiOperation({

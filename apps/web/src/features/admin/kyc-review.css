@@ -1,0 +1,108 @@
+.kyc-review-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.kyc-queue {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kyc-queue button {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.kyc-queue button[aria-current="true"] {
+  border-color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+.kyc-queue small {
+  color: var(--muted);
+}
+.kyc-queue .kyc-flag-count {
+  color: var(--danger);
+}
+.kyc-detail {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.kyc-detail-images {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.kyc-detail-images img {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+.kyc-detail-images figcaption {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.kyc-detail-images figure {
+  margin: 0;
+}
+.kyc-facts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+}
+.kyc-facts-grid dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.kyc-facts-grid dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.kyc-flags {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  color: var(--danger);
+  font-size: 14px;
+}
+.kyc-decision {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+@media (max-width: 899px) {
+  .kyc-review-layout {
+    grid-template-columns: 1fr;
+  }
+  .kyc-detail-images {
+    grid-template-columns: 1fr;
+  }
+}
+.kyc-decision .kyc-actions {
+  display: flex;
+  gap: 12px;
+}
+.kyc-decision .kyc-actions .button {
+  flex: 1;
+}

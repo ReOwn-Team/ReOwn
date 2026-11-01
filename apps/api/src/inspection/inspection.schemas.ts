@@ -1,0 +1,136 @@
+import { z } from "zod";
+import { inspectionReportSchema } from "./inspection-report";
+export const reviewStatusSchema = z.enum([
+    "not_required",
+    "pending",
+    "approved",
+    "rejected",
+]);
+export const evidenceMetadataSchema = z.object({
+    capturedAtLocal: z.string(),
+    utcOffset: z.string().nullable(),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    make: z.string().nullable(),
+    model: z.string().nullable(),
+});
+export const inspectionSchema = z.object({
+    id: z.string().uuid(),
+    reviewId: z.string().uuid(),
+    status: z.enum([
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+        "cancelled",
+    ]),
+    attempts: z.number().int(),
+    model: z.string().nullable(),
+    promptVersion: z.string(),
+    report: inspectionReportSchema.nullable(),
+    errorCode: z.string().nullable(),
+    nextAttemptAt: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+});
+export const decisionRequestSchema = z
+    .object({
+        revision: z.number().int().positive(),
+        decision: z.enum(["approve", "reject"]),
+        reason: z.string().trim().min(1).max(2000).optional(),
+    })
+    .strict()
+    .refine((value) => value.decision !== "reject" || !!value.reason, {
+        path: ["reason"],
+        message: "Rejection reason is required",
+    });
+export const decisionResponseSchema = z.object({
+    id: z.string().uuid(),
+    productId: z.string().uuid(),
+    revision: z.number().int(),
+    status: z.enum(["approved", "rejected"]),
+    reason: z.string().nullable(),
+    reviewedBy: z.string().uuid(),
+    reviewedAt: z.string(),
+});
+export const reviewSummarySchema = z.object({
+    id: z.string().uuid(),
+    productId: z.string().uuid(),
+    revision: z.number().int(),
+    createdAt: z.string(),
+    product: z.object({
+        title: z.string(),
+        sellerId: z.string().uuid(),
+        revision: z.number().int(),
+    }),
+    inspections: z.array(
+        z.object({
+            id: z.string().uuid(),
+            status: z.string(),
+            errorCode: z.string().nullable(),
+        }),
+    ),
+});
+export const reviewDetailSchema = z.object({
+    id: z.string().uuid(),
+    productId: z.string().uuid(),
+    revision: z.number().int(),
+    status: z.enum(["pending", "approved", "rejected", "superseded"]),
+    snapshot: z.object({
+        title: z.string(),
+        category: z.string(),
+        description: z.string(),
+        condition: z.string(),
+        knownDefects: z.string(),
+        price: z.number().int(),
+        location: z.string(),
+        fulfillmentMethods: z.array(z.string()),
+        images: z.array(
+            z.object({
+                id: z.string().uuid(),
+                url: z.string(),
+                sha256: z.string(),
+                mimeType: z.string(),
+                sizeBytes: z.number().int(),
+                sortOrder: z.number().int(),
+            }),
+        ),
+    }),
+    reviewedBy: z.string().uuid().nullable(),
+    reason: z.string().nullable(),
+    reviewedAt: z.string().nullable(),
+    createdAt: z.string(),
+    inspections: z.array(inspectionSchema),
+    evidence: z.array(
+        z.object({
+            id: z.string().uuid(),
+            metadata: evidenceMetadataSchema,
+            sha256: z.string(),
+            expiresAt: z.string(),
+            purgedAt: z.string().nullable(),
+            originalMime: z.string(),
+        }),
+    ),
+    product: z.object({
+        revision: z.number().int(),
+        reviewStatus: reviewStatusSchema,
+        deletedAt: z.string().nullable(),
+    }),
+});
+
+export const ownerInspectionSchema = z.object({
+    revision: z.number().int(),
+    reviewStatus: reviewStatusSchema,
+    inspection: inspectionSchema
+        .pick({
+            id: true,
+            status: true,
+            attempts: true,
+            promptVersion: true,
+            report: true,
+            errorCode: true,
+            createdAt: true,
+            updatedAt: true,
+        })
+        .nullable(),
+});

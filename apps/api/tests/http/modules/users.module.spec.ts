@@ -1,3 +1,8 @@
+import { HcaptchaProvider } from "../../../src/captcha/hcaptcha.provider";
+import { HcaptchaGuard } from "../../../src/captcha/hcaptcha.guard";
+import { OtpStore } from "../../../src/otp/otp.store";
+import { OtpMailProvider } from "../../../src/otp/otp-mail.provider";
+import { MemoryOtpStore, MemoryOtpMail } from "../../helpers/otp-memory.store";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import {
@@ -27,7 +32,7 @@ const user = {
     email: "test@example.com",
     phone: "+84901234567",
     phoneVerified: 0,
-    emailVerified: 0,
+    emailVerified: 1,
     kycStatus: 0,
     role: UserRoles.USER,
     status: "active",
@@ -98,8 +103,11 @@ describe("UsersModule (HTTP integration, in-memory Prisma)", () => {
     let savedPasswordHash: string;
     let savedUser: typeof user | null;
     let rows: SessionRow[];
+    const otpStore = new MemoryOtpStore(),
+        otpMail = new MemoryOtpMail();
     const prisma = {
         user: {
+            findFirst: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
             create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
             findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
             update: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -138,6 +146,9 @@ describe("UsersModule (HTTP integration, in-memory Prisma)", () => {
             COOKIE_SAMESITE: "lax",
         });
         jest.resetAllMocks();
+        otpStore.reset();
+        otpMail.sent = [];
+        prisma.user.findFirst.mockResolvedValue(null);
         savedPasswordHash = "";
         savedUser = null;
         rows = [];
@@ -166,7 +177,7 @@ describe("UsersModule (HTTP integration, in-memory Prisma)", () => {
         });
         prisma.user.update.mockImplementation(async (...args) => {
             const query = args[0] as { data: { displayName: string } };
-            savedUser = { ...savedUser!, displayName: query.data.displayName };
+            savedUser = { ...savedUser!, ...query.data };
             return { ...savedUser };
         });
         prisma.session.create.mockImplementation(async (...args) => {
@@ -213,6 +224,12 @@ describe("UsersModule (HTTP integration, in-memory Prisma)", () => {
         const module = await Test.createTestingModule({
             imports: [UsersModule],
         })
+            .overrideProvider(HcaptchaProvider)
+            .useValue({ verify: async () => {} })
+            .overrideProvider(OtpStore)
+            .useValue(otpStore)
+            .overrideProvider(OtpMailProvider)
+            .useValue(otpMail)
             .overrideProvider(PrismaService)
             .useValue(prisma)
             .compile();
@@ -267,8 +284,19 @@ describe("UsersModule (HTTP integration, in-memory Prisma)", () => {
     }
 
     async function register() {
-        const response = await request("/users/register", "POST", registration);
-        expect(response.status).toBe(201);
+        const challenge = await request(
+            "/users/register",
+            "POST",
+            registration,
+        );
+        expect(challenge.status).toBe(202);
+        expect(challenge.headers.get("set-cookie")).toBeNull();
+        const body = (await challenge.json()) as { challengeId: string };
+        const response = await request("/auth/otp/verify", "POST", {
+            challengeId: body.challengeId,
+            code: otpMail.sent.at(-1)!.code,
+        });
+        expect(response.status).toBe(200);
         return {
             auth: (await response.json()) as AuthBody,
             cookie: refreshCookie(response),
@@ -277,9 +305,16 @@ describe("UsersModule (HTTP integration, in-memory Prisma)", () => {
     }
 
     async function login(identifier = user.email) {
-        const response = await request("/users/login", "POST", {
+        const challenge = await request("/users/login", "POST", {
             identifier,
             password: registration.password,
+        });
+        expect(challenge.status).toBe(202);
+        expect(challenge.headers.get("set-cookie")).toBeNull();
+        const value = (await challenge.json()) as { challengeId: string };
+        const response = await request("/auth/otp/verify", "POST", {
+            challengeId: value.challengeId,
+            code: otpMail.sent.at(-1)!.code,
         });
         expect(response.status).toBe(200);
         return {

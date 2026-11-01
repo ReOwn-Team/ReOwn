@@ -1,0 +1,219 @@
+.browse-page {
+  padding-block: 40px;
+  gap: 24px;
+}
+.browse-page nav a {
+  color: inherit;
+  text-decoration: none;
+}
+.browse-page h1 {
+  margin: 0 0 20px;
+  font-size: 34px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.browse-page h1 + p {
+  margin: 0;
+  font-size: 14px;
+}
+.browse-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+.browse-filters {
+  display: grid;
+  gap: 12px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+.browse-filters h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.browse-filter-group {
+  display: grid;
+  gap: 8px;
+}
+.browse-filter-group h3 {
+  margin: 0;
+  font-size: 13px;
+}
+.browse-filter-button,
+.browse-sort button {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  min-height: 40px;
+  padding: 8px 12px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.browse-filter-button.selected,
+.browse-sort button.selected {
+  background: #fff3e8;
+  border-color: var(--brand);
+  color: #983b0e;
+}
+.browse-filters p {
+  margin: 0;
+}
+.browse-filters p strong {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--foreground);
+}
+.browse-results {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.browse-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.browse-result-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.browse-sort {
+  display: flex;
+  gap: 12px;
+}
+.browse-sort button {
+  min-width: 160px;
+}
+.browse-query {
+  width: fit-content;
+  margin: 0;
+  padding: 10px 24px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.browse-results .product-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.browse-results > p {
+  margin: 0;
+}
+@media (max-width: 64rem) {
+  .browse-layout {
+    grid-template-columns: 1fr;
+  }
+  .browse-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .browse-filters h2,
+  .browse-filters > p,
+  .browse-filters > button {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 44rem) {
+  .browse-page h1 {
+    font-size: 28px;
+  }
+  .browse-results .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .browse-result-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .browse-sort {
+    width: 100%;
+  }
+  .browse-sort button {
+    min-width: 0;
+    flex: 1;
+  }
+}
+.mobile-filter-trigger {
+  display: none;
+}
+.active-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.active-filters:empty {
+  display: none;
+}
+.browse-query {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.browse-filter-button,
+.browse-sort button {
+  min-height: 44px;
+}
+@media (max-width: 1023px) {
+  .browse-layout {
+    grid-template-columns: 1fr;
+  }
+  .browse-layout > .browse-filters {
+    display: none;
+  }
+  .mobile-filter-trigger {
+    display: inline-flex;
+    width: fit-content;
+  }
+  .filter-drawer .browse-filter-group {
+    display: grid;
+  }
+  dialog.filter-drawer {
+    margin: 0 0 0 auto;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    max-width: 400px;
+    border-radius: 20px 0 0 20px;
+  }
+}
+@media (max-width: 359px) {
+  .browse-results .product-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.browse-filter-options {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.browse-filter-options [data-slot="toggle-group-item"] {
+  width: 100%;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+  min-height: 44px;
+  height: auto;
+  padding: 10px 12px;
+}
+.filter-drawer-footer {
+  position: sticky;
+  bottom: -28px;
+  background: var(--surface);
+  padding-block: 16px;
+  border-top: 1px solid var(--border);
+}
+.filter-drawer-footer > button {
+  width: 100%;
+}
+.browse-filters {
+  position: sticky;
+  top: 24px;
+}

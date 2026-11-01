@@ -33,6 +33,7 @@ model User {
     reportsAgainst         Report[]                @relation("ReportReportedUser")
     reportsAssigned        Report[]                @relation("ReportAssignedTo")
     auditLogs              AuditLog[]
+    kycSubmissions         KycSubmission[]
 
     @@map("users")
 }
@@ -87,6 +88,7 @@ model Category {
 }
 
 model Product {
+    requestHash String? @map("request_hash") @db.VarChar(64)
     id           String    @id @default(uuid()) @db.Uuid
     sellerId     String    @map("seller_id") @db.Uuid
     categoryId   String    @map("category_id") @db.Uuid
@@ -100,12 +102,23 @@ model Product {
     publishedAt  DateTime? @map("published_at") @db.Timestamp(0)
     deletedAt    DateTime? @map("deleted_at") @db.Timestamp(0)
 
+    location           String   @default("") @db.VarChar(200)
+    fulfillmentMethods String[] @default([]) @map("fulfillment_methods")
+    createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+    updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamp(0)
+
+    reviewStatus String @default("not_required") @map("review_status") @db.VarChar(30)
+    revision Int @default(0)
+    reviews ProductReview[]
+
     seller   User           @relation("ProductSeller", fields: [sellerId], references: [id])
     category Category       @relation(fields: [categoryId], references: [id])
     images   ProductImage[]
     orders   Order[]
     reports  Report[]
 
+    @@index([sellerId, status], map: "products_seller_id_status_index")
+    @@index([status, publishedAt], map: "products_status_published_at_index")
     @@map("products")
 }
 
@@ -271,4 +284,97 @@ model AuditLog {
 
     @@index([entityType, entityId, createdAt], map: "audit_logs_entity_type_entity_id_created_at_index")
     @@map("audit_logs")
+}
+
+model ProductEvidence {
+    id String @id @db.Uuid
+    productId String @map("product_id") @db.Uuid
+    originalKey String? @map("original_key")
+    originalMime String @map("original_mime")
+    sha256 String @db.VarChar(64)
+    metadata Json @db.JsonB
+    expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+    purgedAt DateTime? @map("purged_at") @db.Timestamptz(3)
+    createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+    @@index([expiresAt])
+    @@index([productId])
+    @@map("product_evidence")
+}
+model ProductReview {
+    id String @id @default(uuid()) @db.Uuid
+    productId String @map("product_id") @db.Uuid
+    revision Int
+    status String @default("pending") @db.VarChar(30)
+    snapshot Json @db.JsonB
+    reviewedBy String? @map("reviewed_by") @db.Uuid
+    reason String?
+    reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
+    createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+    product Product @relation(fields:[productId], references:[id])
+    inspections ProductInspection[]
+    @@unique([productId, revision])
+    @@index([status, createdAt])
+    @@map("product_reviews")
+}
+model ProductInspection {
+    id String @id @default(uuid()) @db.Uuid
+    reviewId String @map("review_id") @db.Uuid
+    status String @default("queued") @db.VarChar(30)
+    attempts Int @default(0)
+    model String?
+    promptVersion String @default("v1") @map("prompt_version")
+    report Json? @db.JsonB
+    errorCode String? @map("error_code")
+    nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+    createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+    updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+    review ProductReview @relation(fields:[reviewId], references:[id])
+    @@index([status, nextAttemptAt])
+    @@map("product_inspections")
+}
+
+/// Student-card KYC. Everything sensitive lives in `sealedPayload` and
+/// `KycAsset.sealed` as AES-256-GCM envelopes; only `studentIdHmac` (a keyed
+/// hash used to stop one card verifying several accounts) is queryable.
+/// Partial unique indexes (see migration) allow one active submission per user
+/// and per student card.
+model KycSubmission {
+    id             String    @id @db.Uuid
+    userId         String    @map("user_id") @db.Uuid
+    status         String    @db.VarChar(20)
+    cardLayout     String    @map("card_layout") @db.VarChar(10)
+    studentIdHmac  String    @map("student_id_hmac") @db.VarChar(64)
+    faceScore      Float     @map("face_score")
+    flags          String[]
+    sealedPayload  Bytes     @map("sealed_payload")
+    consentVersion String    @map("consent_version") @db.VarChar(40)
+    consentedAt    DateTime  @map("consented_at") @db.Timestamptz(3)
+    reviewedBy     String?   @map("reviewed_by") @db.Uuid
+    reason         String?   @db.VarChar(500)
+    reviewedAt     DateTime? @map("reviewed_at") @db.Timestamptz(3)
+    purgedAt       DateTime? @map("purged_at") @db.Timestamptz(3)
+    createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+    updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+    user   User       @relation(fields: [userId], references: [id])
+    assets KycAsset[]
+
+    @@index([userId, createdAt])
+    @@index([status, createdAt])
+    @@map("kyc_submissions")
+}
+
+model KycAsset {
+    id           String   @id @default(uuid()) @db.Uuid
+    submissionId String   @map("submission_id") @db.Uuid
+    kind         String   @db.VarChar(20)
+    sealed       Bytes
+    sha256       String   @db.VarChar(64)
+    size         Int
+    createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+    submission KycSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+    @@unique([submissionId, kind])
+    @@map("kyc_assets")
 }

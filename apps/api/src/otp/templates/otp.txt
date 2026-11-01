@@ -1,0 +1,13 @@
+{{title}}
+
+{{description}}
+
+{{code}}
+
+Mã có hiệu lực trong 5 phút và chỉ dùng một lần.
+Không chia sẻ mã này với bất kỳ ai.
+
+Nếu bạn không yêu cầu {{action}}, hãy bỏ qua email này.
+
+ReOwn
+Đồ cũ, giá trị mới.

@@ -19,14 +19,17 @@ const REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 export class SessionsService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async create(userId: string): Promise<SessionGrant> {
+    async create(
+        userId: string,
+        database: Pick<Prisma.TransactionClient, "session"> = this.prisma,
+    ): Promise<SessionGrant> {
         const familyId = randomUUID();
         const refreshToken = randomBytes(32).toString("base64url");
         const expiresAt = new Date(
             Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000,
         );
 
-        await this.prisma.session.create({
+        await database.session.create({
             data: {
                 id: familyId,
                 familyId,

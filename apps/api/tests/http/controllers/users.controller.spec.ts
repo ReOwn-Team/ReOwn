@@ -1,3 +1,10 @@
+import { HcaptchaProvider } from "../../../src/captcha/hcaptcha.provider";
+import { HcaptchaGuard } from "../../../src/captcha/hcaptcha.guard";
+import { OtpController } from "../../../src/controllers/otp.controller";
+import { OtpAuthService } from "../../../src/otp/otp-auth.service";
+import { OtpStore } from "../../../src/otp/otp.store";
+import { OtpMailProvider } from "../../../src/otp/otp-mail.provider";
+import { MemoryOtpStore, MemoryOtpMail } from "../../helpers/otp-memory.store";
 import { UnauthorizedException } from "@nestjs/common";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
@@ -51,7 +58,7 @@ const profile: UserProfile = {
     avatarKey: null,
     email: "alice@example.com",
     phone: "+84901234567",
-    emailVerified: 0,
+    emailVerified: 1,
     phoneVerified: 0,
     kycStatus: 0,
     role: UserRoles.USER,
@@ -114,8 +121,13 @@ describe("UsersController (HTTP)", () => {
     );
     let app: INestApplication;
     let baseUrl: string;
+    const otpStore = new MemoryOtpStore(),
+        otpMail = new MemoryOtpMail();
     const prisma = {
+        $transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
+            callback(prisma),
         user: {
+            findFirst: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
             create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
             findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
             update: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -141,12 +153,17 @@ describe("UsersController (HTTP)", () => {
         process.env.COOKIE_SECURE = "true";
         process.env.COOKIE_SAMESITE = "lax";
         const module = await Test.createTestingModule({
-            controllers: [UsersController],
+            controllers: [UsersController, OtpController],
             providers: [
+                OtpAuthService,
+                { provide: OtpStore, useValue: otpStore },
+                { provide: OtpMailProvider, useValue: otpMail },
                 UsersService,
                 { provide: SessionsService, useValue: sessions },
                 AuthCookieProvider,
                 CookieCsrfGuard,
+                HcaptchaGuard,
+                { provide: HcaptchaProvider, useValue: { verify: async () => {} } },
                 AccessTokenGuard,
                 PrismaService,
                 PasswordProvider,
@@ -177,6 +194,9 @@ describe("UsersController (HTTP)", () => {
 
     beforeEach(() => {
         jest.resetAllMocks();
+        otpStore.reset();
+        otpMail.sent = [];
+        prisma.user.findFirst.mockResolvedValue(null);
         prisma.user.create.mockResolvedValue(profile);
         prisma.user.findUnique.mockResolvedValue(profile);
         prisma.user.update.mockResolvedValue(profile);
@@ -200,7 +220,7 @@ describe("UsersController (HTTP)", () => {
             "X-ReOwn-Client": "web",
             ...headerOverrides,
         };
-        const response = await fetch(`${baseUrl}${path}`, {
+        let response = await fetch(`${baseUrl}${path}`, {
             method,
             headers: {
                 ...Object.fromEntries(
@@ -217,6 +237,29 @@ describe("UsersController (HTTP)", () => {
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),
             signal: AbortSignal.timeout(5000),
         });
+        // Follow the required OTP step for the existing downstream auth assertions.
+        // Separate integration tests inspect the raw 202 and prove no session exists yet.
+        if (response.status === 202) {
+            expect(response.headers.get("set-cookie")).toBeNull();
+            const challenge = (await response.json()) as {
+                challengeId: string;
+            };
+            response = await fetch(
+                `${baseUrl.replace(/\/users$/, "")}/auth/otp/verify`,
+                {
+                    method: "POST",
+                    headers: {
+                        Origin: "http://localhost:5173",
+                        "X-ReOwn-Client": "web",
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        challengeId: challenge.challengeId,
+                        code: otpMail.sent.at(-1)!.code,
+                    }),
+                },
+            );
+        }
         return {
             status: response.status,
             body: await response.json(),
@@ -259,7 +302,7 @@ describe("UsersController (HTTP)", () => {
     });
 
     describe("POST /users/register", () => {
-        it("normalizes input, creates only safe account defaults and returns 201 without password data", async () => {
+        it("normalizes input, creates only safe account defaults and verifies OTP then returns a safe session without password data", async () => {
             const response = await request("/register", "POST", {
                 ...validRegister,
                 displayName: "  Alice  ",
@@ -269,7 +312,7 @@ describe("UsersController (HTTP)", () => {
             });
 
             expect(response).toMatchObject({
-                status: 201,
+                status: 200,
                 body: authResponse,
                 cacheControl: "no-store",
             });
@@ -281,7 +324,8 @@ describe("UsersController (HTTP)", () => {
             );
             expect(response.setCookie).toContain("HttpOnly");
             expect(response.setCookie).toContain("Path=/api/v1/auth");
-            expect(sessions.create).toHaveBeenCalledWith(userId);
+            expect(sessions.create.mock.calls[0][0]).toBe(userId);
+            expect(sessions.create.mock.calls[0][1]).toBe(prisma);
             expect(response.body).not.toHaveProperty("user.passwordHash");
             expect(response.body).not.toHaveProperty("user.password");
             expect(passwords.hash).toHaveBeenCalledTimes(1);
@@ -296,7 +340,7 @@ describe("UsersController (HTTP)", () => {
                     phone: "+84901234567",
                     passwordHash,
                     phoneVerified: 0,
-                    emailVerified: 0,
+                    emailVerified: 1,
                     kycStatus: 0,
                     role: UserRoles.USER,
                     status: "active",
@@ -336,7 +380,7 @@ describe("UsersController (HTTP)", () => {
                         ...fields,
                     })
                 ).status,
-            ).toBe(201);
+            ).toBe(200);
             expect(passwords.hash).toHaveBeenCalledWith(password);
             expect(prisma.user.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({
@@ -483,7 +527,7 @@ describe("UsersController (HTTP)", () => {
             expect(sessions.create).toHaveBeenCalledWith(userId);
             expect(response.body).not.toHaveProperty("user.passwordHash");
             expect(response.body).not.toHaveProperty("user.password");
-            expect(prisma.user.findUnique).toHaveBeenCalledTimes(1);
+            expect(prisma.user.findUnique).toHaveBeenCalledTimes(2);
             expect(prisma.user.findUnique).toHaveBeenCalledWith({
                 where: { email: "alice@example.com" },
                 select: { ...safeSelect, passwordHash: true },

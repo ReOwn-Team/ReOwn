@@ -1,0 +1,360 @@
+.sell-page > .section-heading p {
+  margin-bottom: 0;
+}
+.sell-form-sections {
+  gap: 20px;
+}
+.sell-form-sections h2 {
+  font-size: 20px;
+  margin: 0;
+}
+.sell-form-sections p {
+  margin: 0;
+}
+.sell-preview {
+  position: sticky;
+  top: 24px;
+}
+.sell-preview h2 {
+  font-size: 18px;
+  margin-bottom: 0;
+}
+.sell-preview .product-card {
+  width: 281px;
+  max-width: 100%;
+  align-self: center;
+}
+.sell-preview .product-copy {
+  padding-inline: 0;
+}
+.sell-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.sell-photo {
+  position: relative;
+  aspect-ratio: 220/164;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--background);
+}
+.sell-photo > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-cover {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+.photo-actions {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.photo-actions button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: white;
+}
+.photo-make-cover {
+  position: absolute;
+  top: 36px;
+  left: 8px;
+  border: 0;
+  background: white;
+  border-radius: 6px;
+  padding: 4px;
+  font-size: 10px;
+}
+.photo-upload {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  min-height: 164px;
+  border: 1px dashed var(--control-border);
+  border-radius: 12px;
+  background: var(--background);
+  color: var(--muted);
+  font-size: 12px;
+}
+.photo-upload input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.photo-upload:has(:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+.sell-conditions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.sell-conditions .choice {
+  padding: 14px 12px;
+  font-size: 13px;
+}
+.listing-tips {
+  display: grid;
+  gap: 12px;
+  padding-left: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+.listing-card {
+  display: grid;
+  gap: 20px;
+}
+.listing-card-main {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.listing-card-main > img {
+  width: 112px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.listing-card-main > div {
+  flex: 1;
+  min-width: 0;
+}
+.listing-card-main a {
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 600;
+}
+.listing-card-main a:hover {
+  text-decoration: none;
+  color: var(--brand-strong);
+}
+.listing-card-main p {
+  margin-block: 8px;
+}
+.listing-card-main > strong {
+  font-size: 26px;
+  font-weight: 600;
+}
+.listing-card-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+.listing-card-actions > p {
+  margin: 0;
+}
+.current-section {
+  background: var(--foreground);
+  color: white;
+}
+.sales-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.sales-stats > div {
+  display: grid;
+  gap: 8px;
+}
+.sales-stats b {
+  font-size: 32px;
+  font-weight: 600;
+}
+.sales-stats span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.sale-price {
+  font-size: 30px;
+  font-weight: 600;
+}
+@media (max-width: 1023px) {
+  .sell-preview {
+    position: static;
+  }
+  .sell-preview .product-card {
+    width: 320px;
+  }
+}
+@media (max-width: 767px) {
+  .sell-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sell-conditions {
+    grid-template-columns: 1fr;
+  }
+  .photo-actions button {
+    min-width: 44px;
+  }
+  .listing-card-main {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .listing-card-main > img {
+    width: 80px;
+    height: 80px;
+  }
+  .listing-card-main a {
+    font-size: 16px;
+  }
+  .listing-card-main > strong {
+    font-size: 22px;
+  }
+  .listing-card-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .sales-stats {
+    gap: 8px;
+  }
+  .sales-stats .panel {
+    padding: 16px;
+  }
+  .sales-stats b {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 359px) {
+  .sell-photo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.listing-search {
+  max-width: 480px;
+  margin-bottom: 20px;
+}
+.listing-card-actions .action-row {
+  flex-wrap: wrap;
+}
+.listing-photo-review {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.listing-photo-review figure {
+  margin: 0;
+  scroll-margin-top: 16px;
+}
+.listing-photo-review img {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: var(--background);
+}
+.listing-photo-review figcaption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.inspection-findings {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.inspection-finding {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.inspection-finding p {
+  margin: 0 0 8px;
+}
+.preserve-lines {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .listing-photo-review {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .listing-photo-review img {
+    height: 140px;
+  }
+}
+
+.sell-step-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px;
+}
+.sell-step-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  white-space: nowrap;
+  text-decoration: none;
+  background: var(--surface);
+  font-size: 12px;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+.sell-step-nav a:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+.sell-step-nav a > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  font-weight: 600;
+}
+.sell-form-sections > section {
+  scroll-margin-top: 24px;
+}
+.listing-card-actions {
+  align-items: flex-end;
+}
+.listing-card-actions .action-row {
+  gap: 8px;
+  flex-shrink: 0;
+}
+.listing-card-actions > p {
+  max-width: 46ch;
+}
+
+.preview-photo-empty {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  height: 100%;
+  color: var(--foreground);
+  font-size: 13px;
+}

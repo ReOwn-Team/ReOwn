@@ -3,6 +3,20 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "assets": [
+      {
+        "include": "otp/templates",
+        "watchAssets": true
+      },
+      {
+        "include": "inspection/workers",
+        "watchAssets": true
+      },
+      {
+        "include": "inspection/templates",
+        "watchAssets": true
+      }
+    ]
   }
 }

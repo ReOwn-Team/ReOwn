@@ -137,6 +137,1677 @@
         ],
         "description": "Send exactly one identifier form: identifier (email or E.164 phone), legacy email, or phone, together with password. Email is trimmed/lowercased."
       },
+      "OtpChallenge": {
+        "additionalProperties": false,
+        "properties": {
+          "challengeId": {
+            "type": "string"
+          },
+          "emailHint": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          },
+          "requiresOtp": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "resendAfter": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requiresOtp",
+          "challengeId",
+          "emailHint",
+          "expiresIn",
+          "resendAfter"
+        ],
+        "type": "object"
+      },
+      "OtpResendRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "challengeId": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challengeId"
+        ],
+        "type": "object"
+      },
+      "OtpVerifyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "challengeId": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^\\d{6}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challengeId",
+          "code"
+        ],
+        "type": "object"
+      },
+      "ProductInput": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "Laptop",
+              "Điện thoại",
+              "Phụ kiện",
+              "Sách",
+              "Đồ dùng",
+              "Sở thích"
+            ],
+            "type": "string"
+          },
+          "condition": {
+            "enum": [
+              "Như mới",
+              "Dùng tốt",
+              "Cần sửa chữa"
+            ],
+            "type": "string"
+          },
+          "confirmed": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "description": {
+            "maxLength": 10000,
+            "minLength": 20,
+            "type": "string"
+          },
+          "fulfillmentMethods": {
+            "items": {
+              "enum": [
+                "shipping",
+                "meetup"
+              ],
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "type": "array"
+          },
+          "images": {
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "upload": {
+                      "maximum": 5,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "upload"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "maxItems": 6,
+            "minItems": 1,
+            "type": "array"
+          },
+          "knownDefects": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "location": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "price": {
+            "maximum": 1000000000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "requestId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 4,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "category",
+          "description",
+          "price",
+          "condition",
+          "knownDefects",
+          "location",
+          "fulfillmentMethods",
+          "images",
+          "confirmed"
+        ],
+        "type": "object"
+      },
+      "ProductInspection": {
+        "properties": {
+          "attempts": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "errorCode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "model": {
+            "nullable": true,
+            "type": "string"
+          },
+          "nextAttemptAt": {
+            "type": "string"
+          },
+          "promptVersion": {
+            "type": "string"
+          },
+          "report": {
+            "additionalProperties": false,
+            "nullable": true,
+            "properties": {
+              "imageQuality": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "certainty": {
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ],
+                      "type": "string"
+                    },
+                    "evidence": {
+                      "maxLength": 600,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "imageIds": {
+                      "items": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "observation": {
+                      "maxLength": 1200,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "imageIds",
+                    "observation",
+                    "evidence",
+                    "certainty"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              "inconsistencies": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "certainty": {
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ],
+                      "type": "string"
+                    },
+                    "evidence": {
+                      "maxLength": 600,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "imageIds": {
+                      "items": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "observation": {
+                      "maxLength": 1200,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "imageIds",
+                    "observation",
+                    "evidence",
+                    "certainty"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              "limitations": {
+                "items": {
+                  "maxLength": 600,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "minItems": 1,
+                "type": "array"
+              },
+              "productObservations": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "certainty": {
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ],
+                      "type": "string"
+                    },
+                    "evidence": {
+                      "maxLength": 600,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "imageIds": {
+                      "items": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "observation": {
+                      "maxLength": 1200,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "imageIds",
+                    "observation",
+                    "evidence",
+                    "certainty"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              "summary": {
+                "maxLength": 1500,
+                "minLength": 1,
+                "type": "string"
+              },
+              "visibleDefects": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "certainty": {
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ],
+                      "type": "string"
+                    },
+                    "evidence": {
+                      "maxLength": 600,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "imageIds": {
+                      "items": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "observation": {
+                      "maxLength": 1200,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "imageIds",
+                    "observation",
+                    "evidence",
+                    "certainty"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 20,
+                "type": "array"
+              }
+            },
+            "required": [
+              "summary",
+              "productObservations",
+              "visibleDefects",
+              "imageQuality",
+              "inconsistencies",
+              "limitations"
+            ],
+            "type": "object"
+          },
+          "reviewId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "processing",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reviewId",
+          "status",
+          "attempts",
+          "model",
+          "promptVersion",
+          "report",
+          "errorCode",
+          "nextAttemptAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ProductInspectionReport": {
+        "additionalProperties": false,
+        "properties": {
+          "imageQuality": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "certainty": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                "evidence": {
+                  "maxLength": 600,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "imageIds": {
+                  "items": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "maxItems": 6,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "observation": {
+                  "maxLength": 1200,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "imageIds",
+                "observation",
+                "evidence",
+                "certainty"
+              ],
+              "type": "object"
+            },
+            "maxItems": 12,
+            "type": "array"
+          },
+          "inconsistencies": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "certainty": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                "evidence": {
+                  "maxLength": 600,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "imageIds": {
+                  "items": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "maxItems": 6,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "observation": {
+                  "maxLength": 1200,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "imageIds",
+                "observation",
+                "evidence",
+                "certainty"
+              ],
+              "type": "object"
+            },
+            "maxItems": 12,
+            "type": "array"
+          },
+          "limitations": {
+            "items": {
+              "maxLength": 600,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "type": "array"
+          },
+          "productObservations": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "certainty": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                "evidence": {
+                  "maxLength": 600,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "imageIds": {
+                  "items": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "maxItems": 6,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "observation": {
+                  "maxLength": 1200,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "imageIds",
+                "observation",
+                "evidence",
+                "certainty"
+              ],
+              "type": "object"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "summary": {
+            "maxLength": 1500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "visibleDefects": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "certainty": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                "evidence": {
+                  "maxLength": 600,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "imageIds": {
+                  "items": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "maxItems": 6,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "observation": {
+                  "maxLength": 1200,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "imageIds",
+                "observation",
+                "evidence",
+                "certainty"
+              ],
+              "type": "object"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        "required": [
+          "summary",
+          "productObservations",
+          "visibleDefects",
+          "imageQuality",
+          "inconsistencies",
+          "limitations"
+        ],
+        "type": "object"
+      },
+      "ProductOwnerInspection": {
+        "properties": {
+          "inspection": {
+            "nullable": true,
+            "properties": {
+              "attempts": {
+                "type": "integer"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "errorCode": {
+                "nullable": true,
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "promptVersion": {
+                "type": "string"
+              },
+              "report": {
+                "additionalProperties": false,
+                "nullable": true,
+                "properties": {
+                  "imageQuality": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "certainty": {
+                          "enum": [
+                            "low",
+                            "medium",
+                            "high"
+                          ],
+                          "type": "string"
+                        },
+                        "evidence": {
+                          "maxLength": 600,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "imageIds": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "maxItems": 6,
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "observation": {
+                          "maxLength": 1200,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "imageIds",
+                        "observation",
+                        "evidence",
+                        "certainty"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 12,
+                    "type": "array"
+                  },
+                  "inconsistencies": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "certainty": {
+                          "enum": [
+                            "low",
+                            "medium",
+                            "high"
+                          ],
+                          "type": "string"
+                        },
+                        "evidence": {
+                          "maxLength": 600,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "imageIds": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "maxItems": 6,
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "observation": {
+                          "maxLength": 1200,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "imageIds",
+                        "observation",
+                        "evidence",
+                        "certainty"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 12,
+                    "type": "array"
+                  },
+                  "limitations": {
+                    "items": {
+                      "maxLength": 600,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 12,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "productObservations": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "certainty": {
+                          "enum": [
+                            "low",
+                            "medium",
+                            "high"
+                          ],
+                          "type": "string"
+                        },
+                        "evidence": {
+                          "maxLength": 600,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "imageIds": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "maxItems": 6,
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "observation": {
+                          "maxLength": 1200,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "imageIds",
+                        "observation",
+                        "evidence",
+                        "certainty"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                  },
+                  "summary": {
+                    "maxLength": 1500,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "visibleDefects": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "certainty": {
+                          "enum": [
+                            "low",
+                            "medium",
+                            "high"
+                          ],
+                          "type": "string"
+                        },
+                        "evidence": {
+                          "maxLength": 600,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "imageIds": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "maxItems": 6,
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "observation": {
+                          "maxLength": 1200,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "imageIds",
+                        "observation",
+                        "evidence",
+                        "certainty"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "summary",
+                  "productObservations",
+                  "visibleDefects",
+                  "imageQuality",
+                  "inconsistencies",
+                  "limitations"
+                ],
+                "type": "object"
+              },
+              "status": {
+                "enum": [
+                  "queued",
+                  "processing",
+                  "completed",
+                  "failed",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "status",
+              "attempts",
+              "promptVersion",
+              "report",
+              "errorCode",
+              "createdAt",
+              "updatedAt"
+            ],
+            "type": "object"
+          },
+          "reviewStatus": {
+            "enum": [
+              "not_required",
+              "pending",
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "reviewStatus",
+          "inspection"
+        ],
+        "type": "object"
+      },
+      "ProductResponse": {
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fulfillmentMethods": {
+            "items": {
+              "enum": [
+                "shipping",
+                "meetup"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "properties": {
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "mimeType": {
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "type": "integer"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "url",
+                "mimeType",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "knownDefects": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "price": {
+            "type": "integer"
+          },
+          "publishedAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "rejectionReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewStatus": {
+            "enum": [
+              "not_required",
+              "pending",
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "seller": {
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "displayName"
+            ],
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "published",
+              "hidden",
+              "sold"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "description",
+          "price",
+          "condition",
+          "knownDefects",
+          "location",
+          "fulfillmentMethods",
+          "status",
+          "reviewStatus",
+          "revision",
+          "rejectionReason",
+          "seller",
+          "publishedAt",
+          "updatedAt",
+          "images"
+        ],
+        "type": "object"
+      },
+      "ProductReviewDecision": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "productId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewedAt": {
+            "type": "string"
+          },
+          "reviewedBy": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "productId",
+          "revision",
+          "status",
+          "reason",
+          "reviewedBy",
+          "reviewedAt"
+        ],
+        "type": "object"
+      },
+      "ProductReviewDetail": {
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "properties": {
+                "expiresAt": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "metadata": {
+                  "properties": {
+                    "capturedAtLocal": {
+                      "type": "string"
+                    },
+                    "latitude": {
+                      "maximum": 90,
+                      "minimum": -90,
+                      "type": "number"
+                    },
+                    "longitude": {
+                      "maximum": 180,
+                      "minimum": -180,
+                      "type": "number"
+                    },
+                    "make": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "model": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "utcOffset": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "capturedAtLocal",
+                    "utcOffset",
+                    "latitude",
+                    "longitude",
+                    "make",
+                    "model"
+                  ],
+                  "type": "object"
+                },
+                "originalMime": {
+                  "type": "string"
+                },
+                "purgedAt": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "metadata",
+                "sha256",
+                "expiresAt",
+                "purgedAt",
+                "originalMime"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "inspections": {
+            "items": {
+              "properties": {
+                "attempts": {
+                  "type": "integer"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "errorCode": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "model": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "nextAttemptAt": {
+                  "type": "string"
+                },
+                "promptVersion": {
+                  "type": "string"
+                },
+                "report": {
+                  "additionalProperties": false,
+                  "nullable": true,
+                  "properties": {
+                    "imageQuality": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "certainty": {
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ],
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "maxLength": 600,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "imageIds": {
+                            "items": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "maxItems": 6,
+                            "minItems": 1,
+                            "type": "array"
+                          },
+                          "observation": {
+                            "maxLength": 1200,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "imageIds",
+                          "observation",
+                          "evidence",
+                          "certainty"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 12,
+                      "type": "array"
+                    },
+                    "inconsistencies": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "certainty": {
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ],
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "maxLength": 600,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "imageIds": {
+                            "items": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "maxItems": 6,
+                            "minItems": 1,
+                            "type": "array"
+                          },
+                          "observation": {
+                            "maxLength": 1200,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "imageIds",
+                          "observation",
+                          "evidence",
+                          "certainty"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 12,
+                      "type": "array"
+                    },
+                    "limitations": {
+                      "items": {
+                        "maxLength": 600,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "maxItems": 12,
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "productObservations": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "certainty": {
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ],
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "maxLength": 600,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "imageIds": {
+                            "items": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "maxItems": 6,
+                            "minItems": 1,
+                            "type": "array"
+                          },
+                          "observation": {
+                            "maxLength": 1200,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "imageIds",
+                          "observation",
+                          "evidence",
+                          "certainty"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 20,
+                      "type": "array"
+                    },
+                    "summary": {
+                      "maxLength": 1500,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "visibleDefects": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "certainty": {
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ],
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "maxLength": 600,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "imageIds": {
+                            "items": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "maxItems": 6,
+                            "minItems": 1,
+                            "type": "array"
+                          },
+                          "observation": {
+                            "maxLength": 1200,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "imageIds",
+                          "observation",
+                          "evidence",
+                          "certainty"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 20,
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "summary",
+                    "productObservations",
+                    "visibleDefects",
+                    "imageQuality",
+                    "inconsistencies",
+                    "limitations"
+                  ],
+                  "type": "object"
+                },
+                "reviewId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "queued",
+                    "processing",
+                    "completed",
+                    "failed",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "reviewId",
+                "status",
+                "attempts",
+                "model",
+                "promptVersion",
+                "report",
+                "errorCode",
+                "nextAttemptAt",
+                "createdAt",
+                "updatedAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "product": {
+            "properties": {
+              "deletedAt": {
+                "nullable": true,
+                "type": "string"
+              },
+              "reviewStatus": {
+                "enum": [
+                  "not_required",
+                  "pending",
+                  "approved",
+                  "rejected"
+                ],
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "revision",
+              "reviewStatus",
+              "deletedAt"
+            ],
+            "type": "object"
+          },
+          "productId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewedAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewedBy": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "snapshot": {
+            "properties": {
+              "category": {
+                "type": "string"
+              },
+              "condition": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "fulfillmentMethods": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "images": {
+                "items": {
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "mimeType": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "type": "integer"
+                    },
+                    "sortOrder": {
+                      "type": "integer"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "url",
+                    "sha256",
+                    "mimeType",
+                    "sizeBytes",
+                    "sortOrder"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "knownDefects": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "price": {
+                "type": "integer"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "category",
+              "description",
+              "condition",
+              "knownDefects",
+              "price",
+              "location",
+              "fulfillmentMethods",
+              "images"
+            ],
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "superseded"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "productId",
+          "revision",
+          "status",
+          "snapshot",
+          "reviewedBy",
+          "reason",
+          "reviewedAt",
+          "createdAt",
+          "inspections",
+          "evidence",
+          "product"
+        ],
+        "type": "object"
+      },
+      "ProductReviewSummary": {
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "inspections": {
+            "items": {
+              "properties": {
+                "errorCode": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "status",
+                "errorCode"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "product": {
+            "properties": {
+              "revision": {
+                "type": "integer"
+              },
+              "sellerId": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "sellerId",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "productId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "productId",
+          "revision",
+          "createdAt",
+          "product",
+          "inspections"
+        ],
+        "type": "object"
+      },
+      "ProductStatusRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "published",
+              "hidden",
+              "sold"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
       "RegisterUserRequest": {
         "additionalProperties": false,
         "description": "Name and email are trimmed before validation; email is lowercased. Phone uses E.164. Password is never trimmed.",
@@ -299,6 +1970,626 @@
   },
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/admin/kyc": {
+      "get": {
+        "operationId": "kycReviewList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending submissions"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: list up to 50 submissions awaiting review",
+        "tags": [
+          "kyc-admin"
+        ]
+      }
+    },
+    "/api/v1/admin/kyc/{id}": {
+      "get": {
+        "operationId": "kycReviewDetail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decrypted for this request only"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: extracted fields and automated observations",
+        "tags": [
+          "kyc-admin"
+        ]
+      }
+    },
+    "/api/v1/admin/kyc/{id}/assets/{kind}": {
+      "get": {
+        "operationId": "kycReviewAsset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: stream one decrypted image (every view is audited)",
+        "tags": [
+          "kyc-admin"
+        ]
+      }
+    },
+    "/api/v1/admin/kyc/{id}/decision": {
+      "post": {
+        "operationId": "kycReviewDecision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "approve",
+                      "reject"
+                    ],
+                    "type": "string"
+                  },
+                  "reason": {
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "studentId": {
+                    "description": "Corrected student id when OCR misread it",
+                    "pattern": "^\\d{10}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "decision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Decision recorded"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: approve or reject; images and data are erased",
+        "tags": [
+          "kyc-admin"
+        ]
+      }
+    },
+    "/api/v1/admin/product-reviews": {
+      "get": {
+        "operationId": "productReviewsList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductReviewSummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Pending review summaries with revision and AI job status"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: list up to 50 current pending reviews",
+        "tags": [
+          "product-reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/product-reviews/{id}": {
+      "get": {
+        "operationId": "productReviewDetail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review detail; inspection reports are observations, never verdicts"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: review snapshot, private metadata, inspection history",
+        "tags": [
+          "product-reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/product-reviews/{id}/decision": {
+      "post": {
+        "operationId": "productReviewDecision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "approve",
+                      "reject"
+                    ],
+                    "type": "string"
+                  },
+                  "reason": {
+                    "maxLength": 2000,
+                    "type": "string"
+                  },
+                  "revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "revision",
+                  "decision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductReviewDecision"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: approve/reject the current pending revision",
+        "tags": [
+          "product-reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/product-reviews/{id}/images/{imageId}": {
+      "get": {
+        "operationId": "productReviewImage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: metadata-free review image",
+        "tags": [
+          "product-reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/product-reviews/{id}/inspections": {
+      "post": {
+        "operationId": "productReviewRetry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductInspection"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: create a new inspection attempt for current pending review",
+        "tags": [
+          "product-reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/product-reviews/{id}/originals/{imageId}": {
+      "get": {
+        "operationId": "productReviewOriginal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: private original, unavailable after 30 days",
+        "tags": [
+          "product-reviews"
+        ]
+      }
+    },
     "/api/v1/auth/logout": {
       "post": {
         "description": "Revokes all live tokens in the cookie's family, immediately invalidating its access tokens. Missing or unknown cookie is idempotent. Other login families are unaffected. Requires CSRF headers even without a cookie.",
@@ -384,6 +2675,16 @@
               }
             },
             "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
           }
         },
         "security": [
@@ -396,6 +2697,292 @@
           }
         ],
         "summary": "Log out the current session family",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/otp/resend": {
+      "post": {
+        "operationId": "authOtpResend",
+        "parameters": [
+          {
+            "description": "Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript.",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          {
+            "description": "CSRF protection: send together with credentials: include and the configured Origin.",
+            "in": "header",
+            "name": "X-ReOwn-Client",
+            "required": true,
+            "schema": {
+              "enum": [
+                "web"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpResendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpChallenge"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded. Observe Retry-After before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
+          }
+        },
+        "summary": "Send a new OTP, invalidating the previous code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/otp/verify": {
+      "post": {
+        "operationId": "authOtpVerify",
+        "parameters": [
+          {
+            "description": "Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript.",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          {
+            "description": "CSRF protection: send together with credentials: include and the configured Origin.",
+            "in": "header",
+            "name": "X-ReOwn-Client",
+            "required": true,
+            "schema": {
+              "enum": [
+                "web"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": [
+                    "no-store"
+                  ],
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "description": "Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded. Observe Retry-After before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
+          }
+        },
+        "summary": "Verify a single-use email OTP and create a session",
         "tags": [
           "auth"
         ]
@@ -503,6 +3090,16 @@
               }
             },
             "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
           }
         },
         "security": [
@@ -542,11 +3139,1123 @@
         ]
       }
     },
+    "/api/v1/kyc/me": {
+      "delete": {
+        "operationId": "kycWithdraw",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Stored KYC data erased"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Withdraw verification and erase stored images and data",
+        "tags": [
+          "kyc"
+        ]
+      },
+      "get": {
+        "operationId": "kycStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Status only; no personal data"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Read your student-card verification status",
+        "tags": [
+          "kyc"
+        ]
+      }
+    },
+    "/api/v1/kyc/submissions": {
+      "post": {
+        "operationId": "kycSubmit",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "card_front": {
+                    "description": "Front of the student card (JPEG, PNG or WebP)",
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "consent": {
+                    "description": "Consent version the user accepted",
+                    "type": "string"
+                  },
+                  "selfie": {
+                    "description": "Live selfie (JPEG, PNG or WebP)",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "card_front",
+                  "selfie",
+                  "consent"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Accepted for admin review"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Upload exceeds the allowed size."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "The request was understood but the content cannot be used (for example, KYC photos that must be retaken). The body carries a machine-readable error code and reasons."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded. Observe Retry-After before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Submit a student card front and selfie for verification",
+        "tags": [
+          "kyc"
+        ]
+      }
+    },
+    "/api/v1/product-images/{id}": {
+      "get": {
+        "operationId": "productImageGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
+          }
+        },
+        "summary": "Read a public product photo",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "productsList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "summary": "List up to 100 published listings",
+        "tags": [
+          "products"
+        ]
+      },
+      "post": {
+        "operationId": "productsCreate",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "description": "JSON matching ProductInput",
+                    "type": "string"
+                  },
+                  "files": {
+                    "items": {
+                      "format": "binary",
+                      "type": "string"
+                    },
+                    "maxItems": 6,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "data"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Upload exceeds the allowed size."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Publish a listing with 1–6 real photos",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/mine": {
+      "get": {
+        "operationId": "productsMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "List the current seller's listings",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/mine/{id}": {
+      "get": {
+        "operationId": "productsGetMine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Read a listing owned by the current seller",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/mine/{id}/images/{imageId}": {
+      "get": {
+        "operationId": "productImageOwned",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Read a metadata-free image belonging to an owned listing",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/mine/{id}/inspection": {
+      "get": {
+        "operationId": "productOwnerInspection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOwnerInspection"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Read observations for your current listing revision",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/{id}": {
+      "delete": {
+        "operationId": "productsDelete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Listing removed; review history retained"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Soft-delete your unsold listing without orders",
+        "tags": [
+          "products"
+        ]
+      },
+      "get": {
+        "operationId": "productsGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "summary": "Read a published listing",
+        "tags": [
+          "products"
+        ]
+      },
+      "put": {
+        "operationId": "productsUpdate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "description": "JSON matching ProductInput",
+                    "type": "string"
+                  },
+                  "files": {
+                    "items": {
+                      "format": "binary",
+                      "type": "string"
+                    },
+                    "maxItems": 6,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "data"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Upload exceeds the allowed size."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Update your unsold listing and photo order",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/{id}/status": {
+      "patch": {
+        "operationId": "productsStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Hide, republish or mark your listing sold",
+        "tags": [
+          "products"
+        ]
+      }
+    },
     "/api/v1/users/login": {
       "post": {
-        "description": "Send identifier plus password. Legacy email/password or phone/password forms remain supported; do not mix identifier forms. Login failures return the same generic 401. Shares a 10-request/15-minute/IP limit with registration.",
+        "description": "Validates identifier/password and sends an OTP to the account email. Does not create a session. Legacy email/password and phone/password inputs remain supported.",
         "operationId": "usersLogin",
         "parameters": [
+          {
+            "description": "Fresh hCaptcha response token; verified on the server before sending an OTP.",
+            "in": "header",
+            "name": "X-HCaptcha-Response",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "description": "Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript.",
             "in": "header",
@@ -581,27 +4290,21 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "$ref": "#/components/schemas/OtpChallenge"
                 }
               }
             },
-            "description": "Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage.",
+            "description": "",
             "headers": {
               "Cache-Control": {
                 "schema": {
                   "enum": [
                     "no-store"
                   ],
-                  "type": "string"
-                }
-              },
-              "Set-Cookie": {
-                "description": "Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh.",
-                "schema": {
                   "type": "string"
                 }
               }
@@ -671,6 +4374,16 @@
               }
             },
             "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
           }
         },
         "summary": "Log in with email or phone and password",
@@ -822,9 +4535,18 @@
     },
     "/api/v1/users/register": {
       "post": {
-        "description": "Creates an unverified user and a new 30-day absolute session family. Requires exact Origin and X-ReOwn-Client headers. Refresh token is cookie-only.",
+        "description": "Sends a registration OTP. No user or session is created until email verification succeeds. Requires exact Origin and X-ReOwn-Client headers.",
         "operationId": "usersRegister",
         "parameters": [
+          {
+            "description": "Fresh hCaptcha response token; verified on the server before sending an OTP.",
+            "in": "header",
+            "name": "X-HCaptcha-Response",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "description": "Must exactly equal CLIENT_ORIGIN. Browsers set this header automatically; do not override it from frontend JavaScript.",
             "in": "header",
@@ -859,27 +4581,21 @@
           "required": true
         },
         "responses": {
-          "201": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "$ref": "#/components/schemas/OtpChallenge"
                 }
               }
             },
-            "description": "Access token and private profile. Refresh token is ONLY in Set-Cookie, never in JSON. Store the access token in memory, not localStorage.",
+            "description": "",
             "headers": {
               "Cache-Control": {
                 "schema": {
                   "enum": [
                     "no-store"
                   ],
-                  "type": "string"
-                }
-              },
-              "Set-Cookie": {
-                "description": "Rotating HttpOnly refresh cookie, host-only, Path=/api/v1/auth, SameSite=Lax by default, Secure by default. Local insecure development uses reown_refresh instead of __Secure-reown_refresh.",
-                "schema": {
                   "type": "string"
                 }
               }
@@ -949,6 +4665,16 @@
               }
             },
             "description": "Unexpected server or database error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "A required Redis or R2 storage dependency is unavailable or not configured."
           }
         },
         "summary": "Register a personal account",

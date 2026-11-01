@@ -3,6 +3,7 @@ import {
     Injectable,
     UnauthorizedException,
 } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { Prisma } from "../generated/prisma/client";
 import type {
     LoginUserDto,
@@ -84,7 +85,7 @@ export class UsersService {
         }
     }
 
-    async login(dto: LoginUserDto): Promise<AuthSessionResult> {
+    async verifyCredentials(dto: LoginUserDto) {
         const user = await this.prisma.user.findUnique({
             where: dto.identifier.includes("@")
                 ? { email: dto.identifier }
@@ -99,6 +100,85 @@ export class UsersService {
             throw new UnauthorizedException("Invalid credentials");
         }
         const { passwordHash, ...profile } = user;
+        return { user: profile, passwordHash };
+    }
+
+    async login(dto: LoginUserDto): Promise<AuthSessionResult> {
+        const { user } = await this.verifyCredentials(dto);
+        return this.authenticate(user);
+    }
+    async prepareRegistration(dto: RegisterUserDto) {
+        const existing = await this.prisma.user.findFirst({
+            where: { OR: [{ email: dto.email }, { phone: dto.phone }] },
+            select: { id: true },
+        });
+        if (existing)
+            throw new ConflictException(
+                "An account with these details already exists",
+            );
+        return {
+            displayName: dto.displayName,
+            email: dto.email,
+            phone: dto.phone,
+            passwordHash: await this.passwords.hash(dto.password),
+        };
+    }
+    async completeRegistration(value: {
+        displayName: string;
+        email: string;
+        phone: string;
+        passwordHash: string;
+    }) {
+        try {
+            return await this.prisma.$transaction(async (tx) => {
+                const user = await tx.user.create({
+                    data: {
+                        displayName: value.displayName,
+                        email: value.email,
+                        phone: value.phone,
+                        passwordHash: value.passwordHash,
+                        phoneVerified: 0,
+                        emailVerified: 1,
+                        kycStatus: 0,
+                        role: UserRoles.USER,
+                        status: ACTIVE_USER_STATUS,
+                    },
+                    select: userProfileSelect,
+                });
+                return this.sessionResponse(
+                    user,
+                    await this.sessions.create(user.id, tx),
+                );
+            });
+        } catch (error) {
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError &&
+                error.code === "P2002"
+            )
+                throw new ConflictException(
+                    "An account with these details already exists",
+                );
+            throw error;
+        }
+    }
+    async completeOtpLogin(id: string, email: string, fingerprint: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+            select: { ...userProfileSelect, passwordHash: true },
+        });
+        if (
+            !user ||
+            user.status !== ACTIVE_USER_STATUS ||
+            user.email !== email ||
+            createHash("sha256").update(user.passwordHash).digest("hex") !==
+                fingerprint
+        )
+            throw new UnauthorizedException("Account credentials changed");
+        const profile = await this.prisma.user.update({
+            where: { id, status: ACTIVE_USER_STATUS },
+            data: { emailVerified: 1 },
+            select: userProfileSelect,
+        });
         return this.authenticate(profile);
     }
 

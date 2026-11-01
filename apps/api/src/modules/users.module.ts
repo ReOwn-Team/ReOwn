@@ -1,3 +1,9 @@
+import { HcaptchaGuard } from "../captcha/hcaptcha.guard";
+import { HcaptchaProvider } from "../captcha/hcaptcha.provider";
+import { OtpController } from "../controllers/otp.controller";
+import { OtpAuthService } from "../otp/otp-auth.service";
+import { OtpStore } from "../otp/otp.store";
+import { OtpMailProvider } from "../otp/otp-mail.provider";
 import {
     MiddlewareConsumer,
     Module,
@@ -15,11 +21,17 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { AccessTokenProvider } from "../providers/access-token.provider";
 import { PasswordProvider } from "../providers/password.provider";
 import { UsersService } from "../services/users.service";
+import { RedisModule } from "../redis/redis.module";
+import { RedisService } from "../redis/redis.service";
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [UsersController, AuthController],
+    imports: [PrismaModule, RedisModule],
+    controllers: [UsersController, AuthController, OtpController],
     providers: [
+        HcaptchaGuard, HcaptchaProvider,
+        OtpAuthService,
+        OtpStore,
+        OtpMailProvider,
         UsersService,
         SessionsService,
         PasswordProvider,
@@ -29,6 +41,7 @@ import { UsersService } from "../services/users.service";
         CookieCsrfGuard,
     ],
     exports: [
+        AccessTokenProvider,
         UsersService,
         SessionsService,
         AccessTokenGuard,
@@ -36,9 +49,15 @@ import { UsersService } from "../services/users.service";
     ],
 })
 export class UsersModule implements NestModule {
+    constructor(private readonly redis: RedisService) {}
     configure(consumer: MiddlewareConsumer): void {
         consumer
-            .apply(createAuthRateLimit())
+            .apply(
+                createAuthRateLimit(
+                    10,
+                    this.redis.createRateLimitStore("credentials"),
+                ),
+            )
             .forRoutes(
                 {
                     path: "users/register",
@@ -52,7 +71,28 @@ export class UsersModule implements NestModule {
                 },
             );
         consumer
-            .apply(createAuthRateLimit(60))
+            .apply(
+                createAuthRateLimit(30, this.redis.createRateLimitStore("otp")),
+            )
+            .forRoutes(
+                {
+                    path: "auth/otp/verify",
+                    method: RequestMethod.POST,
+                    version: "1",
+                },
+                {
+                    path: "auth/otp/resend",
+                    method: RequestMethod.POST,
+                    version: "1",
+                },
+            );
+        consumer
+            .apply(
+                createAuthRateLimit(
+                    60,
+                    this.redis.createRateLimitStore("sessions"),
+                ),
+            )
             .forRoutes(
                 {
                     path: "auth/refresh",

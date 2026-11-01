@@ -1,3 +1,4 @@
+import { HcaptchaProvider } from "../../src/captcha/hcaptcha.provider";
 import "reflect-metadata";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
@@ -33,13 +34,40 @@ import { PrismaService } from "../../src/prisma/prisma.service";
 import { AccessTokenProvider } from "../../src/providers/access-token.provider";
 
 const routes = [
+    ["get", "/api/v1/products/mine/{id}/images/{imageId}", "productImageOwned", [200]],
+    ["get", "/api/v1/admin/product-reviews", "productReviewsList", [200]],
+    ["get", "/api/v1/admin/product-reviews/{id}", "productReviewDetail", [200]],
+    ["get", "/api/v1/admin/product-reviews/{id}/images/{imageId}", "productReviewImage", [200]],
+    ["get", "/api/v1/admin/product-reviews/{id}/originals/{imageId}", "productReviewOriginal", [200]],
+    ["post", "/api/v1/admin/product-reviews/{id}/decision", "productReviewDecision", [201]],
+    ["post", "/api/v1/admin/product-reviews/{id}/inspections", "productReviewRetry", [201]],
+
+    ["get", "/api/v1/kyc/me", "kycStatus", [200, 401, 500]],
+    ["post", "/api/v1/kyc/submissions", "kycSubmit", [201, 400, 401, 409, 413, 422, 429, 500, 503]],
+    ["delete", "/api/v1/kyc/me", "kycWithdraw", [204, 401, 500]],
+    ["get", "/api/v1/admin/kyc", "kycReviewList", [200, 401, 403, 500]],
+    ["get", "/api/v1/admin/kyc/{id}", "kycReviewDetail", [200, 400, 401, 403, 404, 500]],
+    ["get", "/api/v1/admin/kyc/{id}/assets/{kind}", "kycReviewAsset", [200, 400, 401, 403, 404, 500]],
+    ["post", "/api/v1/admin/kyc/{id}/decision", "kycReviewDecision", [200, 400, 401, 403, 404, 409, 500]],
     ["get", "/api/v1/health", "healthCheck", [200]],
-    ["post", "/api/v1/users/register", "usersRegister", [201, 400, 403, 409, 429, 500]],
-    ["post", "/api/v1/users/login", "usersLogin", [200, 400, 401, 403, 429, 500]],
+    ["post", "/api/v1/users/register", "usersRegister", [202, 400, 403, 409, 429, 500, 503]],
+    ["post", "/api/v1/users/login", "usersLogin", [202, 400, 401, 403, 429, 500, 503]],
     ["get", "/api/v1/users/me", "usersGetMe", [200, 401, 500]],
     ["patch", "/api/v1/users/me", "usersUpdateMe", [200, 400, 401, 500]],
-    ["post", "/api/v1/auth/refresh", "authRefresh", [200, 401, 403, 429, 500]],
-    ["post", "/api/v1/auth/logout", "authLogout", [204, 403, 429, 500]],
+    ["post", "/api/v1/auth/refresh", "authRefresh", [200, 401, 403, 429, 500, 503]],
+    ["post", "/api/v1/auth/logout", "authLogout", [204, 403, 429, 500, 503]],
+    ["delete", "/api/v1/products/{id}", "productsDelete", [204, 400, 401, 404, 409, 500]],
+    ["get", "/api/v1/products/mine/{id}/inspection", "productOwnerInspection", [200, 400, 401, 404, 500]],
+    ["get", "/api/v1/products", "productsList", [200, 500]],
+    ["get", "/api/v1/products/mine", "productsMine", [200, 401, 500]],
+    ["get", "/api/v1/products/mine/{id}", "productsGetMine", [200, 400, 401, 404, 500]],
+    ["get", "/api/v1/products/{id}", "productsGet", [200, 400, 404, 500]],
+    ["post", "/api/v1/products", "productsCreate", [201, 400, 401, 409, 413, 500, 503]],
+    ["put", "/api/v1/products/{id}", "productsUpdate", [200, 400, 401, 404, 409, 413, 500, 503]],
+    ["patch", "/api/v1/products/{id}/status", "productsStatus", [200, 400, 401, 404, 409, 500]],
+    ["get", "/api/v1/product-images/{id}", "productImageGet", [200, 400, 404, 500, 503]],
+    ["post", "/api/v1/auth/otp/verify", "authOtpVerify", [200,400,401,403,409,429,500,503]],
+    ["post", "/api/v1/auth/otp/resend", "authOtpResend", [202,400,401,403,429,500,503]],
 ] as const;
 const methods = ["get", "put", "post", "delete", "options", "head", "patch", "trace"] as const;
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
@@ -49,7 +77,7 @@ const csrfHeaders = { Origin: clientOrigin, "X-ReOwn-Client": "web" };
 type RegisterRequest = operations["usersRegister"]["requestBody"]["content"]["application/json"];
 type LoginRequest = operations["usersLogin"]["requestBody"]["content"]["application/json"];
 type UpdateRequest = operations["usersUpdateMe"]["requestBody"]["content"]["application/json"];
-type AuthBody = operations["usersLogin"]["responses"][200]["content"]["application/json"];
+type AuthBody = operations["authOtpVerify"]["responses"][200]["content"]["application/json"];
 
 const profile = {
     id: "f47221b7-a23b-44bb-9c42-cfc153728910",
@@ -117,6 +145,7 @@ describe("OpenAPI contract", () => {
         });
         artifact = JSON.parse(readFileSync(resolve(__dirname, "../../openapi.json"), "utf8")) as OpenAPIObject;
         const module = await Test.createTestingModule({ imports: [AppModule] })
+            .overrideProvider(HcaptchaProvider).useValue({ verify: async () => {} })
             .overrideProvider(PrismaService).useValue({})
             .overrideProvider(AccessTokenProvider).useValue({})
             .compile();
@@ -170,16 +199,16 @@ describe("OpenAPI contract", () => {
         expect(serialized(document.components?.schemas)).toEqual(serialized(createContractSchemas()));
         expect(Object.keys(document.components?.schemas ?? {}).sort()).toEqual([
             "AuthResponse", "HealthResponse", "HttpError", "LoginUserRequest",
-            "RegisterUserRequest", "UpdateUserRequest", "UserProfile", "ValidationError",
+            "OtpChallenge", "OtpResendRequest", "OtpVerifyRequest", "ProductInput", "ProductInspection", "ProductInspectionReport", "ProductOwnerInspection", "ProductResponse", "ProductReviewDecision", "ProductReviewDetail", "ProductReviewSummary", "ProductStatusRequest", "RegisterUserRequest", "UpdateUserRequest", "UserProfile", "ValidationError",
         ]);
     });
 
-    it("exposes exactly seven versioned operations with unique, stable operationIds", () => {
+    it("exposes all versioned operations with unique, stable operationIds", () => {
         const actual = Object.entries(document.paths).flatMap(([path, item]) =>
             methods.flatMap((method) => item[method] ? [`${method} ${path} ${item[method]?.operationId}`] : []),
         );
         expect(actual.sort()).toEqual(routes.map(([method, path, id]) => `${method} ${path} ${id}`).sort());
-        expect(new Set(routes.map(([, , id]) => operation(id).operationId)).size).toBe(7);
+        expect(new Set(routes.map(([, , id]) => operation(id).operationId)).size).toBe(routes.length);
     });
 
     it.each([
@@ -283,12 +312,12 @@ describe("OpenAPI contract", () => {
         for (const [, , id] of routes) {
             const parameters = operation(id).parameters ?? [];
             const headers = parameters.filter((parameter) => !("$ref" in parameter) && parameter.in === "header");
-            if (["usersRegister", "usersLogin", "authRefresh", "authLogout"].includes(id)) {
+            if (["usersRegister", "usersLogin", "authRefresh", "authLogout", "authOtpVerify", "authOtpResend"].includes(id)) {
                 expect(headers).toEqual(expect.arrayContaining([
                     expect.objectContaining({ in: "header", name: "Origin", required: true, schema: { type: "string", format: "uri" } }),
                     expect.objectContaining({ in: "header", name: "X-ReOwn-Client", required: true, schema: { type: "string", enum: ["web"] } }),
                 ]));
-                expect(headers).toHaveLength(2);
+                expect(headers).toHaveLength(["usersLogin", "usersRegister"].includes(id) ? 3 : 2);
             } else {
                 expect(headers).toEqual([]);
             }
@@ -339,8 +368,8 @@ describe("OpenAPI contract", () => {
     it("references safe success schemas and documents cookie/cache headers without a 204 body", () => {
         for (const [id, status, name] of [
             ["healthCheck", 200, "HealthResponse"],
-            ["usersRegister", 201, "AuthResponse"],
-            ["usersLogin", 200, "AuthResponse"],
+            ["usersRegister", 202, "OtpChallenge"],
+            ["usersLogin", 202, "OtpChallenge"],
             ["usersGetMe", 200, "UserProfile"],
             ["usersUpdateMe", 200, "UserProfile"],
             ["authRefresh", 200, "AuthResponse"],

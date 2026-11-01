@@ -1,3 +1,6 @@
+import { inspectionReportSchema } from "../inspection/inspection-report";
+import { ownerInspectionSchema, inspectionSchema, reviewSummarySchema, reviewDetailSchema, decisionResponseSchema } from "../inspection/inspection.schemas";
+import { otpVerifySchema, otpResendSchema } from "../dtos/otp.dto";
 import {
     extendZodWithOpenApi,
     OpenAPIRegistry,
@@ -13,6 +16,7 @@ import {
 import type { AuthResponse, UserProfile } from "../models/user.model";
 import { ACCESS_TOKEN_TTL_SECONDS } from "../providers/access-token.provider";
 
+import { productInputSchema, productStatusSchema } from "../dtos/product.dto";
 extendZodWithOpenApi(z);
 const registry = new OpenAPIRegistry();
 
@@ -97,7 +101,61 @@ export const healthResponseSchema = registry.register(
         .strict(),
 );
 
+registry.register("ProductInspectionReport", inspectionReportSchema);
+registry.register("ProductInspection", inspectionSchema);
+registry.register("ProductOwnerInspection", ownerInspectionSchema);
+registry.register("ProductReviewSummary", reviewSummarySchema);
+registry.register("ProductReviewDetail", reviewDetailSchema);
+registry.register("ProductReviewDecision", decisionResponseSchema);
+registry.register("ProductInput", productInputSchema);
+registry.register("ProductStatusRequest", productStatusSchema);
+registry.register(
+    "ProductResponse",
+    z.object({
+        id: z.string().uuid(),
+        title: z.string(),
+        category: z.string(),
+        description: z.string(),
+        price: z.number().int(),
+        condition: z.string(),
+        knownDefects: z.string(),
+        location: z.string(),
+        fulfillmentMethods: z.array(z.enum(["shipping", "meetup"])),
+        status: z.enum(["published", "hidden", "sold"]),
+        reviewStatus: z.enum(["not_required", "pending", "approved", "rejected"]),
+        revision: z.number().int(),
+        rejectionReason: z.string().nullable(),
+        seller: z.object({ id: z.string().uuid(), displayName: z.string() }),
+        publishedAt: z.string().nullable(),
+        updatedAt: z.string(),
+        images: z.array(
+            z.object({
+                id: z.string().uuid(),
+                url: z.string(),
+                mimeType: z.string(),
+                sizeBytes: z.number().int(),
+            }),
+        ),
+    }),
+);
+
+registry.register("OtpVerifyRequest", otpVerifySchema);
+registry.register("OtpResendRequest", otpResendSchema);
+registry.register(
+    "OtpChallenge",
+    z
+        .object({
+            requiresOtp: z.literal(true),
+            challengeId: z.string(),
+            emailHint: z.string(),
+            expiresIn: z.number().int(),
+            resendAfter: z.number().int(),
+        })
+        .strict(),
+);
 export type ContractSchemaName =
+    | "OtpVerifyRequest"
+    | "OtpResendRequest"
     | "RegisterUserRequest"
     | "LoginUserRequest"
     | "UpdateUserRequest"

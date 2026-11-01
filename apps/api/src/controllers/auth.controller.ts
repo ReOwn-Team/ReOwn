@@ -44,7 +44,7 @@ export class AuthController {
     @ApiCsrfHeaders()
     @ApiRefreshCookie()
     @ApiAuthSuccess(200)
-    @ApiErrors(401, 403, 429, 500)
+    @ApiErrors(401, 403, 429, 500, 503)
     @Post("refresh")
     @HttpCode(HttpStatus.OK)
     @Header("Cache-Control", "no-store")
@@ -94,7 +94,7 @@ export class AuthController {
             "Cache-Control": { schema: { type: "string", enum: ["no-store"] } },
         },
     })
-    @ApiErrors(403, 429, 500)
+    @ApiErrors(403, 429, 500, 503)
     @Post("logout")
     @HttpCode(HttpStatus.NO_CONTENT)
     @Header("Cache-Control", "no-store")
