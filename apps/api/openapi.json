@@ -1034,6 +1034,7 @@
             "enum": [
               "not_required",
               "pending",
+              "seller_confirmation",
               "approved",
               "rejected"
             ],
@@ -1123,6 +1124,7 @@
             "enum": [
               "not_required",
               "pending",
+              "seller_confirmation",
               "approved",
               "rejected"
             ],
@@ -1580,6 +1582,7 @@
                 "enum": [
                   "not_required",
                   "pending",
+                  "seller_confirmation",
                   "approved",
                   "rejected"
                 ],
@@ -1697,6 +1700,7 @@
           "status": {
             "enum": [
               "pending",
+              "seller_confirmation",
               "approved",
               "rejected",
               "superseded"
@@ -1717,6 +1721,124 @@
           "inspections",
           "evidence",
           "product"
+        ],
+        "type": "object"
+      },
+      "ProductReviewEdit": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "productId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewedAt": {
+            "type": "string"
+          },
+          "reviewedBy": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "seller_confirmation"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "productId",
+          "revision",
+          "status",
+          "reason",
+          "reviewedBy",
+          "reviewedAt"
+        ],
+        "type": "object"
+      },
+      "ProductReviewEditRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "additionalProperties": false,
+            "properties": {
+              "category": {
+                "enum": [
+                  "Laptop",
+                  "Điện thoại",
+                  "Phụ kiện",
+                  "Sách",
+                  "Đồ dùng",
+                  "Sở thích"
+                ],
+                "type": "string"
+              },
+              "condition": {
+                "enum": [
+                  "Như mới",
+                  "Dùng tốt",
+                  "Cần sửa chữa"
+                ],
+                "type": "string"
+              },
+              "description": {
+                "maxLength": 10000,
+                "minLength": 20,
+                "type": "string"
+              },
+              "fulfillmentMethods": {
+                "items": {
+                  "enum": [
+                    "shipping",
+                    "meetup"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 2,
+                "minItems": 1,
+                "type": "array"
+              },
+              "knownDefects": {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              "location": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 200,
+                "minLength": 4,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "note": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "exclusiveMinimum": true,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "changes"
         ],
         "type": "object"
       },
@@ -2109,7 +2231,7 @@
             "accessToken": []
           }
         ],
-        "summary": "Admin: extracted fields and automated observations",
+        "summary": "Admin: retained identity evidence and automated observations for a pending or verified KYC",
         "tags": [
           "kyc-admin"
         ]
@@ -2211,7 +2333,7 @@
             "accessToken": []
           }
         ],
-        "summary": "Admin: stream one decrypted image (every view is audited)",
+        "summary": "Admin: stream one retained decrypted identity image (every view is audited)",
         "tags": [
           "kyc-admin"
         ]
@@ -2338,7 +2460,7 @@
             "accessToken": []
           }
         ],
-        "summary": "Admin: approve or reject; images and data are erased",
+        "summary": "Admin: approve or reject; verified identity evidence is retained for authorised repayment and dispute handling",
         "tags": [
           "kyc-admin"
         ]
@@ -2480,6 +2602,52 @@
         ]
       }
     },
+    "/api/v1/admin/product-reviews/{id}/edits": {
+      "post": {
+        "operationId": "productReviewEdit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductReviewEditRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductReviewEdit"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Admin: correct listing metadata and request seller confirmation; price and images cannot be changed",
+        "tags": [
+          "product-reviews"
+        ]
+      }
+    },
     "/api/v1/admin/product-reviews/{id}/images/{imageId}": {
       "get": {
         "operationId": "productReviewImage",
@@ -2587,6 +2755,434 @@
         "summary": "Admin: private original, unavailable after 30 days",
         "tags": [
           "product-reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/statistics": {
+      "get": {
+        "description": "Counts all users, active users, non-deleted products, publicly visible published products, all orders and all reports. Counts may reflect concurrent changes.",
+        "operationId": "adminStatistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "activeUsers": {
+                      "type": "integer"
+                    },
+                    "orders": {
+                      "type": "integer"
+                    },
+                    "products": {
+                      "type": "integer"
+                    },
+                    "publishedProducts": {
+                      "type": "integer"
+                    },
+                    "reports": {
+                      "type": "integer"
+                    },
+                    "users": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "users",
+                    "activeUsers",
+                    "products",
+                    "publishedProducts",
+                    "orders",
+                    "reports"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Administrator role required"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Aggregate dashboard counts",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "description": "Case-insensitive literal substring search across display name, email and phone. UUID keyset pagination is not a snapshot; repeat the same search on subsequent pages.",
+        "operationId": "adminUsersList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "example": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "description": "Last user ID from the preceding page",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Trimmed literal substring; do not log query strings",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "properties": {
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "emailVerified": {
+                            "type": "integer"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "kycStatus": {
+                            "type": "integer"
+                          },
+                          "phone": {
+                            "type": "string"
+                          },
+                          "phoneVerified": {
+                            "type": "integer"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "displayName",
+                          "email",
+                          "phone",
+                          "emailVerified",
+                          "phoneVerified",
+                          "kycStatus",
+                          "role",
+                          "status"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "format": "uuid",
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Administrator role required"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Search and list users (personal data access is audited)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "get": {
+        "description": "Returns at most 50 existing KYC records, newest first. Purged or deleted records cannot be recovered.",
+        "operationId": "adminUserGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "emailVerified": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "kycHistory": {
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "purgedAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "reviewedAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status",
+                          "createdAt",
+                          "reviewedAt",
+                          "purgedAt"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "kycHistoryTruncated": {
+                      "type": "boolean"
+                    },
+                    "kycStatus": {
+                      "type": "integer"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "phoneVerified": {
+                      "type": "integer"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "displayName",
+                    "email",
+                    "phone",
+                    "emailVerified",
+                    "phoneVerified",
+                    "kycStatus",
+                    "role",
+                    "status",
+                    "kycHistory",
+                    "kycHistoryTruncated"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Administrator role required"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Resource not found or not owned by the current user."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Get user details and retained KYC history metadata (audited)",
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -3236,7 +3832,7 @@
                     "type": "string"
                   },
                   "selfie": {
-                    "description": "Live selfie (JPEG, PNG or WebP)",
+                    "description": "Selfie image (JPEG, PNG or WebP); liveness is not verified",
                     "format": "binary",
                     "type": "string"
                   }

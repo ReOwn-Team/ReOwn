@@ -24,7 +24,8 @@ export type KycIssue =
     | "SELFIE_BLURRY"
     | "SELFIE_NOT_FRONTAL"
     | "SELFIE_BAD_LIGHT"
-    | "FACE_MISMATCH";
+    | "FACE_MISMATCH"
+    | "DUPLICATE_PHOTOS";
 
 export type AnalysisInput = { front: Buffer; selfie: Buffer };
 
@@ -117,8 +118,14 @@ async function meanLuma(image: RgbImage, face: Face) {
         .extract({
             left,
             top,
-            width: Math.max(1, Math.min(image.width - left, Math.ceil(face.width))),
-            height: Math.max(1, Math.min(image.height - top, Math.ceil(face.height))),
+            width: Math.max(
+                1,
+                Math.min(image.width - left, Math.ceil(face.width)),
+            ),
+            height: Math.max(
+                1,
+                Math.min(image.height - top, Math.ceil(face.height)),
+            ),
         })
         .resize(32, 32, { fit: "fill" })
         .greyscale()
@@ -160,6 +167,9 @@ export async function analyseSubmission(
         if (!frontOk) issues.push("FRONT_UNREADABLE");
         if (!selfieOk) issues.push("SELFIE_UNREADABLE");
         if (issues.length) return { ok: false, issues };
+        // A card-front photo cannot also be the required separate selfie.
+        if (input.front.equals(input.selfie))
+            return { ok: false, issues: ["DUPLICATE_PHOTOS"] };
 
         const [front, selfie] = await Promise.all([
             decodeRgb(input.front, 2400),
@@ -194,7 +204,10 @@ export async function analyseSubmission(
                     issues.push("SELFIE_NOT_FRONTAL");
                 const luma = await meanLuma(selfie, selfieFace);
                 if (luma < 45 || luma > 235) issues.push("SELFIE_BAD_LIGHT");
-                if ((await sharpness(selfie, selfieFace)) < thresholds.selfieSharpness)
+                if (
+                    (await sharpness(selfie, selfieFace)) <
+                    thresholds.selfieSharpness
+                )
                     issues.push("SELFIE_BLURRY");
             }
         }
@@ -207,7 +220,8 @@ export async function analyseSubmission(
         else if ((await sharpness(front, cardFace)) < thresholds.cardSharpness)
             issues.push("FRONT_BLURRY");
 
-        if (!selfieFace || !cardFace || issues.length) return { ok: false, issues };
+        if (!selfieFace || !cardFace || issues.length)
+            return { ok: false, issues };
 
         const reading = await readCard(front, cardFace);
         if (!reading.card.isHuitCard || !reading.card.layout)

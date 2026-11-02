@@ -27,7 +27,10 @@ import type { UserProfile } from "../models/user.model";
 import { ZodValidationPipe } from "../pipes/zod-validation.pipe";
 import { AdminGuard } from "./admin.guard";
 import { ProductReviewService } from "./product-review.service";
-import { decisionRequestSchema as decisionSchema } from "./inspection.schemas";
+import {
+    decisionRequestSchema as decisionSchema,
+    editRequestSchema as editSchema,
+} from "./inspection.schemas";
 @ApiTags("product-reviews")
 @ApiBearerAuth("accessToken")
 @UseGuards(AccessTokenGuard, AdminGuard)
@@ -104,6 +107,34 @@ export class ProductReviewsController {
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setHeader("Content-Disposition", "inline");
         response.send(image.bytes);
+    }
+    @ApiResponse({
+        status: 201,
+        schema: { $ref: "#/components/schemas/ProductReviewEdit" },
+    })
+    @Post(":id/edits")
+    @Header("Cache-Control", "no-store")
+    @ApiOperation({
+        operationId: "productReviewEdit",
+        summary:
+            "Admin: correct listing metadata and request seller confirmation; price and images cannot be changed",
+    })
+    @ApiBody({
+        schema: { $ref: "#/components/schemas/ProductReviewEditRequest" },
+    })
+    edit(
+        @Param("id", ParseUUIDPipe) id: string,
+        @Body(new ZodValidationPipe(editSchema))
+        body: z.infer<typeof editSchema>,
+        @CurrentUser() user: UserProfile,
+    ) {
+        return this.reviews.edit(
+            id,
+            body.revision,
+            body.changes,
+            body.note,
+            user.id,
+        );
     }
     @ApiResponse({
         status: 201,

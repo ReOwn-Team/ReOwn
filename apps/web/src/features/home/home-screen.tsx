@@ -15,6 +15,7 @@ import { FigmaIcon, type FigmaIconName } from "@/components/icons/figma-icon";
 import { ProductGrid } from "@/features/products/components/product-card";
 import { HackathonStrip } from "./components/hackathon-strip";
 import { ProductShelf } from "./components/product-shelf";
+import { NewProductsTrack } from "./components/new-products-track";
 
 const categoryLinks: {
     label: string;
@@ -93,7 +94,6 @@ export function HomeScreen() {
                     className="home-categories"
                     aria-label="Danh mục nổi bật"
                 >
-                    <p className="home-category-title">Danh mục</p>
                     <ul className="home-category-links">
                         {categoryLinks.map(
                             ({ label, category: value, icon }) => (
@@ -213,12 +213,7 @@ export function HomeScreen() {
                 className="stack home-marketplace-section home-discovery"
             >
                 <div className="section-heading">
-                    <div>
-                        <h2 id="new-heading">Mới đăng</h2>
-                        <p className="home-section-description">
-                            {visible.length} món đồ đang chờ chủ mới
-                        </p>
-                    </div>
+                    <h2 id="new-heading">Mới đăng</h2>
                     <Link className="home-section-link" href="/browse?sort=new">
                         Xem tất cả <ArrowRight size={14} aria-hidden="true" />
                     </Link>
@@ -245,7 +240,7 @@ export function HomeScreen() {
                         lọc
                     </Link>
                 </div>
-                <ProductGrid items={visible.slice(0, 8)} />
+                <NewProductsTrack key={category} items={visible} />
                 <p className="small muted home-footnote">
                     * Mức thanh toán mỗi tháng là ước tính từ giá sản phẩm, chưa
                     gồm phí (nếu có). Lịch thanh toán chi tiết được hiển thị khi

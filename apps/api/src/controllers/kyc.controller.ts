@@ -36,7 +36,7 @@ import { AdminGuard } from "../inspection/admin.guard";
 import type { UserProfile } from "../models/user.model";
 import { ApiErrors } from "../openapi/decorators";
 import { ZodValidationPipe } from "../pipes/zod-validation.pipe";
-import { KycService } from "./kyc.service";
+import { KycService } from "../services/kyc.service";
 
 const uploads = FileFieldsInterceptor(
     [
@@ -68,7 +68,8 @@ const submissionBody = {
             selfie: {
                 type: "string" as const,
                 format: "binary",
-                description: "Live selfie (JPEG, PNG or WebP)",
+                description:
+                    "Selfie image (JPEG, PNG or WebP); liveness is not verified",
             },
             consent: {
                 type: "string" as const,
@@ -168,9 +169,13 @@ export class KycAdminController {
     @Header("Cache-Control", "no-store")
     @ApiOperation({
         operationId: "kycReviewDetail",
-        summary: "Admin: extracted fields and automated observations",
+        summary:
+            "Admin: retained identity evidence and automated observations for a pending or verified KYC",
     })
-    @ApiResponse({ status: 200, description: "Decrypted for this request only" })
+    @ApiResponse({
+        status: 200,
+        description: "Decrypted for this request only",
+    })
     @ApiErrors(400, 401, 403, 404, 500)
     detail(
         @Param("id", ParseUUIDPipe) id: string,
@@ -182,7 +187,8 @@ export class KycAdminController {
     @Get(":id/assets/:kind")
     @ApiOperation({
         operationId: "kycReviewAsset",
-        summary: "Admin: stream one decrypted image (every view is audited)",
+        summary:
+            "Admin: stream one retained decrypted identity image (every view is audited)",
     })
     @ApiResponse({
         status: 200,
@@ -210,7 +216,8 @@ export class KycAdminController {
     @Header("Cache-Control", "no-store")
     @ApiOperation({
         operationId: "kycReviewDecision",
-        summary: "Admin: approve or reject; images and data are erased",
+        summary:
+            "Admin: approve or reject; verified identity evidence is retained for authorised repayment and dispute handling",
     })
     @ApiBody({
         required: true,

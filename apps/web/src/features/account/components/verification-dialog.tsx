@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
     BadgeCheck,
-    Camera,
+    Upload,
     CheckCircle2,
     Clock3,
     Lock,
@@ -25,6 +25,7 @@ import {
 } from "@/lib/kyc/client";
 import { prepareImage } from "@/lib/kyc/image";
 import { SelfieCapture } from "@/features/account/components/selfie-capture";
+import { CardCamera } from "@/features/account/components/card-camera";
 import "@/features/account/kyc.css";
 
 type Step = "consent" | "card" | "selfie" | "review";
@@ -60,6 +61,7 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
     const [error, setError] = useState("");
     const [issues, setIssues] = useState<KycIssue[]>([]);
     const [restarting, setRestarting] = useState(false);
+    const [confirmWithdraw, setConfirmWithdraw] = useState(false);
     const cardPicker = useRef<HTMLInputElement>(null);
     const cardUrl = useObjectUrl(card);
     const selfieUrl = useObjectUrl(selfie);
@@ -96,7 +98,7 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
     }
 
     async function send() {
-        if (!card || !selfie || !state || busy) return;
+        if (!agreed || !card || !selfie || !state || busy) return;
         setBusy(true);
         setError("");
         setIssues([]);
@@ -104,7 +106,11 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
             await submitKyc(card, selfie, state.consentVersion);
             setCard(null);
             setSelfie(null);
-            setState({ ...state, status: "needs_review" });
+            setState({
+                ...state,
+                status: "needs_review",
+                requiresReverification: false,
+            });
             void authSession.reload();
         } catch (reason) {
             if (reason instanceof KycRequestError && reason.issues.length) {
@@ -144,6 +150,7 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
             );
             setStep("consent");
             setAgreed(false);
+            setConfirmWithdraw(false);
             void authSession.reload();
         } catch (reason) {
             setError(
@@ -161,7 +168,8 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
         state &&
         (state.status === "none" ||
             state.status === "rejected" ||
-            state.status === "expired");
+            state.status === "expired" ||
+            state.requiresReverification);
 
     return (
         <Dialog
@@ -201,14 +209,18 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                         <Clock3 size={32} aria-hidden="true" />
                         <h3>Hồ sơ đang chờ duyệt</h3>
                         <p className="muted">
-                            Chúng tôi đã nhận ảnh của bạn. Quản trị viên sẽ xem
-                            xét sớm; kết quả hiển thị tại trang Tài khoản. Hồ sơ
-                            không được duyệt trong 14 ngày sẽ tự động bị xoá.
+                            Chúng tôi đã nhận ảnh của bạn. Hồ sơ chờ quản trị
+                            viên xem xét; kết quả hiển thị tại trang Tài khoản.
+                            Hồ sơ chưa được duyệt được đưa vào diện xoá sau 14
+                            ngày.
                         </p>
                         <button
                             className="plain-button"
-                            onClick={withdraw}
-                            disabled={restarting}
+                            onClick={() => {
+                                setError("");
+                                setConfirmWithdraw(true);
+                            }}
+                            disabled={restarting || confirmWithdraw}
                         >
                             <Trash2 size={16} aria-hidden="true" />
                             {restarting
@@ -226,17 +238,82 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                         <BadgeCheck size={32} aria-hidden="true" />
                         <h3>Tài khoản đã được xác thực</h3>
                         <p className="muted">
-                            Ảnh thẻ và ảnh chân dung đã được xoá sau khi duyệt.
-                            ReOwn chỉ giữ kết quả xác thực.
+                            ReOwn lưu mã hoá ảnh thẻ, ảnh chân dung, MSSV và họ
+                            tên để xác minh danh tính, xử lý tranh chấp và thực
+                            hiện nghĩa vụ thanh toán. Chỉ quản trị viên được ủy
+                            quyền mới có thể xem; mọi lần xem đều được ghi nhận.
                         </p>
-                        <button
-                            className="plain-button"
-                            onClick={withdraw}
-                            disabled={restarting}
-                        >
-                            <Trash2 size={16} aria-hidden="true" />
-                            {restarting ? "Đang gỡ…" : "Gỡ xác thực"}
-                        </button>
+                        {state.requiresReverification && (
+                            <>
+                                <p className="kyc-note" role="status">
+                                    Hồ sơ cũ không còn bằng chứng định danh theo
+                                    chính sách lưu giữ hiện tại. Hãy xác thực
+                                    lại để cập nhật hồ sơ.
+                                </p>
+                                <button
+                                    className="button primary"
+                                    type="button"
+                                    onClick={() => {
+                                        setState((value) =>
+                                            value
+                                                ? {
+                                                      ...value,
+                                                      status: "none",
+                                                      requiresReverification: false,
+                                                  }
+                                                : value,
+                                        );
+                                        setStep("consent");
+                                        setAgreed(false);
+                                        setError("");
+                                    }}
+                                >
+                                    Xác thực lại
+                                </button>
+                            </>
+                        )}
+                    </section>
+                )}
+
+                {confirmWithdraw && state?.status === "needs_review" && (
+                    <section
+                        className="kyc-confirm"
+                        aria-labelledby="kyc-withdraw-title"
+                    >
+                        <h3 id="kyc-withdraw-title">Rút hồ sơ?</h3>
+                        <p>
+                            Hồ sơ sẽ không tiếp tục được duyệt; ảnh và dữ liệu
+                            đọc được sẽ bị xoá. Mã băm có khóa của MSSV, điểm
+                            đối chiếu và nhật ký kiểm toán vẫn có thể được lưu.
+                        </p>
+                        {error && (
+                            <p className="error" role="alert">
+                                {error}
+                            </p>
+                        )}
+                        <div className="kyc-actions">
+                            <button
+                                type="button"
+                                className="button secondary"
+                                disabled={restarting}
+                                onClick={() => {
+                                    setConfirmWithdraw(false);
+                                    setError("");
+                                }}
+                            >
+                                Huỷ
+                            </button>
+                            <button
+                                type="button"
+                                className="button primary"
+                                disabled={restarting}
+                                onClick={withdraw}
+                            >
+                                {restarting
+                                    ? "Đang xử lý…"
+                                    : "Xác nhận rút hồ sơ"}
+                            </button>
+                        </div>
                     </section>
                 )}
 
@@ -292,10 +369,11 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                                             aria-hidden="true"
                                         />
                                         <span>
-                                            <strong>Chỉ để xác thực.</strong>{" "}
+                                            <strong>Xác minh danh tính.</strong>{" "}
                                             Ảnh mặt trước thẻ và ảnh chân dung
                                             dùng để đối chiếu khuôn mặt và đọc
-                                            MSSV, họ tên.
+                                            thông tin trên thẻ, gồm MSSV, họ
+                                            tên.
                                         </span>
                                     </li>
                                     <li>
@@ -304,18 +382,25 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                                             <strong>
                                                 Xử lý trong hệ thống ReOwn.
                                             </strong>{" "}
-                                            Không gửi cho bên thứ ba. Ảnh được
+                                            Ảnh được xử lý trên máy chủ ReOwn,
                                             mã hoá khi lưu; chỉ quản trị viên
-                                            xem khi duyệt.
+                                            được ủy quyền xem để xác minh, xử lý
+                                            tranh chấp và nghĩa vụ thanh toán.
                                         </span>
                                     </li>
                                     <li>
                                         <Trash2 size={18} aria-hidden="true" />
                                         <span>
-                                            <strong>Xoá sau khi duyệt.</strong>{" "}
-                                            Ảnh và dữ liệu đọc được bị xoá ngay
-                                            khi có quyết định (tối đa 14 ngày).
-                                            Bạn có thể rút lại bất cứ lúc nào.
+                                            <strong>
+                                                Lưu giữ sau xác thực.
+                                            </strong>{" "}
+                                            Với hồ sơ được duyệt, ReOwn lưu mã
+                                            hoá ảnh thẻ, ảnh chân dung, MSSV và
+                                            họ tên để phục vụ xác minh danh
+                                            tính, tranh chấp và nghĩa vụ thanh
+                                            toán. Hồ sơ chưa được duyệt quá 14
+                                            ngày được đưa vào diện xoá. Bạn có
+                                            thể rút hồ sơ khi đang chờ duyệt.
                                         </span>
                                     </li>
                                 </ul>
@@ -328,9 +413,12 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                                         }
                                     />
                                     <span>
-                                        Tôi đồng ý để ReOwn xử lý ảnh thẻ sinh
-                                        viên và dữ liệu khuôn mặt của tôi cho
-                                        mục đích xác thực này.
+                                        Tôi đồng ý để ReOwn xử lý và lưu mã hoá
+                                        ảnh thẻ sinh viên, ảnh chân dung, dữ
+                                        liệu khuôn mặt, MSSV và họ tên cho mục
+                                        đích xác minh danh tính, xử lý tranh
+                                        chấp và nghĩa vụ thanh toán như mô tả ở
+                                        trên.
                                     </span>
                                 </label>
                                 <button
@@ -345,25 +433,24 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
 
                         {step === "card" && (
                             <section className="kyc-panel">
-                                <div className="kyc-viewport kyc-viewport-card">
-                                    {cardUrl ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
+                                {cardUrl ? (
+                                    <div className="kyc-viewport kyc-viewport-card">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src={cardUrl}
                                             alt="Ảnh mặt trước thẻ sinh viên bạn đã chọn"
                                         />
-                                    ) : (
-                                        <div className="kyc-placeholder">
-                                            <span
-                                                className="kyc-card-guide"
-                                                aria-hidden="true"
-                                            />
-                                            <span>
-                                                Mặt trước thẻ, thấy đủ bốn góc
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
+                                    </div>
+                                ) : (
+                                    <CardCamera
+                                        onCapture={(blob) =>
+                                            void choose(
+                                                new File([blob], "card.jpg"),
+                                                setCard,
+                                            )
+                                        }
+                                    />
+                                )}
                                 <ul className="kyc-tips">
                                     <li>
                                         Đặt thẻ trên nền phẳng, đủ sáng, không
@@ -379,16 +466,28 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                                     </li>
                                 </ul>
                                 <div className="kyc-actions">
+                                    {cardUrl && (
+                                        <button
+                                            className="button secondary"
+                                            onClick={() => setCard(null)}
+                                        >
+                                            <RefreshCw
+                                                size={18}
+                                                aria-hidden="true"
+                                            />{" "}
+                                            Chụp lại thẻ
+                                        </button>
+                                    )}
                                     <button
-                                        className={`button ${cardUrl ? "secondary" : "primary"}`}
+                                        className="button secondary"
                                         onClick={() =>
                                             cardPicker.current?.click()
                                         }
                                     >
-                                        <Camera size={18} aria-hidden="true" />
+                                        <Upload size={18} aria-hidden="true" />
                                         {cardUrl
-                                            ? "Chụp lại"
-                                            : "Chụp hoặc chọn ảnh thẻ"}
+                                            ? "Chọn ảnh thẻ khác"
+                                            : "Chọn ảnh thẻ từ thư viện"}
                                     </button>
                                     {cardUrl && (
                                         <button
@@ -406,7 +505,7 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                                     ref={cardPicker}
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
-                                    capture="environment"
+
                                     hidden
                                     onChange={(event) => {
                                         const file = event.target.files?.[0];
@@ -462,6 +561,14 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                                                 bạn trong khung hình.
                                             </li>
                                         </ul>
+                                        <p className="kyc-note">
+                                            Ảnh chân dung cần được chụp bằng
+                                            camera. Hệ thống chỉ đối chiếu ảnh
+                                            tĩnh, không kiểm tra người thật trực
+                                            tiếp; quản trị viên vẫn cần xem xét
+                                            và có thể không xác minh được danh
+                                            tính chỉ từ ảnh.
+                                        </p>
                                         <SelfieCapture
                                             onCapture={(blob) =>
                                                 void choose(
@@ -526,7 +633,9 @@ export function VerificationDialog({ onClose }: { onClose: () => void }) {
                                     <button
                                         className="button primary"
                                         onClick={send}
-                                        disabled={busy || !card || !selfie}
+                                        disabled={
+                                            busy || !agreed || !card || !selfie
+                                        }
                                     >
                                         {busy
                                             ? "Đang kiểm tra…"

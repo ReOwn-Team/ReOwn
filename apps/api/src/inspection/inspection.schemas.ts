@@ -3,6 +3,7 @@ import { inspectionReportSchema } from "./inspection-report";
 export const reviewStatusSchema = z.enum([
     "not_required",
     "pending",
+    "seller_confirmation",
     "approved",
     "rejected",
 ]);
@@ -53,6 +54,57 @@ export const decisionResponseSchema = z.object({
     reviewedBy: z.string().uuid(),
     reviewedAt: z.string(),
 });
+
+const listingCorrectionChangesSchema = z
+    .object({
+        title: z.string().trim().min(4).max(200).optional(),
+        category: z
+            .enum([
+                "Laptop",
+                "Điện thoại",
+                "Phụ kiện",
+                "Sách",
+                "Đồ dùng",
+                "Sở thích",
+            ])
+            .optional(),
+        description: z.string().trim().min(20).max(10000).optional(),
+        condition: z.enum(["Như mới", "Dùng tốt", "Cần sửa chữa"]).optional(),
+        knownDefects: z.string().trim().max(2000).optional(),
+        location: z.string().trim().min(1).max(200).optional(),
+        fulfillmentMethods: z
+            .array(z.enum(["shipping", "meetup"]))
+            .min(1)
+            .max(2)
+            .refine((value) => new Set(value).size === value.length)
+            .optional(),
+    })
+    .strict()
+    .refine((changes) => Object.keys(changes).length > 0, {
+        message: "At least one listing field must be corrected",
+    });
+
+export type ListingCorrectionChanges = z.infer<
+    typeof listingCorrectionChangesSchema
+>;
+
+export const editRequestSchema = z
+    .object({
+        revision: z.number().int().positive(),
+        changes: listingCorrectionChangesSchema,
+        note: z.string().trim().min(1).max(2000).optional(),
+    })
+    .strict();
+
+export const editResponseSchema = z.object({
+    id: z.string().uuid(),
+    productId: z.string().uuid(),
+    revision: z.number().int(),
+    status: z.literal("seller_confirmation"),
+    reason: z.string().nullable(),
+    reviewedBy: z.string().uuid(),
+    reviewedAt: z.string(),
+});
 export const reviewSummarySchema = z.object({
     id: z.string().uuid(),
     productId: z.string().uuid(),
@@ -75,7 +127,13 @@ export const reviewDetailSchema = z.object({
     id: z.string().uuid(),
     productId: z.string().uuid(),
     revision: z.number().int(),
-    status: z.enum(["pending", "approved", "rejected", "superseded"]),
+    status: z.enum([
+        "pending",
+        "seller_confirmation",
+        "approved",
+        "rejected",
+        "superseded",
+    ]),
     snapshot: z.object({
         title: z.string(),
         category: z.string(),

@@ -10,6 +10,7 @@ import {
     INSPECTION_PROMPT_VERSION,
     type InspectionSnapshot,
 } from "./inspection-report";
+import type { ListingCorrectionChanges } from "./inspection.schemas";
 @Injectable()
 export class ProductReviewService {
     constructor(
@@ -119,6 +120,91 @@ export class ProductReviewService {
             bytes: await this.storage.read(evidence.originalKey),
             mime: evidence.originalMime,
         };
+    }
+    async edit(
+        id: string,
+        revision: number,
+        changes: ListingCorrectionChanges,
+        note: string | undefined,
+        adminId: string,
+    ) {
+        return this.prisma.$transaction(async (tx) => {
+            const review = await tx.productReview.findUnique({ where: { id } });
+            if (!review) throw new NotFoundException();
+            await tx.$queryRaw`SELECT id FROM products WHERE id=${review.productId}::uuid FOR UPDATE`;
+            const product = await tx.product.findUnique({
+                where: { id: review.productId },
+            });
+            if (
+                !product ||
+                product.deletedAt ||
+                product.status === "sold" ||
+                product.revision !== revision ||
+                review.revision !== revision ||
+                product.reviewStatus !== "pending" ||
+                review.status !== "pending"
+            )
+                throw new ConflictException(
+                    "Review revision is stale or already decided",
+                );
+
+            let categoryId: string | undefined;
+            if (changes.category) {
+                const category = await tx.category.findFirst({
+                    where: { name: changes.category, isActive: true },
+                    orderBy: { sortOrder: "asc" },
+                    select: { id: true },
+                });
+                if (!category)
+                    throw new BadRequestException("Category is unavailable");
+                categoryId = category.id;
+            }
+            const { category: _category, ...metadata } = changes;
+            const reviewedAt = new Date();
+            await tx.product.update({
+                where: { id: product.id },
+                data: {
+                    ...metadata,
+                    ...(categoryId ? { categoryId } : {}),
+                    status: "hidden",
+                    reviewStatus: "seller_confirmation",
+                    publishedAt: null,
+                },
+            });
+            const edited = await tx.productReview.update({
+                where: { id },
+                data: {
+                    status: "seller_confirmation",
+                    reason: note ?? null,
+                    reviewedBy: adminId,
+                    reviewedAt,
+                },
+                select: {
+                    id: true,
+                    productId: true,
+                    revision: true,
+                    status: true,
+                    reason: true,
+                    reviewedBy: true,
+                    reviewedAt: true,
+                },
+            });
+            await tx.auditLog.create({
+                data: {
+                    actorId: adminId,
+                    actorType: "admin",
+                    action: "admin.product_review.edit",
+                    entityType: "product_review",
+                    entityId: id,
+                    metadata: {
+                        revision,
+                        fields: Object.keys(changes).sort(),
+                        noteProvided: !!note,
+                    },
+                },
+            });
+            return edited;
+        });
     }
     async decide(
         id: string,

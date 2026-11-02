@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "kyc_generation" INTEGER NOT NULL DEFAULT 0;

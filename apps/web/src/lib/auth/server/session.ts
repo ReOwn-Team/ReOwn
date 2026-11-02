@@ -183,6 +183,7 @@ const KYC_ISSUES = [
     "SELFIE_NOT_FRONTAL",
     "SELFIE_BAD_LIGHT",
     "FACE_MISMATCH",
+    "DUPLICATE_PHOTOS",
 ];
 async function sanitizedError(response: Response) {
     // Only forward validation field names, never arbitrary upstream data/tokens.

@@ -31,7 +31,10 @@ const NOT_NAME =
     /CONG THUONG|TRUONG|DAI HOC|THE SINH|SINH VIEN|STUDENT|NGANH|KHOA|NIEN|NGAY|MAJOR|YEAR|ADMISSION|INFORMATION|TECHNOLOGY|FULLNAME|UNIVERSITY|INDUSTRY|VIETCOMBANK|NAPAS|MSSV|HO TEN|HO CHI MINH|TAN PHU|TAY THANH|TRONG TAN|^BO /;
 
 function cleanLine(line: string) {
-    return line.replace(/[|_~=—–`'"“”‘’]+/g, " ").replace(/\s+/g, " ").trim();
+    return line
+        .replace(/[|_~=—–`'"“”‘’]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
 function looksLikeName(line: string) {
@@ -52,8 +55,10 @@ function looksLikeName(line: string) {
 function titleCase(value: string) {
     return cleanLine(value)
         .toLocaleLowerCase("vi-VN")
-        .replace(/(^|\s)(\S)/gu, (_, space: string, letter: string) =>
-            `${space}${letter.toLocaleUpperCase("vi-VN")}`,
+        .replace(
+            /(^|\s)(\S)/gu,
+            (_, space: string, letter: string) =>
+                `${space}${letter.toLocaleUpperCase("vi-VN")}`,
         );
 }
 
@@ -68,7 +73,11 @@ function extractName(lines: string[], layout: CardLayout | null) {
         // Same line after the label, then the next few lines.
         const same = lines[labelIndex].replace(/^.*?T[EÊ3]N\s*[:.]?/iu, "");
         if (looksLikeName(same)) candidates.push(same);
-        for (let i = labelIndex + 1; i <= labelIndex + 3 && i < lines.length; i++)
+        for (
+            let i = labelIndex + 1;
+            i <= labelIndex + 3 && i < lines.length;
+            i++
+        )
             if (looksLikeName(lines[i])) {
                 candidates.push(lines[i]);
                 break;
@@ -85,12 +94,14 @@ function extractName(lines: string[], layout: CardLayout | null) {
 
 function extractDob(text: string) {
     const folded = fold(text);
-    const near = /NGAY\s*SINH\W{0,6}(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{4})/.exec(
-        folded,
-    );
-    const any = /\b(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*((?:19|20)\d{2})\b/.exec(
-        folded,
-    );
+    const near =
+        /NGAY\s*SINH\W{0,6}(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{4})/.exec(
+            folded,
+        );
+    const any =
+        /\b(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*((?:19|20)\d{2})\b/.exec(
+            folded,
+        );
     const match = near ?? any;
     if (!match) return null;
     const [day, month, year] = [match[1], match[2], match[3]].map(Number);
@@ -193,9 +204,7 @@ function mostCommon<T>(values: (T | null)[], key: (value: T) => string) {
         entry.count++;
         counts.set(id, entry);
     }
-    return (
-        [...counts.values()].sort((a, b) => b.count - a.count)[0] ?? null
-    );
+    return [...counts.values()].sort((a, b) => b.count - a.count)[0] ?? null;
 }
 
 export type MergedCard = Omit<ParsedCard, "studentIds"> & {
@@ -222,9 +231,15 @@ export function mergeParsedCards(passes: ParsedCard[]): MergedCard {
     return {
         isHuitCard: passes.some((pass) => pass.isHuitCard),
         layout: pick((card) => card.layout, String),
-        fullName: pick((card) => card.fullName, (name) => fold(name)),
+        fullName: pick(
+            (card) => card.fullName,
+            (name) => fold(name),
+        ),
         dateOfBirth: pick((card) => card.dateOfBirth, String),
-        major: pick((card) => card.major, (value) => fold(value)),
+        major: pick(
+            (card) => card.major,
+            (value) => fold(value),
+        ),
         cohort: pick(
             (card) => card.cohort,
             (value) => `${value.start}-${value.end}`,
@@ -265,11 +280,6 @@ export function nameSimilarity(a: string, b: string) {
     const right = tokens(b).join(" ");
     if (!left || !right) return 0;
     return 1 - levenshtein(left, right) / Math.max(left.length, right.length);
-}
-
-/** Position 5-6 of the student id mirrors the intake year on known cards. */
-export function studentIdIntakeYear(studentId: string) {
-    return 2000 + Number(studentId.slice(4, 6));
 }
 
 export function cohortStatus(

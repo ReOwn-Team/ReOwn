@@ -31,7 +31,7 @@ const STRIDES = [8, 16, 32] as const;
 
 export function modelDirectory() {
     return resolve(
-        process.env.KYC_MODEL_DIR ?? resolve(__dirname, "../../models/kyc"),
+        process.env.KYC_MODEL_DIR ?? resolve(__dirname, "../../../models/kyc"),
     );
 }
 export function faceModelsAvailable() {
@@ -293,12 +293,10 @@ export class FaceEngine {
                         width: face.width / scale,
                         height: face.height / scale,
                         score: face.score,
-                        landmarks: face.landmarks.map(
-                            ([x, y]): Landmark => [
-                                (x + left) / scale,
-                                (y + top) / scale,
-                            ],
-                        ),
+                        landmarks: face.landmarks.map(([x, y]): Landmark => [
+                            (x + left) / scale,
+                            (y + top) / scale,
+                        ]),
                     });
         return nms(faces, 0.3);
     }

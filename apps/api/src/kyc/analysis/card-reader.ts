@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import sharp, { type Sharp } from "sharp";
 import type { Face, RgbImage } from "./face-engine";
@@ -22,7 +22,18 @@ function raw(image: RgbImage) {
 
 /** Look for a Code 128 barcode in the strip below the card photo. */
 export async function readBarcode(image: RgbImage, face: Face) {
-    const { readBarcodes } = await import("zxing-wasm/reader");
+    const { readBarcodes, prepareZXingModule } =
+        await import("zxing-wasm/reader");
+    await prepareZXingModule({
+        overrides: {
+            wasmBinary: Uint8Array.from(
+                readFileSync(
+                    require.resolve("zxing-wasm/reader/zxing_reader.wasm"),
+                ),
+            ).buffer,
+        },
+        fireImmediately: true,
+    });
     const left = Math.max(0, Math.round(face.x - 1.5 * face.width));
     const top = Math.max(0, Math.round(face.y + 1.3 * face.height));
     const width = Math.min(image.width - left, Math.round(8.5 * face.width));
@@ -34,6 +45,8 @@ export async function readBarcode(image: RgbImage, face: Face) {
             .resize({ width: target })
             .greyscale()
             .normalise()
+            .toColourspace("srgb")
+            .ensureAlpha()
             .raw()
             .toBuffer({ resolveWithObject: true });
         const results = await readBarcodes(
@@ -98,9 +111,7 @@ export async function readCard(
                         3000,
                         Math.max(
                             800,
-                            Math.round(
-                                (image.width * faceTarget) / face.width,
-                            ),
+                            Math.round((image.width * faceTarget) / face.width),
                         ),
                     ),
                 })

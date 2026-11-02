@@ -1669,6 +1669,96 @@ main ul:not([class]) {
     }
 }
 
+.saved-toast {
+    position: fixed;
+    z-index: 91;
+    top: 20px;
+    right: 24px;
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) 32px;
+    align-items: center;
+    gap: 12px;
+    width: min(460px, calc(100vw - 32px));
+    padding: 10px;
+    border: 1px solid rgb(255 255 255 / 14%);
+    border-radius: 12px;
+    background: #292b2a;
+    color: #fff;
+    box-shadow: 0 12px 32px rgb(20 23 20 / 24%);
+}
+.saved-toast__image {
+    width: 56px;
+    height: 56px;
+    border-radius: 7px;
+    object-fit: cover;
+    background: #454845;
+}
+.saved-toast__copy {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+.saved-toast__copy strong {
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.saved-toast__copy span {
+    overflow: hidden;
+    color: #c4c7c4;
+    font-size: 13px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.saved-toast__undo {
+    justify-self: start;
+    min-height: 28px;
+    margin-top: 3px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #f4b89d;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.saved-toast__dismiss {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    align-self: start;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #d9dcda;
+    cursor: pointer;
+}
+.saved-toast__dismiss:hover {
+    background: rgb(255 255 255 / 12%);
+    color: #fff;
+}
+.saved-toast :is(button):focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+@media (max-width: 767px) {
+    .saved-toast {
+        top: max(12px, env(safe-area-inset-top));
+        right: 12px;
+        left: 12px;
+        width: auto;
+    }
+}
+
 /* Keep fixed positioning outside Animate UI's relative highlight container. */
 .mobile-nav-items {
     display: grid;

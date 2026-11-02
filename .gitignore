@@ -37,3 +37,7 @@ raw-data/
 /apps/api/.kyc-spike/
 /apps/api/models/kyc/*.onnx
 /apps/api/models/kyc/*.traineddata
+
+.claude
+.codex
+.agents

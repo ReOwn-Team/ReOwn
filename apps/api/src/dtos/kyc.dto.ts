@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Bump when the consent wording changes; users must re-consent. */
-export const KYC_CONSENT_VERSION = "kyc-2026-11-v1";
+export const KYC_CONSENT_VERSION = "kyc-2026-11-v3";
 
 /** Value stored in `User.kycStatus`. */
 export const KycUserStatus = {
@@ -21,7 +21,6 @@ export const KYC_FLAGS = [
     "age_out_of_range",
     "student_id_unverified",
     "student_id_ocr_conflict",
-    "student_id_cohort_mismatch",
 ] as const;
 export type KycFlag = (typeof KYC_FLAGS)[number];
 

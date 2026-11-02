@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { randomBytes } from "node:crypto";
-import { KycService } from "../../../src/kyc/kyc.service";
-import { KycCryptoService } from "../../../src/kyc/kyc-crypto.service";
-import type { AnalysisResult } from "../../../src/kyc/kyc-analyzer";
+import { KycService } from "../../../src/services/kyc.service";
+import { KYC_CONSENT_VERSION } from "../../../src/dtos/kyc.dto";
+import { KycCryptoService } from "../../../src/kyc/security/kyc-crypto.service";
+import type { AnalysisResult } from "../../../src/kyc/analysis/kyc-analyzer";
 import type { UserProfile } from "../../../src/models/user.model";
 
 process.env.KYC_KEYS = `k1:${randomBytes(32).toString("base64")}`;
+process.env.KYC_ACTIVE_KEY = "k1";
 process.env.KYC_HMAC_KEY = randomBytes(32).toString("base64");
 
 const user = {
@@ -14,12 +16,19 @@ const user = {
     kycStatus: 0,
     role: "user",
 } as UserProfile;
-const admin = { ...user, id: "22222222-2222-4222-8222-222222222222", role: "admin" } as UserProfile;
+const admin = {
+    ...user,
+    id: "22222222-2222-4222-8222-222222222222",
+    role: "admin",
+} as UserProfile;
 const front = Buffer.from("front-image-bytes");
 const selfie = Buffer.from("selfie-image-bytes");
 const STUDENT_ID = "2311223344";
 
-function success(overrides: Partial<Extract<AnalysisResult, { ok: true }>["card"]> = {}, band: "match" | "low" = "match"): AnalysisResult {
+function success(
+    overrides: Partial<Extract<AnalysisResult, { ok: true }>["card"]> = {},
+    band: "match" | "low" = "match",
+): AnalysisResult {
     return {
         ok: true,
         card: {
@@ -35,28 +44,42 @@ function success(overrides: Partial<Extract<AnalysisResult, { ok: true }>["card"
         },
         faceScore: 0.7,
         faceBand: band,
-        images: { front: Buffer.from("normalised-front"), selfie: Buffer.from("normalised-selfie") },
+        images: {
+            front: Buffer.from("normalised-front"),
+            selfie: Buffer.from("normalised-selfie"),
+        },
     };
 }
 
 function setup(result: AnalysisResult) {
     const prisma = {
         kycSubmission: {
-            findFirst: jest.fn<(...args: any[]) => any>().mockResolvedValue(null),
+            findFirst: jest
+                .fn<(...args: any[]) => any>()
+                .mockResolvedValue(null),
             findMany: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
             create: jest.fn<(...args: any[]) => any>().mockResolvedValue({}),
             update: jest.fn<(...args: any[]) => any>().mockResolvedValue({}),
-            updateMany: jest.fn<(...args: any[]) => any>().mockResolvedValue({ count: 1 }),
+            updateMany: jest
+                .fn<(...args: any[]) => any>()
+                .mockResolvedValue({ count: 1 }),
         },
         kycAsset: {
             findUnique: jest.fn<(...args: any[]) => any>(),
-            deleteMany: jest.fn<(...args: any[]) => any>().mockResolvedValue({ count: 2 }),
+            deleteMany: jest
+                .fn<(...args: any[]) => any>()
+                .mockResolvedValue({ count: 2 }),
         },
         auditLog: {
             count: jest.fn<(...args: any[]) => any>().mockResolvedValue(0),
             create: jest.fn<(...args: any[]) => any>().mockResolvedValue({}),
         },
-        user: { update: jest.fn<(...args: any[]) => any>().mockResolvedValue({}) },
+        user: {
+            update: jest.fn<(...args: any[]) => any>().mockResolvedValue({}),
+        },
+        $queryRaw: jest
+            .fn<(...args: any[]) => any>()
+            .mockResolvedValue([{ kyc_generation: 0 }]),
         $transaction: jest.fn<(...args: any[]) => any>(),
     };
     prisma.$transaction.mockImplementation(async (work: any) => work(prisma));
@@ -71,8 +94,13 @@ function setup(result: AnalysisResult) {
 
 describe("KycService.submit", () => {
     it("asks for a retake without storing anything", async () => {
-        const { service, prisma } = setup({ ok: false, issues: ["SELFIE_BLURRY"] });
-        await expect(service.submit(user, { front, selfie })).rejects.toMatchObject({
+        const { service, prisma } = setup({
+            ok: false,
+            issues: ["SELFIE_BLURRY"],
+        });
+        await expect(
+            service.submit(user, { front, selfie }),
+        ).rejects.toMatchObject({
             status: 422,
             response: { error: "KYC_RETAKE", issues: ["SELFIE_BLURRY"] },
         });
@@ -82,9 +110,18 @@ describe("KycService.submit", () => {
 
     it("stores only ciphertext, indexes the card by HMAC and queues review", async () => {
         const { service, prisma, crypto } = setup(success());
+        const seal = jest.spyOn(crypto, "seal");
         await expect(service.submit(user, { front, selfie })).resolves.toEqual({
             status: "needs_review",
         });
+        expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+        expect(prisma.$transaction.mock.calls[1][1]).toEqual({
+            timeout: 30_000,
+        });
+        expect(seal).toHaveBeenCalledTimes(3);
+        expect(Math.max(...seal.mock.invocationCallOrder)).toBeLessThan(
+            prisma.$transaction.mock.invocationCallOrder[1],
+        );
         const { data } = prisma.kycSubmission.create.mock.calls[0][0] as any;
         const everything = JSON.stringify(data);
         expect(everything).not.toContain(STUDENT_ID);
@@ -94,23 +131,37 @@ describe("KycService.submit", () => {
         expect(data.status).toBe("needs_review");
         const payload = JSON.parse(
             crypto
-                .open(Buffer.from(data.sealedPayload), `kyc|payload|${data.id}|${user.id}`)
+                .open(
+                    Buffer.from(data.sealedPayload),
+                    `kyc|payload|${data.id}|${user.id}`,
+                )
                 .toString(),
         );
         expect(payload.studentId).toBe(STUDENT_ID);
-        const frontAsset = data.assets.create.find((a: any) => a.kind === "card_front");
+        const frontAsset = data.assets.create.find(
+            (a: any) => a.kind === "card_front",
+        );
         expect(
             crypto
-                .open(Buffer.from(frontAsset.sealed), `kyc|asset|${data.id}|card_front|${user.id}`)
+                .open(
+                    Buffer.from(frontAsset.sealed),
+                    `kyc|asset|${data.id}|card_front|${user.id}`,
+                )
                 .toString(),
         ).toBe("normalised-front");
         expect(prisma.user.update).toHaveBeenCalledWith({
             where: { id: user.id },
             data: { kycStatus: 1 },
         });
-        const audit = prisma.auditLog.create.mock.calls.map((c: any) => c[0].data.action);
-        expect(audit).toEqual(expect.arrayContaining(["kyc.attempt", "kyc.submitted"]));
-        expect(JSON.stringify(prisma.auditLog.create.mock.calls)).not.toContain(STUDENT_ID);
+        const audit = prisma.auditLog.create.mock.calls.map(
+            (c: any) => c[0].data.action,
+        );
+        expect(audit).toEqual(
+            expect.arrayContaining(["kyc.attempt", "kyc.submitted"]),
+        );
+        expect(JSON.stringify(prisma.auditLog.create.mock.calls)).not.toContain(
+            STUDENT_ID,
+        );
     });
 
     it("cannot be replayed onto another row (AAD binds user and submission)", async () => {
@@ -118,7 +169,10 @@ describe("KycService.submit", () => {
         await service.submit(user, { front, selfie });
         const { data } = prisma.kycSubmission.create.mock.calls[0][0] as any;
         expect(() =>
-            crypto.open(Buffer.from(data.sealedPayload), `kyc|payload|${data.id}|${admin.id}`),
+            crypto.open(
+                Buffer.from(data.sealedPayload),
+                `kyc|payload|${data.id}|${admin.id}`,
+            ),
         ).toThrow();
     });
 
@@ -144,14 +198,17 @@ describe("KycService.submit", () => {
                 "dob_unreadable",
                 "student_id_unverified",
                 "student_id_ocr_conflict",
-                "student_id_cohort_mismatch",
             ]),
         );
     });
 
     it("refuses an expired card", async () => {
-        const { service, prisma } = setup(success({ cohort: { start: 2018, end: 2022 } }));
-        await expect(service.submit(user, { front, selfie })).rejects.toMatchObject({
+        const { service, prisma } = setup(
+            success({ cohort: { start: 2018, end: 2022 } }),
+        );
+        await expect(
+            service.submit(user, { front, selfie }),
+        ).rejects.toMatchObject({
             status: 422,
             response: { error: "KYC_CARD_EXPIRED" },
         });
@@ -163,7 +220,9 @@ describe("KycService.submit", () => {
         prisma.kycSubmission.findFirst
             .mockResolvedValueOnce(null) // own active submission
             .mockResolvedValueOnce({ id: "x" }); // card taken
-        await expect(service.submit(user, { front, selfie })).rejects.toMatchObject({
+        await expect(
+            service.submit(user, { front, selfie }),
+        ).rejects.toMatchObject({
             status: 409,
             response: { error: "KYC_STUDENT_ID_IN_USE" },
         });
@@ -173,32 +232,145 @@ describe("KycService.submit", () => {
     it("maps a database race on the unique index to the same conflict", async () => {
         const { service, prisma } = setup(success());
         prisma.kycSubmission.create.mockRejectedValue({ code: "P2002" });
-        await expect(service.submit(user, { front, selfie })).rejects.toMatchObject({
+        await expect(
+            service.submit(user, { front, selfie }),
+        ).rejects.toMatchObject({
             status: 409,
         });
     });
 
     it("blocks a second submission while one is pending or verified", async () => {
         const { service, prisma, analyzer } = setup(success());
-        prisma.kycSubmission.findFirst.mockResolvedValueOnce({ status: "verified" });
-        await expect(service.submit(user, { front, selfie })).rejects.toMatchObject({
+        prisma.kycSubmission.findFirst.mockResolvedValueOnce({
+            status: "verified",
+        });
+        await expect(
+            service.submit(user, { front, selfie }),
+        ).rejects.toMatchObject({
             response: { error: "KYC_ALREADY_VERIFIED" },
         });
         expect(analyzer.analyse).not.toHaveBeenCalled();
     });
 
+    it("replaces a verified legacy consent record after successful re-verification", async () => {
+        const { service, prisma } = setup(success());
+        const legacy = {
+            id: "legacy-verified",
+            status: "verified",
+            consentVersion: "kyc-2026-11-v2",
+            sealedPayload: new Uint8Array(0),
+        };
+        prisma.kycSubmission.findFirst
+            .mockResolvedValueOnce(legacy) // lifecycle reservation
+            .mockResolvedValueOnce(null) // card is not used by another account
+            .mockResolvedValueOnce(legacy); // final locked lifecycle check
+        await expect(service.submit(user, { front, selfie })).resolves.toEqual({
+            status: "needs_review",
+        });
+        expect(prisma.kycSubmission.updateMany).toHaveBeenCalledWith({
+            where: { id: legacy.id, status: "verified" },
+            data: { status: "superseded" },
+        });
+        expect(prisma.kycSubmission.create).toHaveBeenCalled();
+    });
+
     it("rate limits attempts before spending CPU", async () => {
         const { service, prisma, analyzer } = setup(success());
         prisma.auditLog.count.mockResolvedValue(8);
-        await expect(service.submit(user, { front, selfie })).rejects.toMatchObject({
+        await expect(
+            service.submit(user, { front, selfie }),
+        ).rejects.toMatchObject({
             status: 429,
         });
         expect(analyzer.analyse).not.toHaveBeenCalled();
     });
 
+    it("prevents an in-flight submission from another instance after withdrawal", async () => {
+        const { service, prisma, analyzer, crypto } = setup(success());
+        const other = new KycService(prisma as any, crypto, analyzer as any);
+        let generation = 0;
+        prisma.$queryRaw.mockImplementation(async () => [
+            { kyc_generation: generation },
+        ]);
+        prisma.user.update.mockImplementation(async (args: any) => {
+            if (args.data.kycGeneration) generation++;
+            return {};
+        });
+        let finish!: (result: AnalysisResult) => void;
+        let started!: () => void;
+        const analysing = new Promise<void>((resolve) => {
+            started = resolve;
+        });
+        analyzer.analyse.mockImplementation(() => {
+            started();
+            return new Promise<AnalysisResult>((resolve) => {
+                finish = resolve;
+            });
+        });
+        const submission = service.submit(user, { front, selfie });
+        await analysing;
+        await other.withdraw(user.id);
+        finish(success());
+        await expect(submission).rejects.toMatchObject({ status: 409 });
+        expect(prisma.kycSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it("rechecks the active lifecycle before storing an analysed submission", async () => {
+        const { service, prisma } = setup(success());
+        prisma.kycSubmission.findFirst
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({ status: "verified" });
+        await expect(
+            service.submit(user, { front, selfie }),
+        ).rejects.toMatchObject({
+            response: { error: "KYC_ALREADY_VERIFIED" },
+        });
+        expect(prisma.kycSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it("reserves the rolling quota atomically across instances", async () => {
+        const { service, prisma, analyzer, crypto } = setup({
+            ok: false,
+            issues: ["SELFIE_BLURRY"],
+        });
+        const other = new KycService(prisma as any, crypto, analyzer as any);
+        let attempts = 0;
+        let queue = Promise.resolve();
+        prisma.$transaction.mockImplementation((work: any) => {
+            const next = queue.then(() => work(prisma));
+            queue = next.then(
+                () => undefined,
+                () => undefined,
+            );
+            return next;
+        });
+        prisma.auditLog.count.mockImplementation(async () => attempts);
+        prisma.auditLog.create.mockImplementation(async (args: any) => {
+            if (args.data.action === "kyc.attempt") attempts++;
+            return {};
+        });
+        const outcomes = await Promise.allSettled(
+            Array.from({ length: 12 }, (_, i) =>
+                (i % 2 ? service : other).submit(user, { front, selfie }),
+            ),
+        );
+        expect(attempts).toBe(8);
+        expect(analyzer.analyse).toHaveBeenCalledTimes(8);
+        expect(
+            outcomes.filter(
+                (outcome) =>
+                    outcome.status === "rejected" &&
+                    outcome.reason.status === 429,
+            ),
+        ).toHaveLength(4);
+    });
+
     it("requires both photos and configured keys", async () => {
         const { service } = setup(success());
-        await expect(service.submit(user, { front })).rejects.toMatchObject({ status: 400 });
+        await expect(service.submit(user, { front })).rejects.toMatchObject({
+            status: 400,
+        });
         const saved = process.env.KYC_KEYS;
         delete process.env.KYC_KEYS;
         try {
@@ -226,13 +398,18 @@ describe("KycService review", () => {
             flags: [],
             faceScore: 0.7,
             studentIdHmac: ctx.crypto.studentIdIndex(STUDENT_ID),
+            consentVersion: KYC_CONSENT_VERSION,
             sealedPayload: new Uint8Array(
                 ctx.crypto.seal(
                     Buffer.from(JSON.stringify({ studentId: STUDENT_ID })),
                     `kyc|payload|${submissionId}|${user.id}`,
                 ),
             ),
-            user: { id: user.id, displayName: user.displayName, email: "a@b.c" },
+            user: {
+                id: user.id,
+                displayName: user.displayName,
+                email: "a@b.c",
+            },
         };
     }
 
@@ -242,34 +419,59 @@ describe("KycService review", () => {
         expect(detail.extracted).toMatchObject({ studentId: STUDENT_ID });
         ctx.prisma.kycAsset.findUnique.mockResolvedValue({
             sealed: new Uint8Array(
-                ctx.crypto.seal(Buffer.from("img"), `kyc|asset|${submissionId}|selfie|${user.id}`),
+                ctx.crypto.seal(
+                    Buffer.from("img"),
+                    `kyc|asset|${submissionId}|selfie|${user.id}`,
+                ),
             ),
         });
-        await expect(ctx.service.asset(submissionId, "selfie", admin.id)).resolves.toEqual(
-            Buffer.from("img"),
-        );
-        await expect(ctx.service.asset(submissionId, "../etc", admin.id)).rejects.toMatchObject({
+        await expect(
+            ctx.service.asset(submissionId, "selfie", admin.id),
+        ).resolves.toEqual(Buffer.from("img"));
+        await expect(
+            ctx.service.asset(submissionId, "../etc", admin.id),
+        ).rejects.toMatchObject({
             status: 404,
         });
-        const actions = ctx.prisma.auditLog.create.mock.calls.map((c: any) => c[0].data.action);
+        const actions = ctx.prisma.auditLog.create.mock.calls.map(
+            (c: any) => c[0].data.action,
+        );
         expect(actions).toEqual(["kyc.viewed", "kyc.asset_viewed"]);
     });
 
-    it("approval erases images and data and marks the user verified", async () => {
+    it("approval retains encrypted identity evidence and marks the user verified", async () => {
         ctx.prisma.kycSubmission.findFirst.mockResolvedValue(pendingRow());
         await expect(
             ctx.service.decide(submissionId, admin.id, { decision: "approve" }),
         ).resolves.toEqual({ status: "verified" });
-        const update = ctx.prisma.kycSubmission.updateMany.mock.calls[0][0] as any;
-        expect(update.where).toEqual({ id: submissionId, status: "needs_review" });
-        expect(update.data.status).toBe("verified");
-        expect(update.data.sealedPayload).toHaveLength(0);
-        expect(ctx.prisma.kycAsset.deleteMany).toHaveBeenCalledWith({
-            where: { submissionId },
+        const update = ctx.prisma.kycSubmission.updateMany.mock
+            .calls[0][0] as any;
+        expect(update.where).toEqual({
+            id: submissionId,
+            status: "needs_review",
         });
+        expect(update.data.status).toBe("verified");
+        expect(update.data).not.toHaveProperty("sealedPayload");
+        expect(update.data).not.toHaveProperty("purgedAt");
+        expect(ctx.prisma.kycAsset.deleteMany).not.toHaveBeenCalled();
         expect(ctx.prisma.user.update).toHaveBeenCalledWith({
             where: { id: user.id },
             data: { kycStatus: 2 },
+        });
+    });
+
+    it("purges an approval recorded under an older deletion consent", async () => {
+        const legacy = { ...pendingRow(), consentVersion: "kyc-2026-11-v2" };
+        ctx.prisma.kycSubmission.findFirst.mockResolvedValue(legacy);
+        await ctx.service.decide(submissionId, admin.id, {
+            decision: "approve",
+        });
+        const update = ctx.prisma.kycSubmission.updateMany.mock
+            .calls[0][0] as any;
+        expect(update.data.sealedPayload).toHaveLength(0);
+        expect(update.data.purgedAt).toBeInstanceOf(Date);
+        expect(ctx.prisma.kycAsset.deleteMany).toHaveBeenCalledWith({
+            where: { submissionId },
         });
     });
 
@@ -279,8 +481,12 @@ describe("KycService review", () => {
             decision: "reject",
             reason: "Ảnh không khớp",
         });
-        const update = ctx.prisma.kycSubmission.updateMany.mock.calls[0][0] as any;
-        expect(update.data).toMatchObject({ status: "rejected", reason: "Ảnh không khớp" });
+        const update = ctx.prisma.kycSubmission.updateMany.mock
+            .calls[0][0] as any;
+        expect(update.data).toMatchObject({
+            status: "rejected",
+            reason: "Ảnh không khớp",
+        });
         expect(ctx.prisma.user.update).toHaveBeenCalledWith({
             where: { id: user.id },
             data: { kycStatus: 3 },
@@ -296,7 +502,8 @@ describe("KycService review", () => {
             studentId: "9999999999",
         });
         expect(
-            (ctx.prisma.kycSubmission.updateMany.mock.calls[0][0] as any).data.studentIdHmac,
+            (ctx.prisma.kycSubmission.updateMany.mock.calls[0][0] as any).data
+                .studentIdHmac,
         ).toBe(ctx.crypto.studentIdIndex("9999999999"));
 
         ctx.prisma.kycSubmission.findFirst
@@ -310,30 +517,61 @@ describe("KycService review", () => {
         ).rejects.toMatchObject({ status: 409 });
     });
 
-    it("forbids self-review and double decisions", async () => {
+    it("permits self-review and audits the administrator", async () => {
         ctx.prisma.kycSubmission.findFirst.mockResolvedValue(pendingRow());
         await expect(
             ctx.service.decide(submissionId, user.id, { decision: "approve" }),
-        ).rejects.toMatchObject({ status: 403 });
+        ).resolves.toEqual({ status: "verified" });
+        expect(ctx.prisma.auditLog.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    actorId: user.id,
+                    action: "kyc.approved",
+                }),
+            }),
+        );
+    });
+
+    it("prevents double decisions", async () => {
+        ctx.prisma.kycSubmission.findFirst.mockResolvedValue(pendingRow());
         ctx.prisma.kycSubmission.updateMany.mockResolvedValue({ count: 0 });
         await expect(
             ctx.service.decide(submissionId, admin.id, { decision: "approve" }),
         ).rejects.toMatchObject({ status: 409 });
     });
 
-    it("hides decided or unknown submissions", async () => {
+    it("keeps verified identity evidence viewable by an administrator", async () => {
+        ctx.prisma.kycSubmission.findFirst.mockResolvedValue(pendingRow());
+        await expect(
+            ctx.service.detail(submissionId, admin.id),
+        ).resolves.toMatchObject({
+            extracted: { studentId: STUDENT_ID },
+        });
+        expect(
+            (ctx.prisma.kycSubmission.findFirst.mock.calls[0][0] as any).where,
+        ).toMatchObject({
+            id: submissionId,
+            status: { in: ["needs_review", "verified"] },
+        });
+    });
+
+    it("hides rejected, expired or unknown submissions", async () => {
         ctx.prisma.kycSubmission.findFirst.mockResolvedValue(null);
-        await expect(ctx.service.detail(submissionId, admin.id)).rejects.toMatchObject({
+        await expect(
+            ctx.service.detail(submissionId, admin.id),
+        ).rejects.toMatchObject({
             status: 404,
         });
     });
 
     it("withdrawal erases data and frees the user", async () => {
-        ctx.prisma.kycSubmission.findFirst.mockResolvedValue({ id: submissionId });
+        ctx.prisma.kycSubmission.findFirst.mockResolvedValue({
+            id: submissionId,
+        });
         await ctx.service.withdraw(user.id);
         expect(ctx.prisma.kycAsset.deleteMany).toHaveBeenCalled();
         expect(
-            (ctx.prisma.kycSubmission.update.mock.calls[0][0] as any).data,
+            (ctx.prisma.kycSubmission.updateMany.mock.calls[0][0] as any).data,
         ).toMatchObject({ status: "withdrawn" });
         expect(ctx.prisma.user.update).toHaveBeenCalledWith({
             where: { id: user.id },
@@ -346,9 +584,10 @@ describe("KycService review", () => {
             { id: submissionId, userId: user.id },
         ]);
         await expect(ctx.service.purgeStale(new Date())).resolves.toBe(1);
-        expect((ctx.prisma.kycSubmission.updateMany.mock.calls[0][0] as any).data.status).toBe(
-            "expired",
-        );
+        expect(
+            (ctx.prisma.kycSubmission.updateMany.mock.calls[0][0] as any).data
+                .status,
+        ).toBe("expired");
         expect(ctx.prisma.kycAsset.deleteMany).toHaveBeenCalled();
     });
 

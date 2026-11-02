@@ -1,5 +1,13 @@
 import { inspectionReportSchema } from "../inspection/inspection-report";
-import { ownerInspectionSchema, inspectionSchema, reviewSummarySchema, reviewDetailSchema, decisionResponseSchema } from "../inspection/inspection.schemas";
+import {
+    ownerInspectionSchema,
+    inspectionSchema,
+    reviewSummarySchema,
+    reviewDetailSchema,
+    decisionResponseSchema,
+    editRequestSchema,
+    editResponseSchema,
+} from "../inspection/inspection.schemas";
 import { otpVerifySchema, otpResendSchema } from "../dtos/otp.dto";
 import {
     extendZodWithOpenApi,
@@ -107,6 +115,8 @@ registry.register("ProductOwnerInspection", ownerInspectionSchema);
 registry.register("ProductReviewSummary", reviewSummarySchema);
 registry.register("ProductReviewDetail", reviewDetailSchema);
 registry.register("ProductReviewDecision", decisionResponseSchema);
+registry.register("ProductReviewEditRequest", editRequestSchema);
+registry.register("ProductReviewEdit", editResponseSchema);
 registry.register("ProductInput", productInputSchema);
 registry.register("ProductStatusRequest", productStatusSchema);
 registry.register(
@@ -122,7 +132,13 @@ registry.register(
         location: z.string(),
         fulfillmentMethods: z.array(z.enum(["shipping", "meetup"])),
         status: z.enum(["published", "hidden", "sold"]),
-        reviewStatus: z.enum(["not_required", "pending", "approved", "rejected"]),
+        reviewStatus: z.enum([
+            "not_required",
+            "pending",
+            "seller_confirmation",
+            "approved",
+            "rejected",
+        ]),
         revision: z.number().int(),
         rejectionReason: z.string().nullable(),
         seller: z.object({ id: z.string().uuid(), displayName: z.string() }),

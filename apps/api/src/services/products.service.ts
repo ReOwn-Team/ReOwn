@@ -247,6 +247,70 @@ export class ProductsService {
                         obsolete = current.images
                             .filter((image) => !retained.includes(image.id))
                             .map((image) => image.objectKey);
+
+                        if (current.reviewStatus === "seller_confirmation") {
+                            const currentReview =
+                                await tx.productReview.findFirst({
+                                    where: {
+                                        productId: current.id,
+                                        revision: current.revision,
+                                        status: "seller_confirmation",
+                                    },
+                                    select: { id: true },
+                                });
+                            const unchangedTerms =
+                                files.length === 0 &&
+                                currentReview &&
+                                current.categoryId === category.id &&
+                                current.category.name === dto.category &&
+                                current.description === dto.description &&
+                                current.condition === dto.condition &&
+                                (current.knownDefects ?? "") ===
+                                    dto.knownDefects &&
+                                current.location === dto.location &&
+                                current.fulfillmentMethods.length ===
+                                    dto.fulfillmentMethods.length &&
+                                current.fulfillmentMethods.every(
+                                    (method, index) =>
+                                        method ===
+                                        dto.fulfillmentMethods[index],
+                                ) &&
+                                current.images.length === dto.images.length &&
+                                current.images.every(
+                                    (image, index) =>
+                                        "id" in dto.images[index] &&
+                                        image.id === dto.images[index].id,
+                                );
+                            if (unchangedTerms && currentReview) {
+                                const publishedAt = new Date();
+                                await tx.product.update({
+                                    where: { id: current.id },
+                                    data: {
+                                        title: dto.title,
+                                        price: dto.price,
+                                        status: "published",
+                                        reviewStatus: "approved",
+                                        publishedAt,
+                                    },
+                                });
+                                const approved =
+                                    await tx.productReview.updateMany({
+                                        where: {
+                                            id: currentReview.id,
+                                            status: "seller_confirmation",
+                                        },
+                                        data: { status: "approved" },
+                                    });
+                                if (approved.count !== 1)
+                                    throw new ConflictException(
+                                        "Seller confirmation is no longer current",
+                                    );
+                                return tx.product.findUniqueOrThrow({
+                                    where: { id: current.id },
+                                    include,
+                                });
+                            }
+                        }
                     }
                     if (retained.length) {
                         const evidence = await tx.productEvidence.findMany({
@@ -304,7 +368,12 @@ export class ProductsService {
                     const revision = (current?.revision ?? 0) + 1;
                     if (current)
                         await tx.productReview.updateMany({
-                            where: { productId, status: "pending" },
+                            where: {
+                                productId,
+                                status: {
+                                    in: ["pending", "seller_confirmation"],
+                                },
+                            },
                             data: { status: "superseded" },
                         });
                     if (current)

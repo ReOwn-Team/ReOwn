@@ -5,8 +5,7 @@ import {
     mergeParsedCards,
     nameSimilarity,
     parseCardText,
-    studentIdIntakeYear,
-} from "../../../src/kyc/card-parser";
+} from "../../../src/kyc/analysis/card-parser";
 
 // Entirely synthetic cards; no real person or student number.
 const blue = [
@@ -60,12 +59,17 @@ describe("parseCardText", () => {
             major: "Kế toán",
             cohort: { start: 2025, end: 2029 },
         });
-        expect(card.studentIds).toEqual([{ value: "2311223344", strong: true }]);
+        expect(card.studentIds).toEqual([
+            { value: "2311223344", strong: true },
+        ]);
     });
 
     it("repairs common OCR digit confusions next to the MSSV label", () => {
         const card = parseCardText(white.replace("2311223344", "23l1223S44"));
-        expect(card.studentIds[0]).toEqual({ value: "2311223544", strong: true });
+        expect(card.studentIds[0]).toEqual({
+            value: "2311223544",
+            strong: true,
+        });
     });
 
     it("does not treat other documents as student cards", () => {
@@ -89,8 +93,14 @@ describe("mergeParsedCards", () => {
         const base = parseCardText(white);
         const wrong = parseCardText(white.replace("2311223344", "1311223344"));
         const merged = mergeParsedCards([base, wrong, base]);
-        expect(merged.studentId).toMatchObject({ value: "2311223344", votes: 2 });
-        const weak = { ...base, studentIds: [{ value: "9999999999", strong: false }] };
+        expect(merged.studentId).toMatchObject({
+            value: "2311223344",
+            votes: 2,
+        });
+        const weak = {
+            ...base,
+            studentIds: [{ value: "9999999999", strong: false }],
+        };
         expect(mergeParsedCards([weak, weak, base]).studentId?.value).toBe(
             "2311223344",
         );
@@ -109,14 +119,12 @@ describe("helpers", () => {
     });
 
     it("matches names across OCR noise, accents and word order", () => {
-        expect(nameSimilarity("Nguyên Viết Hiếu", "NGUYỄN VIẾT HIẾU")).toBeGreaterThan(0.9);
+        expect(
+            nameSimilarity("Nguyên Viết Hiếu", "NGUYỄN VIẾT HIẾU"),
+        ).toBeGreaterThan(0.9);
         expect(nameSimilarity("Hiếu Nguyễn Viết", "Nguyễn Viết Hiếu")).toBe(1);
         expect(nameSimilarity("Trần Thị Mẫu", "Lê Văn Khác")).toBeLessThan(0.5);
         expect(nameSimilarity("", "Lê Văn Khác")).toBe(0);
-    });
-
-    it("derives the intake year from the student id", () => {
-        expect(studentIdIntakeYear("2046240180")).toBe(2024);
     });
 
     it("judges card validity by calendar year", () => {
@@ -124,7 +132,9 @@ describe("helpers", () => {
         expect(cohortStatus({ start: 2024, end: 2028 }, now)).toBe("valid");
         expect(cohortStatus({ start: 2026, end: 2030 }, now)).toBe("valid");
         expect(cohortStatus({ start: 2020, end: 2024 }, now)).toBe("expired");
-        expect(cohortStatus({ start: 2027, end: 2031 }, now)).toBe("not_started");
+        expect(cohortStatus({ start: 2027, end: 2031 }, now)).toBe(
+            "not_started",
+        );
         expect(cohortStatus(null, now)).toBe("unknown");
     });
 });

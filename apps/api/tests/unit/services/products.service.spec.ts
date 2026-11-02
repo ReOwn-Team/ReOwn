@@ -75,3 +75,113 @@ it("waits for every in-flight upload before cleanup and stops scheduling after f
         log.mockRestore();
     }
 });
+
+it("publishes a seller confirmation when only title and price changed", async () => {
+    const dto = {
+        category: "Laptop",
+        title: "Corrected listing title",
+        description: "A sufficiently detailed immutable listing description.",
+        price: 1200000,
+        condition: "Dùng tốt",
+        knownDefects: "",
+        location: "Hà Nội",
+        fulfillmentMethods: ["shipping", "meetup"],
+        images: [
+            { id: "11111111-1111-4111-8111-111111111111" },
+            { id: "22222222-2222-4222-8222-222222222222" },
+        ],
+        confirmed: true,
+    } as ProductInput;
+    const current = {
+        id: "33333333-3333-4333-8333-333333333333",
+        sellerId: "seller",
+        categoryId: "category",
+        category: { name: "Laptop" },
+        title: "Admin corrected title",
+        description: dto.description,
+        price: 1000000,
+        amount: 1,
+        condition: dto.condition,
+        knownDefects: dto.knownDefects,
+        location: dto.location,
+        fulfillmentMethods: dto.fulfillmentMethods,
+        status: "hidden",
+        reviewStatus: "seller_confirmation",
+        revision: 3,
+        publishedAt: null,
+        deletedAt: null,
+        updatedAt: new Date(),
+        images: [
+            {
+                id: "11111111-1111-4111-8111-111111111111",
+                objectKey: "one",
+                mimeType: "image/webp",
+                sizeBytes: 1,
+                sortOrder: 0,
+            },
+            {
+                id: "22222222-2222-4222-8222-222222222222",
+                objectKey: "two",
+                mimeType: "image/webp",
+                sizeBytes: 1,
+                sortOrder: 1,
+            },
+        ],
+        seller: { id: "seller", displayName: "Seller" },
+        reviews: [{ reason: null }],
+    };
+    const published = {
+        ...current,
+        title: dto.title,
+        price: dto.price,
+        status: "published",
+        reviewStatus: "approved",
+        publishedAt: new Date(),
+    };
+    const tx = {
+        $queryRaw: jest.fn().mockResolvedValue([]),
+        product: {
+            findFirst: jest.fn().mockResolvedValue(current),
+            update: jest.fn().mockResolvedValue({}),
+            findUniqueOrThrow: jest.fn().mockResolvedValue(published),
+        },
+        productReview: {
+            findFirst: jest.fn().mockResolvedValue({ id: "review" }),
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        productEvidence: { findMany: jest.fn() },
+        productImage: { deleteMany: jest.fn() },
+    };
+    const prisma = {
+        category: {
+            findFirst: jest.fn().mockResolvedValue({ id: "category" }),
+        },
+        productEvidence: { createMany: jest.fn() },
+        $transaction: jest.fn(async (work) => work(tx)),
+    };
+    const service = new ProductsService(
+        prisma as unknown as PrismaService,
+        {} as ProductStorageService,
+        {} as ProductPhotoService,
+    );
+
+    const result = await service.save("seller", dto, [], current.id);
+
+    expect(tx.product.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+            data: expect.objectContaining({
+                title: dto.title,
+                price: dto.price,
+                status: "published",
+                reviewStatus: "approved",
+            }),
+        }),
+    );
+    expect(tx.productReview.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+            where: { id: "review", status: "seller_confirmation" },
+            data: { status: "approved" },
+        }),
+    );
+    expect(result.reviewStatus).toBe("approved");
+});

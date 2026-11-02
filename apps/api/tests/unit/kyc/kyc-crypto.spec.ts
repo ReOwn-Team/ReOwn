@@ -1,6 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
 import { randomBytes } from "node:crypto";
-import { KycCryptoService, loadKeyring } from "../../../src/kyc/kyc-crypto.service";
+import {
+    KycCryptoService,
+    loadKeyring,
+} from "../../../src/kyc/security/kyc-crypto.service";
 
 const key = () => randomBytes(32).toString("base64");
 
@@ -40,12 +43,18 @@ describe("KycCryptoService", () => {
             const crypto = new KycCryptoService();
             const sealed = crypto.seal(Buffer.from("payload"), "row-a");
             expect(() => crypto.open(sealed, "row-b")).toThrow();
-            for (const position of [10, sealed.length - 1, sealed.length - 20]) {
+            for (const position of [
+                10,
+                sealed.length - 1,
+                sealed.length - 20,
+            ]) {
                 const damaged = Buffer.from(sealed);
                 damaged[position] ^= 0x01;
                 expect(() => crypto.open(damaged, "row-a")).toThrow();
             }
-            expect(() => crypto.open(sealed.subarray(0, 20), "row-a")).toThrow();
+            expect(() =>
+                crypto.open(sealed.subarray(0, 20), "row-a"),
+            ).toThrow();
             expect(() => crypto.open(Buffer.alloc(0), "row-a")).toThrow();
         } finally {
             restore();
@@ -69,7 +78,9 @@ describe("KycCryptoService", () => {
             const crypto = new KycCryptoService();
             expect(crypto.open(sealed, "aad").toString()).toBe("old");
             expect(crypto.needsRotation(sealed)).toBe(true);
-            expect(crypto.keyId(crypto.seal(Buffer.from("new"), "aad"))).toBe("k2");
+            expect(crypto.keyId(crypto.seal(Buffer.from("new"), "aad"))).toBe(
+                "k2",
+            );
         } finally {
             restore();
         }
@@ -96,7 +107,10 @@ describe("KycCryptoService", () => {
         }
         // A different pepper yields a different index for the same id.
         const first = (() => {
-            const restore = configure({ KYC_KEYS: `k1:${k1}`, KYC_HMAC_KEY: key() });
+            const restore = configure({
+                KYC_KEYS: `k1:${k1}`,
+                KYC_HMAC_KEY: key(),
+            });
             try {
                 return new KycCryptoService().studentIdIndex("0000000001");
             } finally {
@@ -104,7 +118,10 @@ describe("KycCryptoService", () => {
             }
         })();
         const second = (() => {
-            const restore = configure({ KYC_KEYS: `k1:${k1}`, KYC_HMAC_KEY: key() });
+            const restore = configure({
+                KYC_KEYS: `k1:${k1}`,
+                KYC_HMAC_KEY: key(),
+            });
             try {
                 return new KycCryptoService().studentIdIndex("0000000001");
             } finally {
@@ -117,19 +134,32 @@ describe("KycCryptoService", () => {
     it("fails closed when keys are missing or malformed", () => {
         expect(() => loadKeyring({})).toThrow();
         expect(() => loadKeyring({ KYC_KEYS: `k1:${k1}` })).toThrow();
-        expect(() => loadKeyring({ KYC_KEYS: "k1:c2hvcnQ=", KYC_HMAC_KEY: hmac })).toThrow();
         expect(() =>
-            loadKeyring({ KYC_KEYS: `k1:${k1}`, KYC_ACTIVE_KEY: "nope", KYC_HMAC_KEY: hmac }),
+            loadKeyring({ KYC_KEYS: "k1:c2hvcnQ=", KYC_HMAC_KEY: hmac }),
+        ).toThrow();
+        expect(() =>
+            loadKeyring({
+                KYC_KEYS: `k1:${k1}`,
+                KYC_ACTIVE_KEY: "nope",
+                KYC_HMAC_KEY: hmac,
+            }),
         ).toThrow();
         expect(() =>
             loadKeyring({ KYC_KEYS: `k1:${k1},k1:${k2}`, KYC_HMAC_KEY: hmac }),
         ).toThrow();
-        expect(() => loadKeyring({ KYC_KEYS: `k1:${k1}`, KYC_HMAC_KEY: k1 })).toThrow();
-        const restore = configure({ KYC_KEYS: undefined, KYC_HMAC_KEY: undefined });
+        expect(() =>
+            loadKeyring({ KYC_KEYS: `k1:${k1}`, KYC_HMAC_KEY: k1 }),
+        ).toThrow();
+        const restore = configure({
+            KYC_KEYS: undefined,
+            KYC_HMAC_KEY: undefined,
+        });
         try {
             const crypto = new KycCryptoService();
             expect(crypto.available()).toBe(false);
-            expect(() => crypto.seal(Buffer.from("x"), "a")).toThrow(/not configured/);
+            expect(() => crypto.seal(Buffer.from("x"), "a")).toThrow(
+                /not configured/,
+            );
         } finally {
             restore();
         }

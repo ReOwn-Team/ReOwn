@@ -1,7 +1,6 @@
 import {
     BadRequestException,
     ConflictException,
-    ForbiddenException,
     HttpException,
     HttpStatus,
     Inject,
@@ -21,21 +20,21 @@ import {
     type KycDecision,
     type KycFlag,
 } from "../dtos/kyc.dto";
-import { KycCryptoService } from "./kyc-crypto.service";
-import { KYC_ANALYZER, type KycAnalyzer } from "./kyc-analysis.service";
-import type { AnalysisSuccess } from "./kyc-analyzer";
+import { KycCryptoService } from "../kyc/security/kyc-crypto.service";
 import {
-    cohortStatus,
-    nameSimilarity,
-    studentIdIntakeYear,
-} from "./card-parser";
+    KYC_ANALYZER,
+    type KycAnalyzer,
+} from "../kyc/analysis/kyc-analysis.service";
+import type { AnalysisSuccess } from "../kyc/analysis/kyc-analyzer";
+import { cohortStatus, nameSimilarity } from "../kyc/analysis/card-parser";
 
 export type KycStatus =
     | "needs_review"
     | "verified"
     | "rejected"
     | "expired"
-    | "withdrawn";
+    | "withdrawn"
+    | "superseded";
 const ACTIVE: KycStatus[] = ["needs_review", "verified"];
 const KINDS = ["card_front", "selfie"] as const;
 export type KycAssetKind = (typeof KINDS)[number];
@@ -79,10 +78,21 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
 
     onModuleInit() {
         if (process.env.NODE_ENV === "test") return;
-        this.timer = setInterval(
-            () => void this.purgeStale().catch(() => undefined),
-            60 * 60 * 1000,
-        );
+        let running = false;
+        const sweep = () => {
+            if (running) return;
+            running = true;
+            void this.purgeStale()
+                .catch(() => {
+                    // Database errors can include sensitive values; do not log them.
+                    this.logger.error("KYC retention sweep failed");
+                })
+                .finally(() => {
+                    running = false;
+                });
+        };
+        sweep();
+        this.timer = setInterval(sweep, 60 * 60 * 1000);
         this.timer.unref();
     }
     onModuleDestroy() {
@@ -101,6 +111,8 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
                 createdAt: true,
                 reviewedAt: true,
                 reason: true,
+                consentVersion: true,
+                sealedPayload: true,
             },
         });
         return {
@@ -111,6 +123,12 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
             reviewedAt: latest?.reviewedAt?.toISOString() ?? null,
             // Only a reviewer-written rejection reason is shown to the user.
             reason: latest?.status === "rejected" ? latest.reason : null,
+            // Evidence collected under the former deletion consent cannot be
+            // recovered; ask the user to submit under the current consent.
+            requiresReverification:
+                latest?.status === "verified" &&
+                (latest.consentVersion !== KYC_CONSENT_VERSION ||
+                    latest.sealedPayload.length === 0),
         };
     }
 
@@ -127,42 +145,80 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
         if (!files.front || !files.selfie)
             throw new BadRequestException("Both photos are required");
 
-        const existing = await this.prisma.kycSubmission.findFirst({
-            where: { userId: user.id, status: { in: ACTIVE } },
-            select: { status: true },
-        });
-        if (existing)
-            throw new ConflictException({
-                statusCode: 409,
-                error:
-                    existing.status === "verified"
-                        ? "KYC_ALREADY_VERIFIED"
-                        : "KYC_ALREADY_PENDING",
+        const reservation = await this.prisma.$transaction(async (tx) => {
+            const [locked] = await tx.$queryRaw<
+                Array<{ kyc_generation: number }>
+            >`SELECT kyc_generation FROM users WHERE id = ${user.id}::uuid FOR UPDATE`;
+            if (!locked) throw new NotFoundException("User not found");
+            const existing = await tx.kycSubmission.findFirst({
+                where: { userId: user.id, status: { in: ACTIVE } },
+                select: {
+                    id: true,
+                    status: true,
+                    consentVersion: true,
+                    sealedPayload: true,
+                },
             });
+            const replaceLegacyVerified =
+                existing?.status === "verified" &&
+                existing.consentVersion !== undefined &&
+                (existing.consentVersion !== KYC_CONSENT_VERSION ||
+                    existing.sealedPayload.length === 0);
+            if (existing && !replaceLegacyVerified)
+                throw new ConflictException({
+                    statusCode: 409,
+                    error:
+                        existing.status === "verified"
+                            ? "KYC_ALREADY_VERIFIED"
+                            : "KYC_ALREADY_PENDING",
+                });
 
-        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const attempts = await this.prisma.auditLog.count({
-            where: {
-                actorId: user.id,
-                action: "kyc.attempt",
-                createdAt: { gte: since },
-            },
+            const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const attempts = await tx.auditLog.count({
+                where: {
+                    actorId: user.id,
+                    action: "kyc.attempt",
+                    createdAt: { gte: since },
+                },
+            });
+            if (attempts >= DAILY_ATTEMPTS)
+                throw new HttpException(
+                    { statusCode: 429, error: "KYC_TOO_MANY_ATTEMPTS" },
+                    HttpStatus.TOO_MANY_REQUESTS,
+                );
+            await tx.auditLog.create({
+                data: {
+                    actorId: user.id,
+                    actorType: "user",
+                    action: "kyc.attempt",
+                    entityType: "user",
+                    entityId: user.id,
+                    metadata: {},
+                    requestId,
+                },
+            });
+            return {
+                generation: locked.kyc_generation,
+                legacyVerifiedId: replaceLegacyVerified ? existing!.id : null,
+            };
         });
-        if (attempts >= DAILY_ATTEMPTS)
-            throw new HttpException(
-                { statusCode: 429, error: "KYC_TOO_MANY_ATTEMPTS" },
-                HttpStatus.TOO_MANY_REQUESTS,
-            );
-        await this.audit(user.id, "user", "kyc.attempt", "user", user.id, {}, requestId);
 
         const result = await this.analyzer.analyse({
             front: files.front,
             selfie: files.selfie,
         });
         if (!result.ok) {
-            await this.audit(user.id, "user", "kyc.retake", "user", user.id, {
-                issues: result.issues,
-            }, requestId);
+            await this.audit(
+                user.id,
+                "user",
+                "kyc.retake",
+                "user",
+                user.id,
+                {
+                    issues: result.issues,
+                },
+                requestId,
+            );
             throw new UnprocessableEntityException({
                 statusCode: 422,
                 error: "KYC_RETAKE",
@@ -178,7 +234,11 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
 
         const studentIdHmac = this.crypto.studentIdIndex(result.card.studentId);
         const taken = await this.prisma.kycSubmission.findFirst({
-            where: { studentIdHmac, status: { in: ACTIVE } },
+            where: {
+                studentIdHmac,
+                status: { in: ACTIVE },
+                NOT: { userId: user.id },
+            },
             select: { id: true },
         });
         if (taken)
@@ -202,58 +262,96 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
             card_front: Buffer.from(result.images.front),
             selfie: Buffer.from(result.images.selfie),
         };
+        // Prepare encrypted data before taking the user row lock. Image bytes
+        // can be large and must never be sent to the database unencrypted.
+        const sealedPayload = new Uint8Array(
+            this.crypto.seal(
+                Buffer.from(JSON.stringify(payload)),
+                payloadAad(id, user.id),
+            ),
+        );
+        const assets = KINDS.map((kind) => ({
+            kind,
+            sealed: new Uint8Array(
+                this.crypto.seal(images[kind], assetAad(id, kind, user.id)),
+            ),
+            sha256: createHash("sha256").update(images[kind]).digest("hex"),
+            size: images[kind].length,
+        }));
         try {
-            await this.prisma.$transaction(async (tx) => {
-                await tx.kycSubmission.create({
-                    data: {
-                        id,
-                        userId: user.id,
-                        status: "needs_review",
-                        cardLayout: result.card.layout ?? "unknown",
-                        studentIdHmac,
-                        faceScore: result.faceScore,
-                        flags,
-                        sealedPayload: new Uint8Array(
-                            this.crypto.seal(
-                                Buffer.from(JSON.stringify(payload)),
-                                payloadAad(id, user.id),
-                            ),
-                        ),
-                        consentVersion: KYC_CONSENT_VERSION,
-                        consentedAt: now,
-                        assets: {
-                            create: KINDS.map((kind) => ({
-                                kind,
-                                sealed: new Uint8Array(
-                                    this.crypto.seal(
-                                        images[kind],
-                                        assetAad(id, kind, user.id),
-                                    ),
-                                ),
-                                sha256: createHash("sha256")
-                                    .update(images[kind])
-                                    .digest("hex"),
-                                size: images[kind].length,
-                            })),
+            await this.prisma.$transaction(
+                async (tx) => {
+                    const [locked] = await tx.$queryRaw<
+                        Array<{ kyc_generation: number }>
+                    >`SELECT kyc_generation FROM users WHERE id = ${user.id}::uuid FOR UPDATE`;
+                    if (
+                        !locked ||
+                        locked.kyc_generation !== reservation.generation
+                    )
+                        throw new ConflictException(
+                            "KYC submission was withdrawn",
+                        );
+                    const active = await tx.kycSubmission.findFirst({
+                        where: { userId: user.id, status: { in: ACTIVE } },
+                        select: {
+                            id: true,
+                            status: true,
+                            consentVersion: true,
+                            sealedPayload: true,
                         },
-                    },
-                });
-                await tx.user.update({
-                    where: { id: user.id },
-                    data: { kycStatus: KycUserStatus.PENDING },
-                });
-                await tx.auditLog.create({
-                    data: {
-                        actorId: user.id,
-                        actorType: "user",
-                        action: "kyc.submitted",
-                        entityType: "kyc_submission",
-                        entityId: id,
-                        metadata: { flags, consent: KYC_CONSENT_VERSION },
-                        requestId,
-                    },
-                });
-            });
+                    });
+                    const canReplaceLegacy =
+                        active !== null &&
+                        active.id === reservation.legacyVerifiedId &&
+                        active.status === "verified" &&
+                        (active.consentVersion !== KYC_CONSENT_VERSION ||
+                            active.sealedPayload.length === 0);
+                    if (active && !canReplaceLegacy)
+                        throw new ConflictException({
+                            statusCode: 409,
+                            error:
+                                active.status === "verified"
+                                    ? "KYC_ALREADY_VERIFIED"
+                                    : "KYC_ALREADY_PENDING",
+                        });
+                    if (canReplaceLegacy)
+                        await tx.kycSubmission.updateMany({
+                            where: { id: active!.id, status: "verified" },
+                            data: { status: "superseded" },
+                        });
+                    await tx.kycSubmission.create({
+                        data: {
+                            id,
+                            userId: user.id,
+                            status: "needs_review",
+                            cardLayout: result.card.layout ?? "unknown",
+                            studentIdHmac,
+                            faceScore: result.faceScore,
+                            flags,
+                            sealedPayload,
+                            consentVersion: KYC_CONSENT_VERSION,
+                            consentedAt: now,
+                            assets: { create: assets },
+                        },
+                    });
+                    await tx.user.update({
+                        where: { id: user.id },
+                        data: { kycStatus: KycUserStatus.PENDING },
+                    });
+                    await tx.auditLog.create({
+                        data: {
+                            actorId: user.id,
+                            actorType: "user",
+                            action: "kyc.submitted",
+                            entityType: "kyc_submission",
+                            entityId: id,
+                            metadata: { flags, consent: KYC_CONSENT_VERSION },
+                            requestId,
+                        },
+                    });
+                },
+                { timeout: 30_000 },
+            );
         } catch (error) {
             if (isUniqueViolation(error))
                 throw new ConflictException({
@@ -265,22 +363,34 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
         return { status: "needs_review" as const };
     }
 
-    /** User withdraws: wipes images and extracted data, frees the card. */
+    /** A user may withdraw only a review that is still awaiting a decision. */
     async withdraw(userId: string, requestId?: string) {
-        const active = await this.prisma.kycSubmission.findFirst({
-            where: { userId, status: { in: ACTIVE } },
-            select: { id: true },
-        });
-        if (!active) return;
         await this.prisma.$transaction(async (tx) => {
-            await tx.kycAsset.deleteMany({ where: { submissionId: active.id } });
-            await tx.kycSubmission.update({
-                where: { id: active.id },
+            const [locked] = await tx.$queryRaw<
+                Array<{ kyc_generation: number }>
+            >`SELECT kyc_generation FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+            if (!locked) throw new NotFoundException("User not found");
+            await tx.user.update({
+                where: { id: userId },
+                data: { kycGeneration: { increment: 1 } },
+            });
+            const active = await tx.kycSubmission.findFirst({
+                where: { userId, status: "needs_review" },
+                select: { id: true },
+            });
+            if (!active) return;
+            const claimed = await tx.kycSubmission.updateMany({
+                where: { id: active.id, userId, status: "needs_review" },
                 data: {
                     status: "withdrawn",
                     sealedPayload: new Uint8Array(0),
                     purgedAt: new Date(),
                 },
+            });
+            if (claimed.count !== 1)
+                throw new ConflictException("KYC status changed; please retry");
+            await tx.kycAsset.deleteMany({
+                where: { submissionId: active.id },
             });
             await tx.user.update({
                 where: { id: userId },
@@ -328,9 +438,17 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
     }
 
     async detail(id: string, adminId: string, requestId?: string) {
-        const row = await this.pending(id);
+        const row = await this.viewable(id);
         const payload = this.openPayload(row);
-        await this.audit(adminId, "admin", "kyc.viewed", "kyc_submission", id, {}, requestId);
+        await this.audit(
+            adminId,
+            "admin",
+            "kyc.viewed",
+            "kyc_submission",
+            id,
+            {},
+            requestId,
+        );
         return {
             id: row.id,
             createdAt: row.createdAt.toISOString(),
@@ -343,8 +461,9 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
     }
 
     async asset(id: string, kind: string, adminId: string, requestId?: string) {
-        if (!KINDS.includes(kind as KycAssetKind)) throw new NotFoundException();
-        const row = await this.pending(id);
+        if (!KINDS.includes(kind as KycAssetKind))
+            throw new NotFoundException();
+        const row = await this.viewable(id);
         const asset = await this.prisma.kycAsset.findUnique({
             where: { submissionId_kind: { submissionId: id, kind } },
             select: { sealed: true },
@@ -359,7 +478,15 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
         } catch {
             throw new NotFoundException();
         }
-        await this.audit(adminId, "admin", "kyc.asset_viewed", "kyc_submission", id, { kind }, requestId);
+        await this.audit(
+            adminId,
+            "admin",
+            "kyc.asset_viewed",
+            "kyc_submission",
+            id,
+            { kind },
+            requestId,
+        );
         return bytes;
     }
 
@@ -370,9 +497,11 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
         requestId?: string,
     ) {
         const row = await this.pending(id);
-        if (row.userId === adminId)
-            throw new ForbiddenException("You cannot review your own KYC");
+
         const approve = decision.decision === "approve";
+        // Never extend retention for a version of consent that promised deletion.
+        const retainApprovedEvidence =
+            approve && row.consentVersion === KYC_CONSENT_VERSION;
         let studentIdHmac = row.studentIdHmac;
         if (approve && decision.studentId) {
             studentIdHmac = this.crypto.studentIdIndex(decision.studentId);
@@ -393,7 +522,8 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
         const now = new Date();
         try {
             await this.prisma.$transaction(async (tx) => {
-                // Guards against two admins deciding at once.
+                // Serialize the user status with submission and withdrawal.
+                await tx.$queryRaw`SELECT id FROM users WHERE id = ${row.userId}::uuid FOR UPDATE`;
                 const claimed = await tx.kycSubmission.updateMany({
                     where: { id, status: "needs_review" },
                     data: {
@@ -402,13 +532,22 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
                         reviewedBy: adminId,
                         reviewedAt: now,
                         reason: approve ? null : (decision.reason ?? null),
-                        // Data minimisation: nothing sensitive outlives the review.
-                        sealedPayload: new Uint8Array(0),
-                        purgedAt: now,
+                        // Only the current consent version permits retaining
+                        // verified identity evidence for authorised repayment
+                        // and dispute handling. Rejections are always purged.
+                        ...(!retainApprovedEvidence
+                            ? {
+                                  sealedPayload: new Uint8Array(0),
+                                  purgedAt: now,
+                              }
+                            : {}),
                     },
                 });
                 if (claimed.count !== 1) throw new ConflictException();
-                await tx.kycAsset.deleteMany({ where: { submissionId: id } });
+                if (!retainApprovedEvidence)
+                    await tx.kycAsset.deleteMany({
+                        where: { submissionId: id },
+                    });
                 await tx.user.update({
                     where: { id: row.userId },
                     data: {
@@ -440,44 +579,61 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
                 });
             throw error;
         }
-        return { status: approve ? ("verified" as const) : ("rejected" as const) };
+        return {
+            status: approve ? ("verified" as const) : ("rejected" as const),
+        };
     }
 
     /** Wipes reviews nobody completed in time. Safe to run repeatedly. */
     async purgeStale(now = new Date()) {
         const cutoff = new Date(now.getTime() - REVIEW_TTL_DAYS * 86_400_000);
-        const stale = await this.prisma.kycSubmission.findMany({
-            where: { status: "needs_review", createdAt: { lt: cutoff } },
-            select: { id: true, userId: true },
-            take: 100,
-        });
-        for (const row of stale)
-            await this.prisma.$transaction(async (tx) => {
-                const claimed = await tx.kycSubmission.updateMany({
-                    where: { id: row.id, status: "needs_review" },
-                    data: {
-                        status: "expired",
-                        sealedPayload: new Uint8Array(0),
-                        purgedAt: now,
-                    },
-                });
-                if (claimed.count !== 1) return;
-                await tx.kycAsset.deleteMany({ where: { submissionId: row.id } });
-                await tx.user.update({
-                    where: { id: row.userId },
-                    data: { kycStatus: KycUserStatus.NONE },
-                });
-                await tx.auditLog.create({
-                    data: {
-                        actorType: "system",
-                        action: "kyc.expired",
-                        entityType: "kyc_submission",
-                        entityId: row.id,
-                    },
-                });
+        let expired = 0;
+        let stale: { id: string; userId: string }[];
+        do {
+            stale = await this.prisma.kycSubmission.findMany({
+                where: { status: "needs_review", createdAt: { lt: cutoff } },
+                select: { id: true, userId: true },
+                orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+                take: 100,
             });
-        if (stale.length) this.logger.log(`Expired ${stale.length} stale KYC reviews`);
-        return stale.length;
+            for (const row of stale) {
+                const claimed = await this.prisma.$transaction(async (tx) => {
+                    // Use the same user-before-submission lock order as decisions and withdrawals.
+                    await tx.$queryRaw`SELECT id FROM users WHERE id = ${row.userId}::uuid FOR UPDATE`;
+                    const claimed = await tx.kycSubmission.updateMany({
+                        where: { id: row.id, status: "needs_review" },
+                        data: {
+                            status: "expired",
+                            sealedPayload: new Uint8Array(0),
+                            purgedAt: now,
+                        },
+                    });
+                    if (claimed.count !== 1) return false;
+                    await tx.kycAsset.deleteMany({
+                        where: { submissionId: row.id },
+                    });
+                    await tx.user.update({
+                        where: { id: row.userId },
+                        data: { kycStatus: KycUserStatus.NONE },
+                    });
+                    await tx.auditLog.create({
+                        data: {
+                            actorType: "system",
+                            action: "kyc.expired",
+                            entityType: "kyc_submission",
+                            entityId: row.id,
+                        },
+                    });
+                    return true;
+                });
+                if (claimed) expired++;
+            }
+            if (stale.length)
+                this.logger.log(
+                    `KYC retention sweep: ${expired} reviews expired so far`,
+                );
+        } while (stale.length === 100);
+        return expired;
     }
 
     // ------------------------------------------------------------------
@@ -492,6 +648,7 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
                 faceScore: true,
                 studentIdHmac: true,
                 sealedPayload: true,
+                consentVersion: true,
                 user: { select: { id: true, displayName: true, email: true } },
             },
         });
@@ -499,7 +656,31 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
         return row;
     }
 
-    private openPayload(row: { id: string; userId: string; sealedPayload: Uint8Array }) {
+    /** Admin-only identity evidence retained for pending and verified KYC. */
+    private async viewable(id: string) {
+        const row = await this.prisma.kycSubmission.findFirst({
+            where: { id, status: { in: ["needs_review", "verified"] } },
+            select: {
+                id: true,
+                userId: true,
+                createdAt: true,
+                flags: true,
+                faceScore: true,
+                studentIdHmac: true,
+                sealedPayload: true,
+                user: { select: { id: true, displayName: true, email: true } },
+            },
+        });
+        if (!row || row.sealedPayload.length === 0)
+            throw new NotFoundException();
+        return row;
+    }
+
+    private openPayload(row: {
+        id: string;
+        userId: string;
+        sealedPayload: Uint8Array;
+    }) {
         try {
             return JSON.parse(
                 this.crypto
@@ -536,8 +717,6 @@ export class KycService implements OnModuleInit, OnModuleDestroy {
         else {
             if (cohortStatus(card.cohort, now) === "not_started")
                 flags.push("cohort_not_started");
-            if (studentIdIntakeYear(card.studentId) !== card.cohort.start)
-                flags.push("student_id_cohort_mismatch");
         }
         if (card.studentIdSource === "ocr_single")
             flags.push("student_id_unverified");
