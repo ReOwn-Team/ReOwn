@@ -9,7 +9,7 @@ import {
 import Image from "next/image";
 import { Hcaptcha } from "@/features/auth/components/hcaptcha";
 
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useMock } from "@/mocks/store";
 import type { OtpChallenge } from "@/lib/auth/profile";
 import { authSession } from "@/lib/auth/session";
@@ -251,6 +251,13 @@ function AuthForm({
             wide
             className="auth-dialog"
         >
+            <Image
+                className="auth-mobile-brand"
+                src="/logo.png"
+                alt="ReOwn"
+                width={132}
+                height={44}
+            />
             <div
                 className={`auth-layout auth-view-${view}${challenge ? " is-otp" : ""}`}
                 ref={authLayout}
@@ -258,21 +265,16 @@ function AuthForm({
                 <div className="auth-body">
                     {challenge ? (
                         <header className="otp-hero">
-                            <Image
-                                className="otp-logo"
-                                src="/logo.png"
-                                alt="ReOwn"
-                                width={164}
-                                height={55}
-                                priority
-                            />
+                            <span className="otp-symbol" aria-hidden="true">
+                                <Mail size={24} strokeWidth={1.7} />
+                            </span>
                             <h2>
                                 Xác nhận{" "}
                                 {view === "register" ? "đăng ký" : "đăng nhập"}
                             </h2>
                             <p>
                                 Nhập mã 6 chữ số đã gửi đến{" "}
-                                {challenge.emailHint}.
+                                <strong>{challenge.emailHint}</strong>.
                             </p>
                         </header>
                     ) : view !== "forgot" ? (
@@ -296,17 +298,24 @@ function AuthForm({
                                 Đăng ký
                             </button>
                         </div>
-                    ) : (
-                        <h2>Quên mật khẩu?</h2>
-                    )}
+                    ) : null}
                     {!challenge && (
-                        <p className="muted">
-                            {view === "login"
-                                ? "Đăng nhập để theo dõi đơn hàng và tiếp tục mua, bán trên ReOwn."
-                                : view === "register"
-                                  ? "Tạo tài khoản ReOwn với email và số điện thoại của bạn."
-                                  : "Khôi phục mật khẩu chưa khả dụng vì API hiện chưa hỗ trợ chức năng này."}
-                        </p>
+                        <header className="auth-heading">
+                            <h2>
+                                {view === "login"
+                                    ? "Chào mừng trở lại"
+                                    : view === "register"
+                                      ? "Bắt đầu cùng ReOwn"
+                                      : "Quên mật khẩu?"}
+                            </h2>
+                            <p>
+                                {view === "login"
+                                    ? "Đăng nhập để tiếp tục mua, bán và theo dõi đơn hàng."
+                                    : view === "register"
+                                      ? "Tạo tài khoản để mua món đồ bạn cần, bán món đồ bạn có."
+                                      : "Khôi phục mật khẩu chưa khả dụng vì API hiện chưa hỗ trợ chức năng này."}
+                            </p>
+                        </header>
                     )}
                     {challenge ? (
                         <form
@@ -497,6 +506,12 @@ function AuthForm({
                                                 name={field.key}
                                                 type={field.type}
                                                 autoComplete={field.auto}
+                                                required
+                                                placeholder={
+                                                    field.key === "phone"
+                                                        ? "0901234567"
+                                                        : undefined
+                                                }
                                                 value={field.value}
                                                 disabled={
                                                     busy || captchaVisible
@@ -516,10 +531,6 @@ function AuthForm({
                                             {fieldError(field.key)}
                                         </div>
                                     ))}
-                                    <p className="small muted">
-                                        Dùng số điện thoại của bạn, ví dụ
-                                        0901234567.
-                                    </p>
                                 </>
                             )}
                             {view === "login" && (
@@ -531,6 +542,7 @@ function AuthForm({
                                         id="auth-id"
                                         name="identifier"
                                         autoComplete="username"
+                                        required
                                         value={identifier}
                                         disabled={busy || captchaVisible}
                                         onChange={(e) =>
@@ -553,6 +565,7 @@ function AuthForm({
                                     <input
                                         id="auth-password"
                                         name="password"
+                                        required
                                         type={show ? "text" : "password"}
                                         autoComplete={
                                             view === "register"
@@ -566,9 +579,14 @@ function AuthForm({
                                         }
                                         aria-invalid={!!errors.password}
                                         aria-describedby={
-                                            errors.password
-                                                ? "auth-password-error"
-                                                : undefined
+                                            [
+                                                errors.password &&
+                                                    "auth-password-error",
+                                                view === "register" &&
+                                                    "auth-password-hint",
+                                            ]
+                                                .filter(Boolean)
+                                                .join(" ") || undefined
                                         }
                                     />
                                     <button
@@ -589,7 +607,10 @@ function AuthForm({
                                 </div>
                                 {fieldError("password")}
                                 {view === "register" && (
-                                    <p className="small muted">
+                                    <p
+                                        className="small muted"
+                                        id="auth-password-hint"
+                                    >
                                         Từ 12 đến 128 ký tự.
                                     </p>
                                 )}
@@ -631,41 +652,47 @@ function AuthForm({
                         </form>
                     )}
                     <p className="auth-demo">
-                        Mật khẩu được bảo mật và không lưu trên trình duyệt.
+                        <LockKeyhole size={15} aria-hidden="true" />
+                        <span>
+                            Mật khẩu được bảo mật và không lưu trên trình duyệt.
+                        </span>
                     </p>
                 </div>
                 <aside className="auth-visual" aria-label="Mua bán cùng ReOwn">
-                    <strong className="auth-brand">ReOwn</strong>
-                    <h2>
-                        Đồ cũ.
-                        <br />
-                        Khởi đầu mới.
-                    </h2>
-                    <p>Tìm món đồ bạn cần. Trao tiếp món đồ bạn yêu.</p>
-                    <div className="auth-illustration">
-                        <Image
-                            src="/figma/assets/5ed95.svg"
-                            alt=""
-                            width={230}
-                            height={230}
-                            className="auth-circle"
-                        />
-                        <div className="auth-sample-card">
-                            <Image
-                                src="/figma/laptop.png"
-                                alt="Laptop học tập"
-                                width={240}
-                                height={160}
-                            />
-                            <span>Laptop học tập</span>
-                            <strong>1.000.000₫</strong>
-                        </div>
-                        <span className="auth-sticker">
-                            <small>Món mới mỗi ngày</small>
-                            <b>Thêm giá trị.</b>
-                        </span>
+                    <Image
+                        className="auth-brand"
+                        src="/logo.png"
+                        alt="ReOwn"
+                        width={156}
+                        height={52}
+                    />
+                    <div className="auth-visual-copy">
+                        <h2>
+                            Đồ cũ.
+                            <br />
+                            Khởi đầu mới.
+                        </h2>
+                        <p>
+                            Tìm món đồ bạn cần.
+                            <br />
+                            Trao tiếp món đồ bạn yêu.
+                        </p>
                     </div>
-                    <p className="small muted">Mua thông minh · Bán dễ dàng</p>
+                    <figure className="auth-illustration">
+                        <Image
+                            src="/figma/laptop.png"
+                            alt="Laptop trên bàn làm việc"
+                            width={600}
+                            height={400}
+                            sizes="(max-width: 767px) 1px, 320px"
+                        />
+                        <figcaption>
+                            Một món đồ cũ. Thêm nhiều giá trị mới.
+                        </figcaption>
+                    </figure>
+                    <p className="auth-visual-footer">
+                        Mua thông minh · Bán dễ dàng
+                    </p>
                 </aside>
             </div>
             {captchaVisible && (

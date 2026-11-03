@@ -6,10 +6,6 @@
     padding-block: 32px 56px;
 }
 .account-sidebar {
-    position: sticky;
-    top: 24px;
-    max-height: calc(100dvh - 48px);
-    overflow-y: auto;
     background: white;
     border: 1px solid var(--border);
     border-radius: 16px;

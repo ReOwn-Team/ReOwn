@@ -131,3 +131,204 @@
         font-size: 28px;
     }
 }
+
+/* Account profile */
+.profile-panel {
+    display: grid;
+    gap: 16px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+.profile-identity {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-width: 0;
+    padding: 28px 32px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: white;
+}
+.profile-identity .profile-avatar-image {
+    width: 76px;
+    height: 76px;
+    border: 1px solid #f4d4b7;
+    background: var(--brand-soft);
+    color: var(--brand-strong);
+    font-size: 25px;
+    letter-spacing: -0.04em;
+}
+.profile-identity-copy {
+    min-width: 0;
+}
+.profile-identity-copy > p {
+    margin: 0 0 3px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.profile-identity-copy h2 {
+    margin: 0;
+    font-size: 23px;
+    line-height: 1.35;
+    letter-spacing: -0.025em;
+    overflow-wrap: anywhere;
+}
+.profile-identity-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.profile-identity-meta span + span::before {
+    content: "";
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    margin: 0 12px 3px 0;
+    border-radius: 50%;
+    background: currentColor;
+}
+.profile-sections {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+.profile-details,
+.profile-verification {
+    min-width: 0;
+    padding: 28px 32px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: white;
+}
+.profile-section-heading h2 {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.4;
+}
+.profile-section-heading p {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+.profile-fields {
+    display: grid;
+    gap: 18px;
+    margin-top: 26px;
+}
+.profile-fields .field label {
+    font-size: 13px;
+    font-weight: 600;
+}
+.profile-fields input[readonly] {
+    background: #f7f7f8;
+    color: #4d4d52;
+}
+.profile-contact-hint {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+.profile-details .error {
+    margin: 14px 0 0;
+}
+.profile-save {
+    margin-top: 24px;
+}
+.profile-save .button.primary {
+    background: var(--header-brand);
+    color: white;
+}
+.profile-save .button.primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--header-brand), black 8%);
+}
+.profile-verification .profile-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin-top: 16px;
+}
+.profile-verification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 0;
+}
+.profile-verification-item + .profile-verification-item {
+    border-top: 1px solid var(--border);
+}
+.profile-verification-item > svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--muted);
+}
+.profile-verification-item > div {
+    min-width: 0;
+}
+.profile-verification .profile-overview dt {
+    margin: 0 0 4px;
+    color: var(--foreground);
+    font-size: 13px;
+    font-weight: 600;
+}
+.profile-verification .profile-overview dd {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 400;
+}
+.profile-verification .profile-verify {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    margin: 4px 0 -8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--brand-strong);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+.profile-verification .profile-verify:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+@container account-content (max-width: 700px) {
+    .profile-sections {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+@media (max-width: 767px) {
+    .profile-panel {
+        padding: 0;
+    }
+    .profile-identity,
+    .profile-details,
+    .profile-verification {
+        padding: 22px 20px;
+    }
+    .profile-identity {
+        gap: 16px;
+    }
+    .profile-identity .profile-avatar-image {
+        width: 60px;
+        height: 60px;
+        font-size: 20px;
+    }
+    .profile-identity-copy h2 {
+        font-size: 20px;
+    }
+    .profile-fields input {
+        font-size: 16px;
+    }
+}

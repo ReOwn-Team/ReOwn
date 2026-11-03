@@ -136,13 +136,10 @@ function ListingsContent() {
     return (
         <div className="container page">
             <div className="section-heading">
-                <div>
-                    <h1>Quản lý tin đăng</h1>
-                    <p className="muted">
-                        Giữ tin của bạn luôn đúng trạng thái, để người mua biết
-                        món đồ nào còn bán.
-                    </p>
-                </div>
+                <p className="muted">
+                    Giữ tin của bạn luôn đúng trạng thái, để người mua biết món
+                    đồ nào còn bán.
+                </p>
                 <div className="action-row">
                     <Link className="button secondary" href="/sales">
                         Đơn bán

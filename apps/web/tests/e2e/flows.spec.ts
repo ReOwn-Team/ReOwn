@@ -342,9 +342,7 @@ test("account navigation, recipient validation and reset work", async ({
 }) => {
     await page.goto("/account");
     await login(page);
-    await expect(
-        page.getByRole("heading", { name: "Tài khoản của tôi", level: 1 }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0);
     const mobileMenu = page.locator(".account-mobile-menu > summary");
     if (await mobileMenu.isVisible()) await mobileMenu.click();
     await page

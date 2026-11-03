@@ -5,14 +5,28 @@ import {
     useMotionTokens,
     useShouldReduceMotion,
 } from "@animate-ui/react/utils/motion";
-import { CheckCircle2, Menu, Info, RotateCcw, X } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import {
+    CheckCircle2,
+    Menu,
+    Info,
+    RotateCcw,
+    X,
+    UserRound,
+    ShoppingBag,
+    Tag,
+    Package,
+    LogOut,
+} from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMock } from "@/mocks/store";
 import { useAuth } from "@/lib/auth/provider";
+import { authSession } from "@/lib/auth/session";
+import { errorMessage } from "@/lib/auth/errors";
 import { Dialog } from "@/components/ui/dialog";
+import { DropdownMenu } from "radix-ui";
 import { MobileMenu } from "./mobile-menu";
 import { FigmaIcon, type FigmaIconName } from "@/components/icons/figma-icon";
 
@@ -32,12 +46,51 @@ export function Header() {
     const pathname = usePathname();
     const params = useSearchParams();
     const router = useRouter();
-    const { user, setAuthOpen, requireAuth } = useMock();
+    const { user, setAuthOpen, requireAuth, notify } = useMock();
     const auth = useAuth();
     const visibleUser = user;
     const checkingSession = auth.status === "checking";
     const [query, setQuery] = useState<string | null>(null);
     const [menuTrigger, setMenuTrigger] = useState<HTMLElement | null>(null);
+    const [accountOpen, setAccountOpen] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
+    const [logoutError, setLogoutError] = useState("");
+    const hoverOpened = useRef(false);
+    const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (closeTimer.current) clearTimeout(closeTimer.current);
+        },
+        [],
+    );
+    function cancelAccountClose() {
+        if (closeTimer.current) clearTimeout(closeTimer.current);
+    }
+    function closeAccountOnLeave() {
+        cancelAccountClose();
+        closeTimer.current = setTimeout(() => {
+            if (hoverOpened.current) {
+                hoverOpened.current = false;
+                setAccountOpen(false);
+            }
+        }, 200);
+    }
+    async function logout() {
+        if (loggingOut) return;
+        hoverOpened.current = false;
+        setLoggingOut(true);
+        setLogoutError("");
+        try {
+            await authSession.logout();
+            setAccountOpen(false);
+            notify("Đã đăng xuất.");
+            router.replace("/account");
+        } catch (error) {
+            setLogoutError(errorMessage(error));
+        } finally {
+            setLoggingOut(false);
+        }
+    }
     function submitSearch(event: FormEvent) {
         event.preventDefault();
         const q = (query ?? params.get("q") ?? "").trim();
@@ -62,13 +115,19 @@ export function Header() {
                     className="logo-tile"
                     aria-label="ReOwn — trang chủ"
                 >
-                    <Image
-                        src="/reown-logo.png"
-                        alt="ReOwn"
-                        width={144}
-                        height={48}
-                        priority
-                    />
+                    <picture>
+                        <source
+                            media="(max-width: 767px)"
+                            srcSet="/reown-logo.png"
+                        />
+                        <Image
+                            src="/logo.png"
+                            alt="ReOwn"
+                            width={144}
+                            height={48}
+                            priority
+                        />
+                    </picture>
                 </Link>
                 <form
                     className="header-search"
@@ -101,16 +160,130 @@ export function Header() {
                             <span>Đăng nhập / Đăng ký</span>
                         </button>
                     ) : visibleUser ? (
-                        <Link
-                            className="header-account"
-                            href="/account"
-                            aria-label={`Tài khoản ${visibleUser.name}`}
+                        <DropdownMenu.Root
+                            open={accountOpen}
+                            modal={false}
+                            onOpenChange={(open) => {
+                                hoverOpened.current = false;
+                                setAccountOpen(open);
+                            }}
                         >
-                            <span className="account-icon">
-                                <FigmaIcon name="user" />
-                            </span>
-                            <span>{visibleUser.name}</span>
-                        </Link>
+                            <DropdownMenu.Trigger asChild>
+                                <button
+                                    className="header-account"
+                                    type="button"
+                                    aria-label={`Tài khoản ${visibleUser.name}`}
+                                    onPointerEnter={(event) => {
+                                        if (event.pointerType !== "mouse")
+                                            return;
+                                        cancelAccountClose();
+                                        if (!accountOpen) {
+                                            hoverOpened.current = true;
+                                            setAccountOpen(true);
+                                        }
+                                    }}
+                                    onPointerLeave={(event) => {
+                                        if (event.pointerType === "mouse")
+                                            closeAccountOnLeave();
+                                    }}
+                                    onPointerDown={(event) => {
+                                        if (
+                                            event.button === 0 &&
+                                            hoverOpened.current
+                                        ) {
+                                            event.preventDefault();
+                                            hoverOpened.current = false;
+                                            event.currentTarget.focus();
+                                        }
+                                    }}
+                                >
+                                    <span className="account-icon">
+                                        <FigmaIcon name="user" />
+                                    </span>
+                                    <span>{visibleUser.name}</span>
+                                </button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Portal>
+                                <DropdownMenu.Content
+                                    className="header-account-menu"
+                                    align="start"
+                                    sideOffset={4}
+
+                                    onPointerEnter={cancelAccountClose}
+                                    onPointerLeave={(event) => {
+                                        if (event.pointerType === "mouse")
+                                            closeAccountOnLeave();
+                                    }}
+                                >
+                                    <div className="header-account-menu__identity">
+                                        <span className="header-account-menu__avatar">
+                                            <UserRound
+                                                size={20}
+                                                aria-hidden="true"
+                                            />
+                                        </span>
+                                        <span>
+                                            <small>Tài khoản ReOwn</small>
+                                            <strong>{visibleUser.name}</strong>
+                                        </span>
+                                    </div>
+                                    {[
+                                        {
+                                            label: "Tài khoản của tôi",
+                                            href: "/account",
+                                            Icon: UserRound,
+                                        },
+                                        {
+                                            label: "Đơn mua",
+                                            href: "/orders",
+                                            Icon: ShoppingBag,
+                                        },
+                                        {
+                                            label: "Tin đăng của tôi",
+                                            href: "/listings",
+                                            Icon: Tag,
+                                        },
+                                        {
+                                            label: "Đơn bán",
+                                            href: "/sales",
+                                            Icon: Package,
+                                        },
+                                    ].map(({ label, href, Icon }) => (
+                                        <DropdownMenu.Item key={href} asChild>
+                                            <Link href={href}>
+                                                <Icon
+                                                    size={18}
+                                                    aria-hidden="true"
+                                                />
+                                                {label}
+                                            </Link>
+                                        </DropdownMenu.Item>
+                                    ))}
+                                    <DropdownMenu.Separator className="header-account-menu__separator" />
+                                    <DropdownMenu.Item
+                                        className="header-account-menu__logout"
+                                        disabled={loggingOut}
+                                        onSelect={(event) => {
+                                            event.preventDefault();
+                                            void logout();
+                                        }}
+                                    >
+                                        <LogOut size={18} aria-hidden="true" />
+                                        {loggingOut
+                                            ? "Đang đăng xuất…"
+                                            : "Đăng xuất"}
+                                    </DropdownMenu.Item>
+                                    {logoutError && (
+                                        <p
+                                            className="header-account-menu__error"
+                                            role="alert"
+                                        >
+                                            {logoutError}
+                                        </p>
+                                    )}
+                                </DropdownMenu.Content>
+                            </DropdownMenu.Portal>
+                        </DropdownMenu.Root>
                     ) : (
                         <button
                             className="header-account"
@@ -142,33 +315,89 @@ export function Header() {
                     </Link>
                 </div>
             </div>
-            <nav className="header-nav" aria-label="Điều hướng chính">
-                <ul className="container">
-                    {navLinks.map((link) => (
-                        <li key={link.label}>
-                            <Link
-                                href={link.href}
-                                aria-current={
-                                    pathname === link.href.split("?")[0] &&
-                                    Array.from(
-                                        new URLSearchParams(
-                                            link.href.split("?")[1],
-                                        ),
-                                    ).every(
-                                        ([key, value]) =>
-                                            params.get(key) === value,
-                                    )
-                                        ? "page"
-                                        : undefined
-                                }
-                            >
-                                <FigmaIcon name={link.icon} />
-                                {link.label}
+            <div className="header-discovery">
+                <nav className="header-nav" aria-label="Điều hướng chính">
+                    <ul className="container">
+                        <li className="header-nav__category">
+                            <Link href="/browse" className="header-category">
+                                <Image
+                                    src="/figma/assets/nav-category.svg"
+                                    width={19}
+                                    height={19}
+                                    alt=""
+                                    aria-hidden="true"
+                                />
+                                <span>Danh mục sản phẩm</span>
                             </Link>
                         </li>
-                    ))}
-                </ul>
-            </nav>
+                        {navLinks.map((link) => (
+                            <li key={link.label}>
+                                <Link
+                                    href={link.href}
+                                    aria-current={
+                                        pathname === link.href.split("?")[0] &&
+                                        Array.from(
+                                            new URLSearchParams(
+                                                link.href.split("?")[1],
+                                            ),
+                                        ).every(
+                                            ([key, value]) =>
+                                                params.get(key) === value,
+                                        )
+                                            ? "page"
+                                            : undefined
+                                    }
+                                >
+                                    <FigmaIcon name={link.icon} />
+                                    {link.label}
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </nav>
+                <nav
+                    className="header-secondary"
+                    aria-label="Danh mục và thông tin ReOwn"
+                >
+                    <div className="container header-secondary-inner">
+                        <div className="header-community-links">
+                            <Link
+                                href="/team"
+                                className="header-community-item"
+                                aria-current={
+                                    pathname === "/team" ? "page" : undefined
+                                }
+                            >
+                                <span className="header-community-icon team">
+                                    <Image
+                                        src="/figma/assets/nav-team.svg"
+                                        width={22}
+                                        height={22}
+                                        alt=""
+                                        aria-hidden="true"
+                                    />
+                                </span>
+                                <span>Đội Ngũ ReOwn</span>
+                            </Link>
+                            <Link
+                                href="/help?topic=partnership"
+                                className="header-community-item"
+                            >
+                                <span className="header-community-icon partnership">
+                                    <Image
+                                        src="/figma/assets/nav-partnership.svg"
+                                        width={22}
+                                        height={22}
+                                        alt=""
+                                        aria-hidden="true"
+                                    />
+                                </span>
+                                <span>Liên hệ hợp tác</span>
+                            </Link>
+                        </div>
+                    </div>
+                </nav>
+            </div>
             {menuTrigger && (
                 <MobileMenu
                     links={navLinks}
@@ -176,58 +405,6 @@ export function Header() {
                     onClose={() => setMenuTrigger(null)}
                 />
             )}
-            <nav
-                className="header-secondary"
-                aria-label="Danh mục và thông tin ReOwn"
-            >
-                <div className="container header-secondary-inner">
-                    <div className="header-category">
-                        <Image
-                            src="/figma/assets/nav-category.svg"
-                            width={19}
-                            height={19}
-                            alt=""
-                            aria-hidden="true"
-                        />
-                        <span>Danh mục sản phẩm</span>
-                    </div>
-                    <div className="header-community-links">
-                        <Link
-                            href="/team"
-                            className="header-community-item"
-                            aria-current={
-                                pathname === "/team" ? "page" : undefined
-                            }
-                        >
-                            <span className="header-community-icon team">
-                                <Image
-                                    src="/figma/assets/nav-team.svg"
-                                    width={22}
-                                    height={22}
-                                    alt=""
-                                    aria-hidden="true"
-                                />
-                            </span>
-                            <span>Đội Ngũ ReOwn</span>
-                        </Link>
-                        <Link
-                            href="/help?topic=partnership"
-                            className="header-community-item"
-                        >
-                            <span className="header-community-icon partnership">
-                                <Image
-                                    src="/figma/assets/nav-partnership.svg"
-                                    width={22}
-                                    height={22}
-                                    alt=""
-                                    aria-hidden="true"
-                                />
-                            </span>
-                            <span>Liên hệ hợp tác</span>
-                        </Link>
-                    </div>
-                </div>
-            </nav>
         </header>
     );
 }

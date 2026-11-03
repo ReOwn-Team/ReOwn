@@ -66,11 +66,13 @@ export function AccountWorkspace({ children }: { children: ReactNode }) {
           ? "Đơn bán"
           : pathname === "/listings" || pathname === "/sell"
             ? "Tin đăng của tôi"
-            : params.get("tab") === "addresses"
-              ? "Địa chỉ nhận hàng"
-              : params.get("tab") === "security"
-                ? "Mật khẩu & bảo mật"
-                : "Tài khoản";
+            : params.get("tab") === "installments"
+              ? "Trả sau"
+              : params.get("tab") === "addresses"
+                ? "Địa chỉ nhận hàng"
+                : params.get("tab") === "security"
+                  ? "Mật khẩu & bảo mật"
+                  : "Tài khoản";
 
     return (
         <div className="container account-workspace">

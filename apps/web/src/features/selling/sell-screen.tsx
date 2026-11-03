@@ -8,7 +8,14 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 import { ProductCard } from "@/features/products/components/product-card";
 import { ProductPhotoPreview } from "./components/product-photo-preview";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, X, ImagePlus } from "lucide-react";
+import {
+    ArrowLeft,
+    ArrowRight,
+    X,
+    ImagePlus,
+    ShieldCheck,
+    Save,
+} from "lucide-react";
 import {
     categories,
     money,
@@ -310,12 +317,10 @@ function SellForm({ editingId }: { editingId: string | null }) {
         ) : null;
     return (
         <div className="container page sell-page">
-            <div className="section-heading">
+            <div className="section-heading sell-heading">
                 <div>
                     <h1>
-                        {existing
-                            ? "Chỉnh sửa tin đăng"
-                            : "Đồ bạn không dùng. Ai đó đang cần."}
+                        {existing ? "Chỉnh sửa tin đăng" : "Đăng bán sản phẩm"}
                     </h1>
                     <p className="muted">
                         {sellerConfirmation
@@ -324,7 +329,8 @@ function SellForm({ editingId }: { editingId: string | null }) {
                     </p>
                 </div>
                 <button
-                    className="plain-button"
+                    className="sell-save-draft"
+                    type="button"
                     disabled={saving || publishing}
                     onClick={async () => {
                         setSaving(true);
@@ -339,6 +345,7 @@ function SellForm({ editingId }: { editingId: string | null }) {
                         }
                     }}
                 >
+                    <Save size={17} aria-hidden="true" />
                     {saving ? "Đang lưu…" : "Lưu bản nháp"}
                 </button>
             </div>
@@ -387,26 +394,7 @@ function SellForm({ editingId }: { editingId: string | null }) {
                     {draftError}
                 </p>
             )}
-            <p className="small muted">
-                Ảnh gốc và metadata được lưu riêng tư trong 30 ngày để đối
-                chiếu. Bản ảnh đã bỏ metadata được gửi qua OpenRouter tới nhà
-                cung cấp AI để hỗ trợ quản trị viên xem xét. Nhà cung cấp có thể
-                lưu hoặc dùng bản ảnh này và mô tả tin đăng để huấn luyện AI.
-            </p>
-            <nav className="sell-step-nav" aria-label="Các phần của tin đăng">
-                {[
-                    ["photos", "Ảnh sản phẩm"],
-                    ["details", "Thông tin"],
-                    ["condition", "Tình trạng"],
-                    ["price", "Giá bán"],
-                    ["delivery", "Giao nhận"],
-                ].map(([id, label], index) => (
-                    <a key={id} href={`#sell-section-${id}`}>
-                        <span>{index + 1}</span>
-                        {label}
-                    </a>
-                ))}
-            </nav>
+
             <form
                 className="two-column sell-layout"
                 onSubmit={submit}
@@ -420,7 +408,7 @@ function SellForm({ editingId }: { editingId: string | null }) {
                             id="sell-section-photos"
                             tabIndex={-1}
                         >
-                            <h2>1. Ảnh sản phẩm</h2>
+                            <h2>Ảnh sản phẩm</h2>
                             <p className="small muted">
                                 Dùng ảnh gốc có giờ chụp và vị trí GPS. Chụp rõ
                                 cả những chỗ trầy xước hoặc hư hỏng.
@@ -529,12 +517,19 @@ function SellForm({ editingId }: { editingId: string | null }) {
                                 ))}
                                 {draft.images.length < 6 && (
                                     <label className="photo-upload">
-                                        <ImagePlus size={24} />
+                                        <ImagePlus
+                                            size={25}
+                                            aria-hidden="true"
+                                        />
                                         <span>
                                             {reading
                                                 ? "Đang đọc ảnh…"
                                                 : "Thêm ảnh"}
                                         </span>
+                                        <small>
+                                            {draft.images.length}/6 ảnh · Tối đa
+                                            5MB mỗi ảnh
+                                        </small>
                                         <input
                                             type="file"
                                             aria-label="Ảnh sản phẩm"
@@ -571,13 +566,24 @@ function SellForm({ editingId }: { editingId: string | null }) {
                                     {imageError}
                                 </p>
                             )}
+                            <div className="sell-privacy-notice">
+                                <ShieldCheck size={18} aria-hidden="true" />
+                                <p>
+                                    Ảnh gốc và metadata được lưu riêng tư trong
+                                    30 ngày để đối chiếu. Bản ảnh đã bỏ metadata
+                                    được gửi qua OpenRouter tới nhà cung cấp AI
+                                    để hỗ trợ quản trị viên xem xét. Nhà cung
+                                    cấp có thể lưu hoặc dùng bản ảnh này và mô
+                                    tả tin đăng để huấn luyện AI.
+                                </p>
+                            </div>
                         </section>
                         <section
                             className="panel stack"
                             id="sell-section-details"
                             tabIndex={-1}
                         >
-                            <h2>2. Thông tin cơ bản</h2>
+                            <h2>Thông tin cơ bản</h2>
                             <div className="field">
                                 <label htmlFor="sell-title">Tên sản phẩm</label>
                                 <input
@@ -642,7 +648,7 @@ function SellForm({ editingId }: { editingId: string | null }) {
                             id="sell-section-condition"
                             tabIndex={-1}
                         >
-                            <h2>3. Tình trạng thực tế</h2>
+                            <h2>Tình trạng thực tế</h2>
                             <fieldset className="field">
                                 <legend>Tình trạng</legend>
                                 <div className="sell-conditions">
@@ -695,7 +701,7 @@ function SellForm({ editingId }: { editingId: string | null }) {
                             id="sell-section-price"
                             tabIndex={-1}
                         >
-                            <h2>4. Giá bán</h2>
+                            <h2>Giá bán</h2>
                             <div className="field">
                                 <label htmlFor="sell-price">Giá bán (đ)</label>
                                 <input
@@ -729,7 +735,7 @@ function SellForm({ editingId }: { editingId: string | null }) {
                             id="sell-section-delivery"
                             tabIndex={-1}
                         >
-                            <h2>5. Khu vực và giao nhận</h2>
+                            <h2>Khu vực và giao nhận</h2>
                             <div className="field">
                                 <label htmlFor="sell-location">
                                     Khu vực bán
@@ -845,10 +851,12 @@ function SellForm({ editingId }: { editingId: string | null }) {
                     </div>
                     <aside
                         className="stack sell-preview"
-                        aria-label="Xem trước và hướng dẫn đăng tin"
+                        aria-label="Xem trước tin đăng"
                     >
-                        <section className="panel stack">
-                            <h2>Tin của bạn sẽ trông như thế này</h2>
+                        <section className="panel stack sell-preview-card">
+                            <div className="sell-preview-heading">
+                                <h2>Xem trước tin đăng</h2>
+                            </div>
                             <ProductCard
                                 product={preview}
                                 preview
@@ -871,20 +879,6 @@ function SellForm({ editingId }: { editingId: string | null }) {
                                     )
                                 }
                             />
-                            <p className="small muted">
-                                {draft.images.length
-                                    ? "Ảnh bìa, tên và giá rõ ràng giúp người mua dễ tìm thấy."
-                                    : "Thêm ảnh gốc để xem trước tin đăng của bạn."}
-                            </p>
-                        </section>
-                        <section className="panel stack">
-                            <h3>Một tin đăng dễ được tin tưởng</h3>
-                            <ul className="listing-tips">
-                                <li>Ảnh thật của chính sản phẩm.</li>
-                                <li>Nêu cả ưu điểm và điểm chưa tốt.</li>
-                                <li>Mức giá phù hợp với tình trạng.</li>
-                                <li>Giữ trao đổi và giao dịch trên ReOwn.</li>
-                            </ul>
                         </section>
                     </aside>
                 </fieldset>

@@ -8,6 +8,7 @@ import { AuthGate } from "@/features/auth/components/auth-gate";
 import { ProfileTab } from "@/features/account/components/profile-tab";
 import { AddressesTab } from "@/features/account/components/addresses-tab";
 import { SecurityTab } from "@/features/account/components/security-tab";
+import { InstallmentsTab } from "@/features/account/components/installments-tab";
 import { VerificationDialog } from "@/features/account/components/verification-dialog";
 export function AccountScreen() {
     return (
@@ -24,16 +25,11 @@ function AccountContent() {
     const [kyc, setKyc] = useState(false);
     return (
         <div className="container page">
-            <h1>
-                {tab === "addresses"
-                    ? "Địa chỉ nhận hàng"
-                    : tab === "security"
-                      ? "Mật khẩu & bảo mật"
-                      : "Tài khoản của tôi"}
-            </h1>
             <div className="account-content">
                 <div className="stack">
-                    {tab === "addresses" ? (
+                    {tab === "installments" ? (
+                        <InstallmentsTab />
+                    ) : tab === "addresses" ? (
                         <AddressesTab />
                     ) : tab === "security" ? (
                         <SecurityTab />

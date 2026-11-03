@@ -99,9 +99,7 @@ test("account navigation stays available across sections and order details", asy
     await navigate("Đơn bán", /\/sales$/);
     await navigate("Tin đăng của tôi", /\/listings$/);
     await navigate("Địa chỉ nhận hàng", /\/account\?tab=addresses$/);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-        "Địa chỉ nhận hàng",
-    );
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0);
     await navigate("Mật khẩu & bảo mật", /\/account\?tab=security$/);
     await navigate("Tài khoản", /\/account$/);
     await expect(page.getByLabel("Tên hiển thị")).toHaveValue("Nguyễn An");
