@@ -1,99 +1,95 @@
 # ReOwn
 
-**A secondhand marketplace experience designed for students.** ReOwn brings product discovery, budget-aware recommendations, and buyer and seller trust signals into one responsive web app.
+A secondhand marketplace project for students, being rebuilt with Next.js and NestJS.
 
-> [!IMPORTANT]
-> ReOwn is currently a **frontend prototype**. Accounts, listings, orders, wallets, and installment payments are simulated with sample data stored in the browser. No transactions, identity checks, lending, or payments are processed. A new backend is planned but has not been implemented.
+> The Next.js frontend implements the ReOwn marketplace UI with real account authentication through a server-side Redis session. Marketplace transactions, payments and verification remain demo flows. The previous Vite demo is preserved in [`drafts/web-v1`](drafts/web-v1/README.md).
 
-## What you can explore
+## Current stack
 
-- Browse and search secondhand listings, then filter by category, price, condition, and seller trust.
-- Adjust income, savings, and interests to explore budget-based recommendations.
-- Walk through simulated buying, selling, messaging, notifications, and order flows.
-- Inspect buyer and seller scoring explanations and example installment schedules.
-- Use the responsive interface in light or dark mode.
+| Area                   | Implementation                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Frontend               | Next.js 16 App Router, React, TypeScript, Tailwind CSS 4                                                     |
+| Backend                | NestJS, TypeScript, PostgreSQL, Prisma                                                                       |
+| API contract           | OpenAPI plus generated types in `shared/api`                                                                 |
+| Authentication backend | Email/phone-password login, short-lived JWT, rotating HttpOnly refresh cookies                               |
+| Shared logic           | Existing JavaScript search, scoring and policy modules                                                       |
+| Tests                  | Vitest for shared logic, Playwright for the new web shell, Jest and PostgreSQL integration tests for the API |
 
-These flows demonstrate product behavior, **not** a production financial service.
+Redis supports shared API auth rate limits and JSON caching with TTL; see [Redis setup](apps/api/REDIS.md). Cloudflare R2, deployment containers and marketplace endpoints remain future integrations. Search options such as PostgreSQL full-text search, pgvector or Elasticsearch should be evaluated against real requirements. PyTorch/TensorFlow are not current dependencies; there is no selected AI provider or custom model stack.
 
-## Technology
+## Run the new frontend
 
-### Planned stack
-
-| Layer | Technology |
-| --- | --- |
-| Frontend | Next.js, React, TypeScript |
-| Styling | Tailwind CSS |
-| Backend | NestJS, TypeScript |
-| Runtime | Node.js |
-| Database | PostgreSQL |
-| ORM | Prisma |
-| Cache and job queues | Redis (planned) |
-| Object storage | Cloudflare R2 |
-| Containers | Docker |
-| Source control and CI | GitHub, GitHub Actions |
-
-Redis is intended for short-lived caching, rate limiting, and background jobs; PostgreSQL remains the system of record. Job queue tooling is not selected yet.
-
-### Search and AI: future options
-
-| Need | Candidate | When to consider it |
-| --- | --- | --- |
-| Product search | PostgreSQL full-text search first; Elasticsearch only if search requirements or scale justify a separate index | Advanced relevance, typo tolerance, or high-volume faceting beyond the simpler approach. |
-| Semantic search | PostgreSQL with pgvector | Vector-based retrieval if a validated feature needs it. |
-| Custom model training | PyTorch **or** TensorFlow | Only if real data and a defined AI use case warrant training and maintaining a model. |
-
-These are **evaluation candidates**, not selected dependencies. Elasticsearch is a search engine, not a replacement for PostgreSQL as the system of record; PyTorch and TensorFlow are machine-learning frameworks, not required for API-based AI features. Any AI service would sit behind the NestJS API. Model provider and inference tooling remain undecided. Current scoring and recommendations are rule-based, not AI-powered.
-
-### Current prototype
-
-The runnable frontend uses React 19, React Router 7, JavaScript (JSX), CSS, and Vite 8. Mock data and interactions run in the browser using `localStorage` and shared JavaScript modules. Vitest and Playwright cover the frontend; Vercel currently builds the static web app. The former Express/PostgreSQL backend is archived in [drafts/api-v1/](drafts/api-v1/) and is not deployed. PostgreSQL and Docker exist only in that archive. **Next.js, Tailwind CSS, NestJS, Prisma, Redis, and Cloudflare R2 are not implemented yet.**
-
-## Run locally
-
-**Requirements:** Node.js 22 and npm.
+Use Node.js 22.12+ and npm. From the repository root:
 
 ```bash
 npm ci
+npm ci --prefix apps/web
 npm run dev
 ```
 
-Visit http://localhost:5173. The prototype runs without PostgreSQL or an API server. Leave `VITE_API_URL` unset or empty to enable the browser-based demo. Demo state is stored in your browser; clearing site storage resets local changes.
+Visit **http://localhost:3001**. Each app owns its package and lockfile; this repository does not use npm workspaces. Root scripts delegate web commands to `apps/web`, while root dependencies only run shared tests.
 
-## Development
+The web uses a Next.js BFF and Redis sessions. Copy `apps/web/.env.example` to `.env.local`, start Redis and the API, then run the web. Credentials stay server-side; the browser keeps an opaque HttpOnly session cookie. See [web setup](apps/web/README.md), [server session architecture](apps/web/SERVER_SESSIONS.md), [API account setup](apps/api/USERS.md) and [OpenAPI contract](apps/api/OPENAPI.md).
 
-| Command | Description |
-| --- | --- |
-| `npm test` | Run unit tests for shared logic and the web prototype. |
-| `npm run build` | Create a production build in `dist/`. |
-| `npm run preview` | Serve the production build locally. |
-| `npm run e2e` | Run Playwright tests against the demo. |
+## Run the API
 
-Install the browser before the first end-to-end run:
+From the repository root:
 
 ```bash
-npx playwright install chromium
+npm ci --prefix apps/api
+npm --prefix apps/api run prisma:generate
+npm --prefix apps/api run dev
+```
+
+Configure `apps/api/.env` first, including PostgreSQL `DATABASE_URL`, a strong `JWT_SECRET` and origin/cookie settings. Review migrations before applying them to a database with data. The API listens on port 3000; routes use `/api/v1`, with Swagger at `/docs`. See [backend README](apps/api/README.md) for setup and limitations.
+
+## Development commands
+
+Run from the repository root:
+
+| Command             | Purpose                                                                |
+| ------------------- | ---------------------------------------------------------------------- |
+| `npm run dev`       | Start Next.js on port 3001                                             |
+| `npm run build`     | Build the frontend into `apps/web/.next`                               |
+| `npm start`         | Serve the built frontend on port 3001                                  |
+| `npm run lint`      | ESLint for the new web app                                             |
+| `npm run typecheck` | Next route type generation and TypeScript checking                     |
+| `npm test`          | Shared unit tests, independent of frontend demo data                   |
+| `npm run e2e`       | Desktop/mobile smoke and accessibility tests against the built web app |
+
+Before running E2E locally:
+
+```bash
+npm --prefix apps/web exec -- playwright install chromium
+npm run build
 npm run e2e
 ```
 
-GitHub Actions runs unit tests, builds the web app, and exercises browser flows on pushes and pull requests.
+Backend tests remain under `apps/api/tests`; run them from that app. OpenAPI changes require `npm run openapi:generate` and `npm run openapi:check` there. Do not edit generated contract files manually.
+
+GitHub Actions installs root/web dependencies separately, runs shared tests and web lint/typecheck/build/smoke tests. API quality/contract and isolated PostgreSQL jobs remain separate. Archived prototype tests are retained but are no longer gates for the new frontend.
 
 ## Repository layout
 
 ```text
 apps/
-  web/               Current React/Vite prototype; planned Next.js frontend
-  api/               Reserved for the planned NestJS backend (no service yet)
-shared/              Search, scoring, and policy logic
+  web/                New Next.js frontend scaffold
+  api/                NestJS API with auth/session/profile endpoints
+shared/
+  api/                Generated contract and type-only exports
+  tests/              Shared unit tests and independent fixture data
+  scoring/            Existing scoring logic
 drafts/
-  api-v1/            Archived Express/PostgreSQL backend
-docs/                Product and architecture documentation
-.github/workflows/    Automated checks
+  web-v1/             Complete previous Vite frontend snapshot
+  api-v1/             Archived Express/PostgreSQL backend
+docs/                 Product/architecture reference documents
+.github/workflows/    Web/shared and backend CI
 ```
 
-The [archived backend](drafts/api-v1/) includes its tests and former Vercel entry point. It is retained for reference, not deployed. Some [documentation](docs/) describes that earlier implementation.
+The frontend archive mirrors the former root layout (`apps/web`, `shared`, `e2e`, package files and Vite configuration), so it can run independently after its own `npm ci`. Its `README.previous.md` preserves the earlier root README, including uncommitted edits at archive time. Older documents may describe historical implementations rather than the current scaffold.
 
-## Deployment status
+## Deployment
 
-[vercel.json](vercel.json) builds and serves the static frontend only. No backend function, API route, or scheduled job is configured. The Vercel build clears `VITE_API_URL` to keep the deployed app in demo mode. Changes to this repository do not affect an existing deployment until it is redeployed.
+For the new frontend, set the Vercel project's **Root Directory to `apps/web`** and use Next.js. Its configuration is now `apps/web/vercel.json`; allow access to repository files outside the root directory for `shared/api` types. The former root Vite config is preserved only in the archive.
 
-For the backend rewrite, start in [apps/api/](apps/api/). Review the archived code and documentation as references, not as production-ready components.
+Do not reuse the old Vite build command, `dist` output directory or demo environment setup. Configure the real API URL and HTTPS origin/cookie settings before deployment. This initialization did not deploy an app, change production data, or configure API hosting.

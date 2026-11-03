@@ -1676,11 +1676,14 @@ dialog.dialog[data-state="closing"]::backdrop {
 }
 
 dialog.captcha-dialog {
-    max-width: 352px;
+    width: calc(100% - 24px);
+    max-width: 480px;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
     border-radius: 12px;
 }
 .captcha-dialog > .dialog-content {
-    padding: 44px 24px 20px;
+    padding: 44px 16px 16px;
 }
 .captcha-dialog .dialog-close {
     top: 6px;
@@ -1697,6 +1700,23 @@ dialog.captcha-dialog {
 }
 .captcha-puzzle {
     overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+.captcha-puzzle > iframe {
+    max-width: none;
+}
+.captcha-scroll-hint {
+    display: none;
+    margin: 12px 0 8px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+@media (max-width: 480px) {
+    .captcha-scroll-hint {
+        display: block;
+    }
 }
 /* The SDK keeps an inactive challenge iframe mounted; it must not reserve space. */
 .captcha-puzzle > iframe[aria-hidden="true"] {
