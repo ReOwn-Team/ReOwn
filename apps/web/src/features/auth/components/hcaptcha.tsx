@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 type HcaptchaApi = {
     render: (element: HTMLElement, options: Record<string, unknown>) => string;
     remove: (id: string) => void;
+    reset: (id: string) => void;
 };
 declare global {
     interface Window {
@@ -59,6 +60,8 @@ export function Hcaptcha({
     onError: (message: string) => void;
 }) {
     const container = useRef<HTMLDivElement>(null);
+    const challengeDialog = useRef<HTMLDialogElement>(null);
+    const widgetRef = useRef<{ api: HcaptchaApi; id: string } | null>(null);
     const puzzleId = `hcaptcha-puzzle-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
     const callbacks = useRef({ onVerify, onError });
     const [loaded, setLoaded] = useState(false);
@@ -67,6 +70,7 @@ export function Hcaptcha({
         callbacks.current = { onVerify, onError };
     }, [onVerify, onError]);
     useEffect(() => {
+        const dialog = challengeDialog.current;
         let active = true,
             used = false;
         let widget: string | undefined;
@@ -96,10 +100,15 @@ export function Hcaptcha({
                             : "normal",
                     "challenge-container": puzzleId,
                     "open-callback": () => {
-                        if (active) setChallengeOpen(true);
+                        if (!active) return;
+                        const dialog = challengeDialog.current;
+                        if (dialog && !dialog.open) dialog.showModal();
+                        setChallengeOpen(true);
                     },
                     "close-callback": () => {
-                        if (active) setChallengeOpen(false);
+                        if (!active) return;
+                        if (challengeDialog.current?.open) challengeDialog.current.close();
+                        setChallengeOpen(false);
                     },
                     callback: (token: string) => {
                         if (!active || used || !token) return;
@@ -110,6 +119,7 @@ export function Hcaptcha({
                     "expired-callback": failure,
                     "chalexpired-callback": failure,
                 });
+                widgetRef.current = { api, id: widget };
                 setLoaded(true);
             })
             .catch(() => {
@@ -120,6 +130,8 @@ export function Hcaptcha({
             });
         return () => {
             active = false;
+            widgetRef.current = null;
+            if (dialog?.open) dialog.close();
             if (widget !== undefined) {
                 try {
                     api?.remove(widget);
@@ -127,6 +139,12 @@ export function Hcaptcha({
             }
         };
     }, [puzzleId]);
+    function closeChallenge() {
+        const widget = widgetRef.current;
+        if (widget) widget.api.reset(widget.id);
+        if (challengeDialog.current?.open) challengeDialog.current.close();
+        setChallengeOpen(false);
+    }
     return (
         <div className="captcha-widget">
             {!loaded && (
@@ -135,22 +153,32 @@ export function Hcaptcha({
                 </p>
             )}
             <div ref={container} />
-            {challengeOpen && (
-                <p className="captcha-scroll-hint">
-                    Nếu nội dung bị khuất, vuốt ngang để xem đầy đủ.
-                </p>
-            )}
-            <div
-                id={puzzleId}
-                className="captcha-puzzle"
-                role={challengeOpen ? "region" : undefined}
-                aria-label={
-                    challengeOpen
-                        ? "Thử thách xác minh, cuộn ngang nếu cần"
-                        : undefined
-                }
-                tabIndex={challengeOpen ? 0 : undefined}
-            />
+            <dialog
+                ref={challengeDialog}
+                className="captcha-challenge-dialog"
+                aria-label="Thử thách hCaptcha"
+                onCancel={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeChallenge();
+                }}
+            >
+                <button type="button" className="captcha-challenge-close" onClick={closeChallenge}>
+                    Đóng thử thách
+                </button>
+                {challengeOpen && (
+                    <p className="captcha-scroll-hint">
+                        Nếu nội dung bị khuất, vuốt ngang để xem đầy đủ.
+                    </p>
+                )}
+                <div
+                    id={puzzleId}
+                    className="captcha-puzzle"
+                    role={challengeOpen ? "region" : undefined}
+                    aria-label={challengeOpen ? "Thử thách xác minh, cuộn ngang nếu cần" : undefined}
+                    tabIndex={challengeOpen ? 0 : undefined}
+                />
+            </dialog>
         </div>
     );
 }

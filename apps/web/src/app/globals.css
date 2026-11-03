@@ -1677,7 +1677,7 @@ dialog.dialog[data-state="closing"]::backdrop {
 
 dialog.captcha-dialog {
     width: calc(100% - 24px);
-    max-width: 480px;
+    max-width: 352px;
     max-height: calc(100dvh - 24px);
     overflow-y: auto;
     border-radius: 12px;
@@ -1697,6 +1697,37 @@ dialog.captcha-dialog {
 .captcha-widget,
 .captcha-puzzle {
     max-width: 100%;
+}
+dialog.captcha-challenge-dialog {
+    width: min(760px, calc(100% - 24px));
+    max-width: none;
+    max-height: calc(100dvh - 24px);
+    margin: auto;
+    padding: 12px;
+    border: 0;
+    border-radius: 12px;
+    overflow: auto;
+    background: white;
+    color: var(--foreground);
+    box-shadow: 0 28px 64px -16px rgb(29 29 31 / 0.35);
+}
+dialog.captcha-challenge-dialog::backdrop {
+    background: rgb(29 29 31 / 0.45);
+}
+.captcha-challenge-close {
+    display: block;
+    min-height: 44px;
+    margin-left: auto;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--foreground);
+    font: inherit;
+    cursor: pointer;
+}
+.captcha-challenge-close:hover {
+    background: var(--background);
 }
 .captcha-puzzle {
     overflow: auto;
