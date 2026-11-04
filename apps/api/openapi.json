@@ -4838,6 +4838,187 @@
         ]
       }
     },
+    "/api/v1/push/subscriptions": {
+      "delete": {
+        "operationId": "pushUnsubscribe",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "endpoint": {
+                    "description": "HTTPS endpoint on an allowed push provider host",
+                    "maxLength": 2048,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "endpoint"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Subscription removed or already absent"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Remove the current user's push subscription",
+        "tags": [
+          "push"
+        ]
+      },
+      "post": {
+        "operationId": "pushSubscribe",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "endpoint": {
+                    "description": "HTTPS endpoint on an allowed push provider host",
+                    "maxLength": 2048,
+                    "type": "string"
+                  },
+                  "keys": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "type": "string"
+                      },
+                      "p256dh": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "p256dh",
+                      "auth"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "endpoint",
+                  "keys"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Subscription saved"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid JSON or request validation failed; unknown fields are rejected."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "An account with these details already exists; the conflicting field is not disclosed."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpError"
+                }
+              }
+            },
+            "description": "Unexpected server or database error."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Register or update a push subscription (maximum 10 per user)",
+        "tags": [
+          "push"
+        ]
+      }
+    },
     "/api/v1/users/login": {
       "post": {
         "description": "Validates identifier/password and sends an OTP to the account email. Does not create a session. Legacy email/password and phone/password inputs remain supported.",

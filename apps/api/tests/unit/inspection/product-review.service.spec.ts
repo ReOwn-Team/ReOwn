@@ -1,6 +1,7 @@
 import { ProductReviewService } from "../../../src/inspection/product-review.service";
 import { PrismaService } from "../../../src/prisma/prisma.service";
 import { ProductStorageService } from "../../../src/storage/product-storage.service";
+import { PushService } from "../../../src/push/push.service";
 
 const reviewId = "11111111-1111-4111-8111-111111111111";
 const productId = "22222222-2222-4222-8222-222222222222";
@@ -46,6 +47,7 @@ describe("ProductReviewService.edit", () => {
         const service = new ProductReviewService(
             prisma as unknown as PrismaService,
             {} as ProductStorageService,
+            { notifyReview: jest.fn() } as unknown as PushService,
         );
 
         await service.edit(

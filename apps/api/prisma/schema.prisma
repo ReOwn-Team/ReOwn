@@ -35,8 +35,23 @@ model User {
     reportsAssigned        Report[]                @relation("ReportAssignedTo")
     auditLogs              AuditLog[]
     kycSubmissions         KycSubmission[]
+    pushSubscriptions      PushSubscription[]
 
     @@map("users")
+}
+
+model PushSubscription {
+    id           String   @id @default(uuid()) @db.Uuid
+    userId       String   @map("user_id") @db.Uuid
+    endpointHash String   @unique @map("endpoint_hash") @db.VarChar(64)
+    endpoint     String
+    p256dh       String
+    auth         String
+    createdAt    DateTime @default(now()) @map("created_at")
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@map("push_subscriptions")
 }
 
 model Session {

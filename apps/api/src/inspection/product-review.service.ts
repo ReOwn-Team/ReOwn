@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProductStorageService } from "../storage/product-storage.service";
+import { PushService } from "../push/push.service";
 import {
     INSPECTION_PROMPT_VERSION,
     type InspectionSnapshot,
@@ -16,6 +17,7 @@ export class ProductReviewService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly storage: ProductStorageService,
+        private readonly push: PushService,
     ) {}
     async list(cursor?: string) {
         return this.prisma.productReview
@@ -128,7 +130,7 @@ export class ProductReviewService {
         note: string | undefined,
         adminId: string,
     ) {
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             const review = await tx.productReview.findUnique({ where: { id } });
             if (!review) throw new NotFoundException();
             await tx.$queryRaw`SELECT id FROM products WHERE id=${review.productId}::uuid FOR UPDATE`;
@@ -203,8 +205,10 @@ export class ProductReviewService {
                     },
                 },
             });
-            return edited;
+            return { value: edited, sellerId: product.sellerId };
         });
+        void Promise.resolve().then(() => this.push.notifyReview(result.sellerId)).catch(() => undefined);
+        return result.value;
     }
     async decide(
         id: string,
@@ -215,7 +219,7 @@ export class ProductReviewService {
     ) {
         if (decision === "reject" && !reason?.trim())
             throw new BadRequestException("Rejection reason is required");
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             const review = await tx.productReview.findUnique({ where: { id } });
             if (!review) throw new NotFoundException();
             await tx.$queryRaw`SELECT id FROM products WHERE id=${review.productId}::uuid FOR UPDATE`;
@@ -243,7 +247,7 @@ export class ProductReviewService {
                     publishedAt: decision === "approve" ? new Date() : null,
                 },
             });
-            return tx.productReview.update({
+            const updated = await tx.productReview.update({
                 where: { id },
                 data: {
                     status,
@@ -261,7 +265,10 @@ export class ProductReviewService {
                     reviewedAt: true,
                 },
             });
+            return { value: updated, sellerId: product.sellerId };
         });
+        void Promise.resolve().then(() => this.push.notifyReview(result.sellerId)).catch(() => undefined);
+        return result.value;
     }
     async retry(id: string) {
         return this.prisma.$transaction(async (tx) => {

@@ -119,6 +119,8 @@ const routes = [
         "kycReviewDecision",
         [200, 400, 401, 403, 404, 409, 500],
     ],
+    ["post", "/api/v1/push/subscriptions", "pushSubscribe", [204, 400, 401, 409, 500]],
+    ["delete", "/api/v1/push/subscriptions", "pushUnsubscribe", [204, 400, 401, 500]],
     ["get", "/api/v1/health", "healthCheck", [200]],
     [
         "post",

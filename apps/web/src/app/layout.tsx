@@ -6,6 +6,7 @@ import { ExperienceProvider } from "@/components/layout/experience-provider";
 import { MockProvider } from "@/mocks/store";
 import { LiveRegion } from "@/components/layout/site-shell";
 import { SiteFrame } from "@/components/layout/site-frame";
+import { PwaRegistration } from "@/components/layout/pwa-registration";
 import { AuthOverlay } from "@/features/auth/auth-overlay";
 import "./globals.css";
 import "@/features/auth/auth.css";
@@ -26,6 +27,7 @@ export default function RootLayout({
     return (
         <html lang="vi">
             <body>
+                <PwaRegistration />
                 <Suspense
                     fallback={
                         <div className="container" role="status">

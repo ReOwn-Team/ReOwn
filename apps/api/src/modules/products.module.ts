@@ -8,6 +8,7 @@ import { AdminGuard } from "../inspection/admin.guard";
 import { ProductStorageService } from "../storage/product-storage.service";
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
+import { PushModule } from "../push/push.module";
 import { UsersModule } from "./users.module";
 import {
     ProductsController,
@@ -15,7 +16,7 @@ import {
 } from "../controllers/products.controller";
 import { ProductsService } from "../services/products.service";
 @Module({
-    imports: [PrismaModule, UsersModule],
+    imports: [PrismaModule, UsersModule, PushModule],
     controllers: [
         ProductsController,
         ProductImagesController,

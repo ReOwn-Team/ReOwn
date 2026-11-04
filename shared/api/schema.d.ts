@@ -519,6 +519,24 @@ export interface paths {
         patch: operations["productsStatus"];
         trace?: never;
     };
+    "/api/v1/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register or update a push subscription (maximum 10 per user) */
+        post: operations["pushSubscribe"];
+        /** Remove the current user's push subscription */
+        delete: operations["pushUnsubscribe"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/login": {
         parameters: {
             query?: never;
@@ -605,20 +623,17 @@ export interface components {
             statusCode: number;
         };
         /** @description Send exactly one identifier form: identifier (email or E.164 phone), legacy email, or phone, together with password. Email is trimmed/lowercased. */
-        LoginUserRequest:
-            | {
-                  identifier: string;
-                  password: string;
-              }
-            | {
-                  /** Format: email */
-                  email: string;
-                  password: string;
-              }
-            | {
-                  password: string;
-                  phone: string;
-              };
+        LoginUserRequest: {
+            identifier: string;
+            password: string;
+        } | {
+            /** Format: email */
+            email: string;
+            password: string;
+        } | {
+            password: string;
+            phone: string;
+        };
         OtpChallenge: {
             challengeId: string;
             emailHint: string;
@@ -636,28 +651,19 @@ export interface components {
         };
         ProductInput: {
             /** @enum {string} */
-            category:
-                | "Laptop"
-                | "Điện thoại"
-                | "Phụ kiện"
-                | "Sách"
-                | "Đồ dùng"
-                | "Sở thích";
+            category: "Laptop" | "Điện thoại" | "Phụ kiện" | "Sách" | "Đồ dùng" | "Sở thích";
             /** @enum {string} */
             condition: "Như mới" | "Dùng tốt" | "Cần sửa chữa";
             /** @enum {boolean} */
             confirmed: true;
             description: string;
             fulfillmentMethods: ("shipping" | "meetup")[];
-            images: (
-                | {
-                      /** Format: uuid */
-                      id: string;
-                  }
-                | {
-                      upload: number;
-                  }
-            )[];
+            images: ({
+                /** Format: uuid */
+                id: string;
+            } | {
+                upload: number;
+            })[];
             knownDefects: string;
             location: string;
             price: number;
@@ -709,8 +715,7 @@ export interface components {
             /** Format: uuid */
             reviewId: string;
             /** @enum {string} */
-            status:
-                "queued" | "processing" | "completed" | "failed" | "cancelled";
+            status: "queued" | "processing" | "completed" | "failed" | "cancelled";
             updatedAt: string;
         };
         ProductInspectionReport: {
@@ -786,21 +791,11 @@ export interface components {
                     }[];
                 } | null;
                 /** @enum {string} */
-                status:
-                    | "queued"
-                    | "processing"
-                    | "completed"
-                    | "failed"
-                    | "cancelled";
+                status: "queued" | "processing" | "completed" | "failed" | "cancelled";
                 updatedAt: string;
             } | null;
             /** @enum {string} */
-            reviewStatus:
-                | "not_required"
-                | "pending"
-                | "seller_confirmation"
-                | "approved"
-                | "rejected";
+            reviewStatus: "not_required" | "pending" | "seller_confirmation" | "approved" | "rejected";
             revision: number;
         };
         ProductResponse: {
@@ -823,12 +818,7 @@ export interface components {
             publishedAt: string | null;
             rejectionReason: string | null;
             /** @enum {string} */
-            reviewStatus:
-                | "not_required"
-                | "pending"
-                | "approved"
-                | "seller_confirmation"
-                | "rejected";
+            reviewStatus: "not_required" | "pending" | "seller_confirmation" | "approved" | "rejected";
             revision: number;
             seller: {
                 displayName: string;
@@ -917,23 +907,13 @@ export interface components {
                 /** Format: uuid */
                 reviewId: string;
                 /** @enum {string} */
-                status:
-                    | "queued"
-                    | "processing"
-                    | "completed"
-                    | "failed"
-                    | "cancelled";
+                status: "queued" | "processing" | "completed" | "failed" | "cancelled";
                 updatedAt: string;
             }[];
             product: {
                 deletedAt: string | null;
                 /** @enum {string} */
-                reviewStatus:
-                    | "not_required"
-                    | "pending"
-                    | "seller_confirmation"
-                    | "approved"
-                    | "rejected";
+                reviewStatus: "not_required" | "pending" | "seller_confirmation" | "approved" | "rejected";
                 revision: number;
             };
             /** Format: uuid */
@@ -963,12 +943,7 @@ export interface components {
                 title: string;
             };
             /** @enum {string} */
-            status:
-                | "pending"
-                | "seller_confirmation"
-                | "approved"
-                | "rejected"
-                | "superseded";
+            status: "pending" | "seller_confirmation" | "approved" | "rejected" | "superseded";
         };
         ProductReviewEdit: {
             /** Format: uuid */
@@ -986,13 +961,7 @@ export interface components {
         ProductReviewEditRequest: {
             changes: {
                 /** @enum {string} */
-                category?:
-                    | "Laptop"
-                    | "Điện thoại"
-                    | "Phụ kiện"
-                    | "Sách"
-                    | "Đồ dùng"
-                    | "Sở thích";
+                category?: "Laptop" | "Điện thoại" | "Phụ kiện" | "Sách" | "Đồ dùng" | "Sở thích";
                 /** @enum {string} */
                 condition?: "Như mới" | "Dùng tốt" | "Cần sửa chữa";
                 description?: string;
@@ -1141,9 +1110,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -1210,9 +1177,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -1287,9 +1252,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -1594,9 +1557,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -1676,9 +1637,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -1815,9 +1774,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -1905,9 +1862,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -2173,9 +2128,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -2270,9 +2223,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Resource not found or not owned by the current user. */
@@ -2363,9 +2314,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -2477,9 +2426,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -2556,9 +2503,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -2615,9 +2560,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Resource not found or not owned by the current user. */
@@ -2673,9 +2616,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -2758,9 +2699,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -2830,9 +2769,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -2855,6 +2792,123 @@ export interface operations {
             };
             /** @description An account with these details already exists; the conflicting field is not disclosed. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    pushSubscribe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description HTTPS endpoint on an allowed push provider host */
+                    endpoint: string;
+                    keys: {
+                        auth: string;
+                        p256dh: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Subscription saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description An account with these details already exists; the conflicting field is not disclosed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Unexpected server or database error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HttpError"];
+                };
+            };
+        };
+    };
+    pushUnsubscribe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description HTTPS endpoint on an allowed push provider host */
+                    endpoint: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Subscription removed or already absent */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid JSON or request validation failed; unknown fields are rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
+                };
+            };
+            /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2908,9 +2962,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -3030,9 +3082,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description Invalid credentials, missing/expired token, inactive user, or expired/revoked session. Login failures do not identify which credential failed. */
@@ -3090,9 +3140,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json":
-                        | components["schemas"]["ValidationError"]
-                        | components["schemas"]["HttpError"];
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["HttpError"];
                 };
             };
             /** @description CSRF policy rejected the Origin or X-ReOwn-Client header; this is not a login failure. */
