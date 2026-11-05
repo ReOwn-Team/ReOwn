@@ -646,8 +646,10 @@
     }
     .home-marketplace-section,
     .home-price-shelf {
-        padding: 14px 10px;
-        border-radius: 14px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
     }
     .home-marketplace-section h2,
     .home-price-shelf h2 {
@@ -690,8 +692,11 @@
     .home-shelf-controls > button {
         display: none;
     }
+    .home-price-track .product-grid {
+        gap: 8px;
+    }
     .home-price-track .product-grid > div {
-        flex-basis: 168px;
+        flex-basis: calc((100% - 8px) / 2);
     }
     .home-footnote {
         font-size: 9px;

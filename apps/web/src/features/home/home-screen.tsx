@@ -247,6 +247,21 @@ export function HomeScreen() {
                     đặt hàng.
                 </p>
             </section>
+            {products.length > 0 && (
+                <section
+                    aria-labelledby="explore-heading"
+                    className="stack home-marketplace-section home-explore"
+                >
+                    <div className="section-heading">
+                        <h2 id="explore-heading">Khám phá sản phẩm</h2>
+                        <Link className="home-section-link" href="/browse">
+                            Xem tất cả{" "}
+                            <ArrowRight size={14} aria-hidden="true" />
+                        </Link>
+                    </div>
+                    <ProductGrid items={products.slice(0, 12)} />
+                </section>
+            )}
             <ProductShelf items={budgetPicks} />
             <section className="home-budget" aria-labelledby="budget-heading">
                 <div className="home-budget-top">
