@@ -181,6 +181,16 @@
         overflow-y: auto;
     }
 }
+@media (min-width: 768px) and (max-width: 1023px) {
+    .account-mobile-menu {
+        top: 132px;
+    }
+}
+@media (max-width: 767px) {
+    .account-mobile-menu {
+        top: 76px;
+    }
+}
 
 .account-nav a {
     position: relative;

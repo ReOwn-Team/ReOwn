@@ -23,6 +23,18 @@ async function signIn(page: Page) {
 test.describe("desktop navigation", () => {
     test.skip(({ isMobile }) => Boolean(isMobile), "Desktop navigation only");
 
+    test("desktop header stays visible while scrolling", async ({ page }) => {
+        await page.goto("/");
+        const header = page.locator(".site-header");
+        await page.evaluate(() => window.scrollTo(0, 600));
+        await expect
+            .poll(async () => Math.abs((await header.boundingBox())!.y))
+            .toBeLessThanOrEqual(1);
+        await expect(
+            header.getByRole("searchbox", { name: "Tìm kiếm sản phẩm" }),
+        ).toBeVisible();
+    });
+
     test("search and navigation links update the destination and active state", async ({
         page,
     }) => {
@@ -66,6 +78,25 @@ test.describe("desktop navigation", () => {
 
 test.describe("mobile navigation", () => {
     test.skip(({ isMobile }) => !isMobile, "Mobile navigation only");
+
+    test("brand bar stays at the top while the community row scrolls away", async ({
+        page,
+    }) => {
+        await page.goto("/");
+        const bar = page.locator(".site-header .header-top");
+        const community = page.locator(".site-header .header-secondary");
+        await page.evaluate(() => window.scrollTo(0, 600));
+        await expect
+            .poll(async () => Math.abs((await bar.boundingBox())!.y))
+            .toBeLessThanOrEqual(1);
+        await expect
+            .poll(async () => (await community.boundingBox())!.y)
+            .toBeLessThan(0);
+        await expect(
+            page.getByRole("button", { name: "Mở menu điều hướng" }),
+        ).toBeVisible();
+        await expect(page.locator(".mobile-glass-nav")).toBeVisible();
+    });
 
     test("menu opens by keyboard, navigates, and restores focus on Escape", async ({
         page,

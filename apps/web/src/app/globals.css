@@ -2160,6 +2160,9 @@ main ul:not([class]) {
 /* Desktop exchange navigation; mobile keeps its separately managed layout. */
 @media (min-width: 768px) {
     .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 40;
         background: var(--surface);
         color: var(--foreground);
     }
@@ -2349,6 +2352,18 @@ main ul:not([class]) {
 
 /* Mobile uses a single brand row; discovery and account controls live below. */
 @media (max-width: 767px) {
+    .site-header {
+        display: contents;
+    }
+    .site-header .header-top {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        width: 100%;
+        max-width: none;
+        background: var(--header-brand);
+        color: white;
+    }
     .header-top {
         grid-template-columns: 44px minmax(0, 1fr) 44px;
         min-height: 68px;

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import type { ReactNode } from "react";
 import { ServerAuthProvider } from "@/lib/auth/server/provider";
@@ -12,6 +12,13 @@ import "./globals.css";
 import "@/features/auth/auth.css";
 import "@/features/account/account.css";
 import "@/features/purchase/purchase.css";
+
+export const viewport: Viewport = {
+    themeColor: [
+        { media: "(max-width: 767px)", color: "#ed8324" },
+        { media: "(min-width: 768px)", color: "#ffffff" },
+    ],
+};
 
 export const metadata: Metadata = {
     title: {
